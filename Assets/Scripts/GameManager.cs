@@ -198,7 +198,7 @@ public class GameManager : MonoBehaviour
         //Learn Abilities 3
         SetGameState(GameState.LearnAbilities3);
         yield return new WaitUntil(() => hellhoundHealth.CurrentHealth <= 99);
-        // Сохраняем, что обучение пройдено
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         PlayerPrefs.SetInt("HasCompletedTutorial", 1);
         PlayerPrefs.Save(); 
     }
@@ -208,9 +208,9 @@ public class GameManager : MonoBehaviour
         //Dialogue 6
         SetGameState(GameState.Dialogue6);
         yield return new WaitUntil(() => dialogueManager.dialogues[5].isPassed);
-        Debug.Log("Основной этап игры");
+        Debug.Log("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ");
         yield return new WaitForSeconds(3);
-        // Основной игровой процесс: рандомное комбинирование 2 стадий
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 2 пїЅпїЅпїЅпїЅпїЅпїЅ
         StartCoroutine(BossBattleLoop());
     }
 
@@ -219,7 +219,7 @@ public class GameManager : MonoBehaviour
     private void SetGameState(GameState newState)
     {
         currentLearningState = newState;
-        Debug.Log($"Смена состояния: {newState}");
+        Debug.Log($"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: {newState}");
 
         switch (newState)
         {
@@ -296,7 +296,7 @@ public class GameManager : MonoBehaviour
                 secondStage = bossStages[Random.Range(0, bossStages.Length)];
             }
             while (secondStage == firstStage);
-            //Делаем так чтобы предыдущие две стадии и текущие не были одинаковыми
+            //пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             if(firstStage == previousFirstStage && secondStage == previousSecondStage || firstStage == previousSecondStage && secondStage == previousFirstStage)
             {
                 continue;
@@ -325,31 +325,31 @@ public class GameManager : MonoBehaviour
     }
     private IEnumerator GoodEnding()
     {
-        //Запускаем анимацию финального удара по церберу
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         bodyAndHeads.GetComponent<Animator>().SetTrigger("Death");
         AudioManager.instance.PlaySoundFXClip(finalBlowSound, transform, 0.6f);
         yield return new WaitForSeconds(1f);
         hellhoundEffectsAnimator.SetTrigger("Death");
-        //Цербер падает на колени
+        //пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         yield return new WaitForSeconds(2.9f);
-        //Меняем выражение лиц
+        //пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ
         mops.GetComponent<Animator>().SetBool("Damage", true);
         chih.GetComponent<Animator>().SetBool("Damage", true);
         bul.GetComponent<Animator>().SetBool("Damage", true);
         AudioManager.instance.PlaySoundFXClip(deathSound, transform, 1f);
         
         yield return new WaitForSeconds(3f);
-        //Запускаем первый диалог
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         SetGameState(GameState.GoodEndingDialogue1);
         yield return new WaitUntil(() => dialogueManager.dialogues[6].isPassed);
-        //Падение азбуки
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         InputManager.PlayerInput.SwitchCurrentActionMap("Player");
         SetGameState(GameState.ABC);
         yield return new WaitUntil(() => playerController.hasABC);
-        //Запускаем второй диалог
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         SetGameState(GameState.GoodEndingDialogue2);
         yield return new WaitUntil(() => dialogueManager.dialogues[7].isPassed);
-        //Уход лягушки
+        //пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         lowerLimit.SetActive(false);
         InputManager.PlayerInput.SwitchCurrentActionMap("Cutscene");
         float elapsedTime = 0f;
@@ -361,7 +361,7 @@ public class GameManager : MonoBehaviour
             playerController.GetComponent<Rigidbody2D>().AddForce(new Vector2(0, -1) * 5000f * Time.deltaTime);
             yield return new WaitForFixedUpdate();
         }
-        //Запускаем третий диалог
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         SetGameState(GameState.GoodEndingDialogue3);
         yield return new WaitUntil(() => dialogueManager.dialogues[8].isPassed);
         SceneManager.LoadScene("End");
@@ -370,11 +370,11 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator BadEnding()
     {
-        //Меняем выражение лиц
+        //пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ
         mops.GetComponent<Animator>().SetBool("70hp", false);
         chih.GetComponent<Animator>().SetBool("15hp", false);
         bul.GetComponent<Animator>().SetBool("40hp", false);
-        //Запускаем анимацию финальногЫо удара по лягушке
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         AudioManager.instance.PlaySoundFXClip(vingetteSound, transform, 0.4f);
         yield return new WaitForSeconds(1f);
         vignette.SetActive(true);
@@ -383,11 +383,11 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(2.9f);
         AudioManager.instance.PlaySoundFXClip(deathSound, transform, 1f);
         yield return new WaitForSeconds(4f);
-        //Запускаем диалог
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         SetGameState(GameState.BadEndingDialogue);
         yield return new WaitUntil(() => dialogueManager.dialogues[9].isPassed);
         InputManager.PlayerInput.SwitchCurrentActionMap("UI");
-        //Включаем меню смерти
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         deathMenu.gameObject.SetActive(true); 
     }
 
@@ -407,9 +407,9 @@ public class GameManager : MonoBehaviour
     
     public void GameOver()
     {
-        //Останавливаем все корутины менеджера
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         StopAllCoroutines();
-        //Останавливаем все звуки кроме главной темы
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         AudioSource[] audioSources = FindObjectsOfType<AudioSource>();
         foreach (AudioSource source in audioSources)
         {
@@ -418,25 +418,25 @@ public class GameManager : MonoBehaviour
                 source.Stop();
             }
         }
-        //Заглушаем главную тему
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
         StartCoroutine(SmoothMusicShutdown());
-        //Останавливаем всех собак
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 
-        //Мопс
+        //пїЅпїЅпїЅпїЅ
         if(mopsStage.wind.activeSelf)
         {
             mopsStage.wind.SetActive(false);
         }
         mopsStage.fireAboveHead.SetActive(false);
         mopsStage.StopAllCoroutines();
-        //Чих
+        //пїЅпїЅпїЅ
         if (chihStage.activeTilemap != null)
         {
             Destroy(chihStage.activeTilemap.gameObject);
         }
         chihStage.fireAboveHead.SetActive(false);
         chihStage.StopAllCoroutines();
-        //Буль
+        //пїЅпїЅпїЅпїЅ
         if(bulStage.portalSpriteRenderer.enabled)
         {
             bulStage.portalSpriteRenderer.enabled = false;
@@ -444,7 +444,7 @@ public class GameManager : MonoBehaviour
         bulStage.fireAboveHead.SetActive(false);
         bulStage.StopAllCoroutines();
 
-        //Если диалоговое окно или листок активны, выключаем
+        //пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         if (dialogueElements.activeSelf)
         {
             dialogueManager.StopAllCoroutines();
@@ -455,7 +455,7 @@ public class GameManager : MonoBehaviour
             leaflet.SetActive(false);
         }
         greenFire.SetActive(false);
-        //Переводим управление на карту Cutscene
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ Cutscene
         InputManager.PlayerInput.SwitchCurrentActionMap("Cutscene");
 
     }

@@ -28,7 +28,7 @@ public class PlayerController : MonoBehaviour
 
 
     [Header("Parry")]
-    [SerializeField] private Vector3 shieldScale = new Vector3(2f, 2f, 2f); // Размер щита
+    [SerializeField] private Vector3 shieldScale = new Vector3(2f, 2f, 2f); // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     public bool canParry;
     [HideInInspector] public Parry parry;
 
@@ -143,11 +143,11 @@ public class PlayerController : MonoBehaviour
     {
         if (!isInvincible)
         {
-            rb.velocity = movement.normalized * moveSpeed;
+            rb.linearVelocity = movement.normalized * moveSpeed;
         }
         else
         {
-            rb.velocity = movement.normalized * moveSpeed * speedMultiplier;
+            rb.linearVelocity = movement.normalized * moveSpeed * speedMultiplier;
             mana.SpendMana(spendingManaByInvincibilityBySecond * Time.fixedDeltaTime);
         }
     }
