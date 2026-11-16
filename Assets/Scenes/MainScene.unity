@@ -2969,7 +2969,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5
+      m_AnimationSpeed: 5.0000005
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: -9, y: 0, z: 0}
@@ -3940,6 +3940,7 @@ GameObject:
   - component: {fileID: 602007407}
   - component: {fileID: 602007408}
   - component: {fileID: 602007409}
+  - component: {fileID: 602007411}
   - component: {fileID: 602007410}
   m_Layer: 3
   m_Name: Frog
@@ -4181,7 +4182,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxManaValue: 100
-  fillingSpeed: 6
+  fillingSpeed: 10
   isSpending: 0
 --- !u!82 &602007410
 AudioSource:
@@ -4280,6 +4281,18 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &602007411
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 602007401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3719d05936624744aad79f7bf8fc70ae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerEffects
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -6577,7 +6590,8 @@ MonoBehaviour:
   hotbarRoot: {fileID: 1356787751}
   cursorItemPrefab: {fileID: 3334082444651006805, guid: f535917da25795342bd363737fc8d8ae, type: 3}
   mainCanvas: {fileID: 1368409276}
-  testItem: {fileID: 11400000, guid: b1c3771126e0755469e8b72a710b2ccc, type: 2}
+  player: {fileID: 602007401}
+  testItem: {fileID: 11400000, guid: 53fa3334be69b804c8ecdbd9a01aa5a8, type: 2}
 --- !u!114 &1112177244
 MonoBehaviour:
   m_ObjectHideFlags: 0

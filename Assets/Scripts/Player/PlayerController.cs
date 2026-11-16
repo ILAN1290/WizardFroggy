@@ -10,6 +10,7 @@ public class PlayerController : MonoBehaviour
     public float moveSpeed = 5f;
     private Vector2 movement;
     private Vector2 lookDirection = new Vector2(0, 1);  
+    public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
 
 

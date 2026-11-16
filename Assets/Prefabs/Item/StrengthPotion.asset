@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72813711e149f9a40a76460cbaa4eab9, type: 3}
+  m_Name: StrengthPotion
+  m_EditorClassIdentifier: Assembly-CSharp::StrengthPotion
+  itemName: "\u0417\u0435\u043B\u044C\u0435 \u0421\u0438\u043B\u044B"
+  icon: {fileID: 8393895198962170332, guid: 12a57b9dec2407c4e8dc399386a0ccc2, type: 3}
+  maxStack: 64
+  cooldown: 15
+  damageMultiplier: 3
+  duration: 15
