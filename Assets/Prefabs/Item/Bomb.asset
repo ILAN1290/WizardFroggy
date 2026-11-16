@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6d5c9b3343269140b6ba7047724626a, type: 3}
+  m_Name: Bomb
+  m_EditorClassIdentifier: Assembly-CSharp::Bomb
+  itemName: "\u0411\u043E\u043C\u0431\u0430"
+  icon: {fileID: -4584001840792588798, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  maxStack: 64
+  cooldown: 5
+  bombPrefab: {fileID: 3176576658018435446, guid: 703f4871337bd714a9260baba825447c, type: 3}
+  throwForce: 8
+  spawnOffset: 0.6
