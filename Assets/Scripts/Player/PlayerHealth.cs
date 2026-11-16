@@ -13,6 +13,8 @@ public class PlayerHealth : MonoBehaviour
     private PlayerController playerController;
     private float currentHealth;
     private Coroutine burnCoroutine;
+    private PlayerEffects effects;
+
     public float CurrentHealth
     {
         get
@@ -32,6 +34,7 @@ public class PlayerHealth : MonoBehaviour
     void Start()
     {
         playerController = GetComponent<PlayerController>();
+        effects = GetComponent<PlayerEffects>();
         currentHealth = maxHealth;
     }
     private void Update()
@@ -52,13 +55,13 @@ public class PlayerHealth : MonoBehaviour
 
     public void Healing(float health)
     {
-        currentHealth = Mathf.Clamp(currentHealth + health, 0, 100);
-        Debug.Log($"Игрок получил {health} урона. Текущее здоровье: {currentHealth}");
+        currentHealth = Mathf.Clamp(currentHealth + health, 0, maxHealth);
     }
     public void TakeDamage(float damage)
     {
+        if (effects != null && effects.IsInvincible) return;
         currentHealth -= damage;
-        Debug.Log($"Игрок получил {damage} урона. Текущее здоровье: {currentHealth}");
+        Debug.Log($"пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ {damage} пїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: {currentHealth}");
         if (currentHealth <= 0)
         {
             Die();
@@ -67,10 +70,10 @@ public class PlayerHealth : MonoBehaviour
 
     public void StartBurning(float burnDamage, float duration, string color)
     {
-        
+        if (effects != null && effects.IsInvincible) return;
         if (burnCoroutine != null)
         {
-            StopCoroutine(burnCoroutine); // Если персонаж уже горит, сбрасываем таймер
+            StopCoroutine(burnCoroutine); // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         }
         else if(burnCoroutine == null)
         {
@@ -83,7 +86,7 @@ public class PlayerHealth : MonoBehaviour
     private IEnumerator BurnEffect(float burnDamage, float duration, string color)
     {
         
-        if (color == "Red") //Если огонь красный
+        if (color == "Red") //пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         {
             if(currentCondition == "Green")
             {
@@ -95,7 +98,7 @@ public class PlayerHealth : MonoBehaviour
                 currentCondition = "Red";
             }
         }
-        else if (color == "Green") //Если огонь зеленый
+        else if (color == "Green") //пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         {
             if (currentCondition == "Red")
             {

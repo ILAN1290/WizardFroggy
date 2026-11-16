@@ -3,25 +3,39 @@ using UnityEngine;
 public class InventoryToggle : MonoBehaviour
 {
     public CanvasGroup inventoryPanel;
-    public InventoryUI inventoryUI; // ДОБАВЬ ЭТО ПОЛЕ
+    public InventoryUI inventoryUI;
 
     private bool isOpen = false;
 
+    private void Start()
+    {
+        SetOpen(false);
+    }
+
     private void Update()
     {
+        if (!ControlGate.HasControl)
+        {
+            if (isOpen) SetOpen(false);
+            return;
+        }
+
         if (UnityEngine.Input.GetKeyDown(KeyCode.Tab))
         {
-            isOpen = !isOpen;
+            SetOpen(!isOpen);
+        }
+    }
 
-            inventoryPanel.alpha = isOpen ? 1 : 0;
-            inventoryPanel.interactable = isOpen;
-            inventoryPanel.blocksRaycasts = isOpen;
+    private void SetOpen(bool open)
+    {
+        isOpen = open;
+        inventoryPanel.alpha = open ? 1 : 0;
+        inventoryPanel.interactable = open;
+        inventoryPanel.blocksRaycasts = open;
 
-            // Если закрываем инвентарь - возвращаем предмет
-            if (!isOpen && inventoryUI != null)
-            {
-                inventoryUI.ReturnHeldItem();
-            }
+        if (!open && inventoryUI != null)
+        {
+            inventoryUI.ReturnHeldItem();
         }
     }
 }

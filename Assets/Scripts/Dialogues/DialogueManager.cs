@@ -13,102 +13,114 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI nameArea;
     [SerializeField] private TextMeshProUGUI dialogueArea;
     [SerializeField] private float textSpeed;
-    
     [SerializeField] private Image iconImage;
     [SerializeField] private AudioSource dialogueAudioSource;
+
     public List<Dialogue> dialogues = new List<Dialogue>();
+
     private Queue<DialogueLine> linesQueue = new Queue<DialogueLine>();
     private DialogueLine currentLine;
     private int currentDialogueIndex;
     private string previousInputMap;
-    
+
+    private bool IsDialogueActive => dialogueElements != null && dialogueElements.activeSelf;
 
     private void Awake()
     {
-        if (instance == null)
-        {
-            instance = this;
-        }
+        if (instance == null) instance = this;
     }
+
     public void StartDialogue(int index)
     {
-        //Записываем предыдущую карту ввода 
-        previousInputMap = InputManager.PlayerInput.currentActionMap.name;
-        //Переключаем на карту Dialogue
+        // Р—Р°С‰РёС‚Р° РѕС‚ РїРѕРІС‚РѕСЂРЅРѕРіРѕ Р·Р°РїСѓСЃРєР°: РёРЅР°С‡Рµ previousInputMap СЃС‚Р°РЅРµС‚ "Dialogue"
+        // Рё РєРѕРЅС‚СЂРѕР»СЊ СЃ РёРЅРІРµРЅС‚Р°СЂС‘Рј РЅРµ РІРµСЂРЅСѓС‚СЃСЏ РЅРёРєРѕРіРґР°
+        if (IsDialogueActive) return;
+
+        if (index < 0 || index >= dialogues.Count) return;
+        if (dialogues[index].dialogueLines.Count == 0) return;
+
+        previousInputMap = InputManager.PlayerInput.currentActionMap != null
+            ? InputManager.PlayerInput.currentActionMap.name
+            : "Player";
+
         InputManager.PlayerInput.SwitchCurrentActionMap("Dialogue");
-        //Меняем индекс
+
         currentDialogueIndex = index;
-        //Включаем диалоговое окно
         dialogueElements.SetActive(true);
-        //Очищаем очередь и добавляем новые дилоговые строки
+
         linesQueue.Clear();
-        currentLine = dialogues[currentDialogueIndex].dialogueLines[0];
         foreach (DialogueLine diLine in dialogues[currentDialogueIndex].dialogueLines)
-        {
             linesQueue.Enqueue(diLine);
-        }
-        //Показываем диалоговую строку
+
         DisplayNextDialogueLine();
     }
+
     private void Update()
     {
-        if(InputManager.instance.SwitchDialogueLine)
-        {
+        // РљРЅРѕРїРєРё РґРёР°Р»РѕРіР° СЂР°Р±РѕС‚Р°СЋС‚ С‚РѕР»СЊРєРѕ РїРѕРєР° РґРёР°Р»РѕРі СЂРµР°Р»СЊРЅРѕ РёРґС‘С‚
+        if (!IsDialogueActive) return;
+
+        if (InputManager.instance.SwitchDialogueLine)
             SwitchLine();
-        }
     }
+
     private void DisplayNextDialogueLine()
     {
-
         if (linesQueue.Count != 0)
         {
             currentLine = linesQueue.Dequeue();
-            //Переключаем анимацию на нужное состояние
-            
-            if(currentLine.emotion != "Idle")
-            {
+
+            if (currentLine.emotion != "Idle" && currentLine.person != null)
                 currentLine.person.GetComponent<Animator>().SetBool(currentLine.emotion, true);
-                Debug.Log(currentLine.emotion);
-            }
-            
-            //Меняем звук диалога
-            if(currentLine.clip != null)
+
+            if (currentLine.clip != null)
             {
                 dialogueAudioSource.clip = currentLine.clip;
                 dialogueAudioSource.Play();
             }
-            //Устанавливаем имя 
+
             nameArea.text = currentLine.personName;
-            //Устанавливаем иконку
             iconImage.sprite = currentLine.icon;
             StartCoroutine(TypeSentence(currentLine));
         }
         else
         {
-            dialogues[currentDialogueIndex].isPassed = true;
-            dialogueElements.SetActive(false);
-            InputManager.PlayerInput.SwitchCurrentActionMap(previousInputMap);
+            EndDialogue();
         }
     }
-    IEnumerator TypeSentence(DialogueLine diLine)
+
+    private void EndDialogue()
+    {
+        dialogues[currentDialogueIndex].isPassed = true;
+        dialogueAudioSource.Stop();
+        StopAllCoroutines();
+        dialogueArea.text = string.Empty;
+        dialogueElements.SetActive(false);
+        currentLine = null;
+
+        string mapToRestore = string.IsNullOrEmpty(previousInputMap) ? "Player" : previousInputMap;
+        InputManager.PlayerInput.SwitchCurrentActionMap(mapToRestore);
+    }
+
+    private IEnumerator TypeSentence(DialogueLine diLine)
     {
         dialogueArea.text = string.Empty;
-        foreach(char let in diLine.text.ToCharArray())
+        foreach (char let in diLine.text.ToCharArray())
         {
             dialogueArea.text += let;
             yield return new WaitForSeconds(textSpeed);
         }
         dialogueAudioSource.Stop();
     }
-    
+
     public void SwitchLine()
     {
-        if(dialogueArea.text == currentLine.text)
+        if (currentLine == null) return;
+
+        if (dialogueArea.text == currentLine.text)
         {
-            if(currentLine.emotion != "Idle")
-            {
+            if (currentLine.emotion != "Idle" && currentLine.person != null)
                 currentLine.person.GetComponent<Animator>().SetBool(currentLine.emotion, false);
-            }
             DisplayNextDialogueLine();
         }
         else
@@ -118,5 +130,4 @@ public class DialogueManager : MonoBehaviour
             dialogueArea.text = currentLine.text;
         }
     }
-   
 }
