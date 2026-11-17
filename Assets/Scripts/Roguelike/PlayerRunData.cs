@@ -10,11 +10,17 @@ public class PlayerRunData : MonoBehaviour
     private const string StaffKey = "WizardFroggy.Roguelike.Staff";
     private const string HealthKey = "WizardFroggy.Roguelike.Health";
     private const string ManaKey = "WizardFroggy.Roguelike.Mana";
+    private const string HighestFloorKey = "WizardFroggy.Roguelike.HighestFloor";
+    private const string CompletedKey = "WizardFroggy.Roguelike.Completed";
 
     public static PlayerRunData Instance { get; private set; }
 
     public int Mushrooms { get; private set; }
     public StaffData EquippedStaff { get; private set; }
+    public int HighestUnlockedFloor { get; private set; } = 1;
+    public bool RoguelikeCompleted { get; private set; }
+
+    public int CurrentProgressFloor => Mathf.Clamp(HighestUnlockedFloor, 1, 3);
 
     private float savedHealth = -1f;
     private float savedMana = -1f;
@@ -43,6 +49,8 @@ public class PlayerRunData : MonoBehaviour
     private void Load()
     {
         Mushrooms = PlayerPrefs.GetInt(MushroomsKey, 0);
+        HighestUnlockedFloor = Mathf.Clamp(PlayerPrefs.GetInt(HighestFloorKey, 1), 1, 4);
+        RoguelikeCompleted = PlayerPrefs.GetInt(CompletedKey, 0) == 1;
         savedHealth = PlayerPrefs.HasKey(HealthKey) ? PlayerPrefs.GetFloat(HealthKey) : -1f;
         savedMana = PlayerPrefs.HasKey(ManaKey) ? PlayerPrefs.GetFloat(ManaKey) : -1f;
 
@@ -59,6 +67,31 @@ public class PlayerRunData : MonoBehaviour
 
         if (EquippedStaff == null && available.Length > 0)
             EquippedStaff = available[0];
+    }
+
+    public bool CanStartFloor(int floorNumber)
+    {
+        return !RoguelikeCompleted && floorNumber == CurrentProgressFloor;
+    }
+
+    public void CompleteFloor(int floorNumber)
+    {
+        if (floorNumber < HighestUnlockedFloor) return;
+
+        if (floorNumber >= 3)
+        {
+            RoguelikeCompleted = true;
+            HighestUnlockedFloor = 4;
+            PlayerPrefs.SetInt(CompletedKey, 1);
+        }
+        else
+        {
+            HighestUnlockedFloor = Mathf.Max(HighestUnlockedFloor, floorNumber + 1);
+            PlayerPrefs.SetInt(HighestFloorKey, HighestUnlockedFloor);
+        }
+
+        PlayerPrefs.SetInt(HighestFloorKey, HighestUnlockedFloor);
+        PlayerPrefs.Save();
     }
 
     public void AddMushrooms(int amount)
