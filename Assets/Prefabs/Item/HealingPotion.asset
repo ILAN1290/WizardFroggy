@@ -16,4 +16,7 @@ MonoBehaviour:
   icon: {fileID: 8145951374611147372, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
   maxStack: 64
   cooldown: 15
+  drinkSound: {fileID: 0}
+  effectSound: {fileID: 8300000, guid: d20174feaf9d8504db985cad060b9c7a, type: 3}
   healAmount: 30
+  healVFX: {fileID: 4010426081627972419, guid: a08b009b4c3d6fa45b3c97e364a44a8d, type: 3}

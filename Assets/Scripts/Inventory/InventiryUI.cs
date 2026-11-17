@@ -23,6 +23,7 @@ public class InventoryUI : MonoBehaviour
     private SlotUI[] invSlots;
     private SlotUI[] hotSlots;
     private int selectedHotbar = 0;
+    private int inventorySlotCount = 16;
     private int hotbarSlotCount = 4;
     private ItemStack held = new ItemStack();
     private GameObject cursorItem;
@@ -33,7 +34,7 @@ public class InventoryUI : MonoBehaviour
 
     private void Start()
     {
-        Inventory.Instance.Init(hotbarSlotCount + 16);
+        Inventory.Instance.Init(hotbarSlotCount + inventorySlotCount);
 
         if (player == null)
         {
@@ -55,7 +56,7 @@ public class InventoryUI : MonoBehaviour
             Inventory.Instance.Add(testItem, 12);
         }
 
-        BuildSlots(inventoryRoot, 16, out invSlots, slotPrefab, hotbarSlotCount);
+        BuildSlots(inventoryRoot, inventorySlotCount, out invSlots, slotPrefab, hotbarSlotCount);
         BuildSlots(hotbarRoot, hotbarSlotCount, out hotSlots, hotbarSlotPrefab, 0);
 
         if (cursorItemPrefab != null && mainCanvas != null)

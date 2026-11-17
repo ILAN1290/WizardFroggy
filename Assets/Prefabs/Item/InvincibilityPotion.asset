@@ -16,4 +16,7 @@ MonoBehaviour:
   icon: {fileID: -5850488071810988357, guid: d53312749b625c94ba9ccbf87e3d7a71, type: 3}
   maxStack: 64
   cooldown: 15
+  drinkSound: {fileID: 0}
+  effectSound: {fileID: 8300000, guid: d20174feaf9d8504db985cad060b9c7a, type: 3}
   duration: 10
+  invincibilityVFX: {fileID: 0}
