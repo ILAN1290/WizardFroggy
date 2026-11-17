@@ -159,15 +159,44 @@ public class RoomGenerator : MonoBehaviour
 
     private void AddBookshelves(Transform root, int floorNumber)
     {
+        GameObject lateralPrefab = Resources.Load<GameObject>(
+            "RoguelikePrefabs/Lateral Book Case");
+        GameObject upperPrefab = Resources.Load<GameObject>(
+            "RoguelikePrefabs/Upper Book Case");
+
         int count = Random.Range(3, 6);
         for (int i = 0; i < count; i++)
         {
             Vector2 point = RandomPointAwayFromCentre();
-            Vector2 size = Random.value > 0.5f
-                ? new Vector2(2.2f, 0.72f)
-                : new Vector2(0.72f, 2.2f);
-            CreateSolid(root, "Шкаф с книгами", point, size,
-                new Color(0.28f + floorNumber * 0.025f, 0.17f, 0.12f));
+            bool horizontal = Random.value > 0.5f;
+            GameObject prefab = horizontal ? lateralPrefab : upperPrefab;
+
+            if (prefab == null)
+            {
+                Vector2 fallbackSize = horizontal
+                    ? new Vector2(2.2f, 0.72f)
+                    : new Vector2(0.72f, 2.2f);
+                CreateSolid(root, "Книжный шкаф", point, fallbackSize,
+                    new Color(0.28f + floorNumber * 0.025f, 0.17f, 0.12f));
+                continue;
+            }
+
+            GameObject shelf = Instantiate(prefab, root);
+            shelf.name = "Книжный шкаф";
+            shelf.transform.localPosition = new Vector3(point.x, point.y, 0f);
+            shelf.transform.localRotation = Quaternion.Euler(
+                0f, 0f, horizontal ? 0f : 90f);
+            shelf.transform.localScale = Vector3.one * 0.35f;
+
+            // The imported prefabs have different collider settings. Use one predictable
+            // blocker matching the visible shelf size.
+            Collider2D[] existingColliders = shelf.GetComponents<Collider2D>();
+            foreach (Collider2D existing in existingColliders)
+                existing.enabled = false;
+
+            BoxCollider2D blocker = shelf.AddComponent<BoxCollider2D>();
+            blocker.size = new Vector2(6.6f, 2.5f);
+            blocker.usedByComposite = false;
         }
     }
 
