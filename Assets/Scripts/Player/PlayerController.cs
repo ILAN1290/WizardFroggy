@@ -168,8 +168,8 @@ public class PlayerController : MonoBehaviour
         pendingExternalForce = Vector2.zero;
 
         // External impulses decay naturally, but remain additive to player input.
-        externalVelocity = Vector2.MoveTowards(externalVelocity, Vector2.zero,
-            10f * Time.fixedDeltaTime);
+        externalVelocity *= Mathf.Exp(-1.5f * Time.fixedDeltaTime);
+        externalVelocity = Vector2.ClampMagnitude(externalVelocity, 6f);
 
         Vector2 controlledVelocity = movement.normalized * moveSpeed;
         if (isInvincible)
