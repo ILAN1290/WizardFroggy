@@ -54,6 +54,7 @@ public class PlayerController : MonoBehaviour
 
     //Health
     private PlayerHealth playerHealth;
+    private StaffData equippedStaff;
 
 
     void Start()
@@ -64,10 +65,22 @@ public class PlayerController : MonoBehaviour
         cooldownTimer = projectileCooldown;
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
+        ApplyEquippedStaff();
+    }
+
+    private void ApplyEquippedStaff()
+    {
+        StaffData selected = PlayerRunData.EnsureInstance().EquippedStaff;
+        if (selected == null || selected == equippedStaff) return;
+        equippedStaff = selected;
+        projectileCooldown = equippedStaff.ShotCooldown;
+        spendingManaByProjectile = equippedStaff.manaCost;
+        cooldownTimer = Mathf.Clamp(cooldownTimer, 0f, projectileCooldown);
     }
 
     private void Shoot()
     {
+        ApplyEquippedStaff();
         if(canShoot && !isInvincible && mana.CurrentMana >= spendingManaByProjectile && InputManager.instance.ShootInput)
         {
             Launch();
@@ -161,7 +174,8 @@ public class PlayerController : MonoBehaviour
             mana.SpendMana(spendingManaByProjectile);
             GameObject projectileObject = Instantiate(projectilePrefab, rb.position + Vector2.up * 0.5f, Quaternion.identity);
             Projectile projectile = projectileObject.GetComponent<Projectile>();
-            projectile.Launch(projectileDirection, projectileForce);
+            projectile.SetDamage(equippedStaff != null ? equippedStaff.damage : 7f);
+            projectile.Launch(FacingDirection, projectileForce);
         }
     }
 }
