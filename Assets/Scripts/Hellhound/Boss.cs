@@ -43,6 +43,7 @@ public class Boss : MonoBehaviour
     public Rigidbody2D PlayerRb { get; private set; }
     public PlayerHealth PlayerHp { get; private set; }
     public Vector2 Center { get { return arenaCenter; } }
+    public Vector2 ArenaSize { get { return arenaSize; } }
     public Vector2 PlayerPos { get { return PlayerRb != null ? PlayerRb.position : (Vector2)Player.position; } }
     public float CurrentHealth { get { return Mathf.Max(0f, currentHealth); } }
 
