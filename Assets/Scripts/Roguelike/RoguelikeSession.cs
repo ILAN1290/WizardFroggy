@@ -132,8 +132,7 @@ public class RoguelikeSession : MonoBehaviour
 
         if (currentRoom.Type == RoguelikeRoomType.Combat && spawnedEnemies == 0)
             currentRoom.IsCleared = true;
-        if (currentRoom.Type == RoguelikeRoomType.Merchant ||
-            currentRoom.Type == RoguelikeRoomType.Exit)
+        if (currentRoom.Type == RoguelikeRoomType.Merchant)
             currentRoom.IsCleared = true;
 
         transform.position = spawnPosition;
@@ -200,7 +199,9 @@ public class RoguelikeSession : MonoBehaviour
         if (enemiesRemaining == 0 && currentRoom != null)
         {
             currentRoom.IsCleared = true;
-            ShowHint("Комната зачищена. Выходы открыты!");
+            ShowHint(currentRoom.IsExit
+                ? "Последняя комната зачищена. Выход открыт!"
+                : "Комната зачищена. Выходы открыты!");
         }
     }
 
@@ -224,6 +225,7 @@ public class RoguelikeSession : MonoBehaviour
     {
         GameObject pickup = new GameObject("Грибочки x" + amount);
         pickup.transform.position = position;
+        if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
         renderer.sprite = RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
@@ -239,6 +241,7 @@ public class RoguelikeSession : MonoBehaviour
         if (item == null) return;
         GameObject pickup = new GameObject("Предмет: " + item.itemName);
         pickup.transform.position = position;
+        if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
         renderer.sprite = item.icon != null ? item.icon : RoomGenerator.CircleSprite;
         renderer.color = Color.white;
@@ -318,7 +321,6 @@ public class RoguelikeSession : MonoBehaviour
             case RoguelikeRoomType.Combat: return "Комната с призраками";
             case RoguelikeRoomType.Chest: return "Комната с сундуком";
             case RoguelikeRoomType.Merchant: return "Лавка торговца";
-            case RoguelikeRoomType.Exit: return "Лестница на выход";
             default: return "Комната";
         }
     }
@@ -361,7 +363,7 @@ public class RoguelikeSession : MonoBehaviour
             GUI.Label(new Rect(18, 48, 420, 30),
                 "Грибочки: " + data.Mushrooms + "   •   Врагов осталось: " + enemiesRemaining);
 
-            if (currentRoom != null && currentRoom.Type == RoguelikeRoomType.Exit &&
+            if (currentRoom != null && currentRoom.IsExit && currentRoom.IsCleared &&
                 GUI.Button(new Rect(Screen.width * 0.5f - 140,
                     Screen.height - 100, 280, 54), "Вернуться в приёмную (E)"))
                 ReturnToLobby();

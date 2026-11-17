@@ -44,6 +44,7 @@ public class RoomGenerator : MonoBehaviour
                     Random.value > 0.30f);
             for (int i = 0; i < Mathf.Clamp(floorNumber, 1, 3); i++)
                 SpawnTrap(root, RandomPointAwayFromCentre());
+            if (room.IsExit) SpawnExit(root, session);
             session.SetEnemyCount(count);
             return count;
         }
@@ -65,15 +66,8 @@ public class RoomGenerator : MonoBehaviour
             trigger.radius = 1.8f;
             merchant.AddComponent<RoguelikeMerchant>().Initialize(session);
         }
-        else if (room.Type == RoguelikeRoomType.Exit)
-        {
-            GameObject exit = CreateRect(root, "Выход", Vector2.zero,
-                new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
-            CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
-            trigger.isTrigger = true;
-            trigger.radius = 2f;
-            exit.AddComponent<RoguelikeExit>().Initialize(session);
-        }
+        if (room.IsExit)
+            SpawnExit(root, session);
 
         return 0;
     }
@@ -144,6 +138,16 @@ public class RoomGenerator : MonoBehaviour
         else
             CreateSolid(root, "Стена север", new Vector2(0f, RoomHeight / 2),
                 new Vector2(RoomWidth, wall), new Color(0.29f, 0.19f, 0.14f));
+    }
+
+    private void SpawnExit(Transform root, RoguelikeSession session)
+    {
+        GameObject exit = CreateRect(root, "Выход", new Vector2(0f, 2.5f),
+            new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
+        CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
+        trigger.isTrigger = true;
+        trigger.radius = 2f;
+        exit.AddComponent<RoguelikeExit>().Initialize(session);
     }
 
     private void CreateDoor(Transform root, RoguelikeSession session, Vector2 position,

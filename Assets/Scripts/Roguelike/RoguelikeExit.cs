@@ -15,6 +15,14 @@ public class RoguelikeExit : MonoBehaviour
         bool pressed = InputManager.instance != null
             ? InputManager.instance.InteractionInput
             : UnityEngine.Input.GetKeyDown(KeyCode.E);
-        if (pressed) session.ReturnToLobby();
+        if (!pressed) return;
+
+        if (!session.IsCurrentRoomCleared)
+        {
+            session.ShowHint("Сначала победите всех призраков!");
+            return;
+        }
+
+        session.ReturnToLobby();
     }
 }

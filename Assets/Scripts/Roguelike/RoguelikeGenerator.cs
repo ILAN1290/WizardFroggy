@@ -9,8 +9,7 @@ public enum RoguelikeRoomType
 {
     Combat,
     Chest,
-    Merchant,
-    Exit
+    Merchant
 }
 
 [Serializable]
@@ -22,6 +21,7 @@ public class RoguelikeRoomData
     public RoguelikeRoomType Type;
     public List<int> Neighbours = new List<int>();
     public bool IsCleared;
+    public bool IsExit;
 }
 
 [Serializable]
@@ -81,7 +81,7 @@ public static class RoguelikeGenerator
                 if (index == 0)
                     type = RoguelikeRoomType.Combat;
                 else if (index == width * height - 1)
-                    type = RoguelikeRoomType.Exit;
+                    type = RoguelikeRoomType.Combat;
                 else
                     type = RollRoomType(random);
 
@@ -91,7 +91,8 @@ public static class RoguelikeGenerator
                     X = x,
                     Y = y,
                     Type = type,
-                    IsCleared = false
+                    IsCleared = false,
+                    IsExit = index == width * height - 1
                 });
             }
         }

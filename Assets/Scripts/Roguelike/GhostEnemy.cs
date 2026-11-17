@@ -66,6 +66,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private void Shoot(Vector2 direction)
     {
         GameObject bolt = new GameObject("Призрачный снаряд");
+        bolt.transform.SetParent(transform.parent, true);
         bolt.transform.position = transform.position;
         SpriteRenderer renderer = bolt.AddComponent<SpriteRenderer>();
         renderer.sprite = RoomGenerator.CircleSprite;
