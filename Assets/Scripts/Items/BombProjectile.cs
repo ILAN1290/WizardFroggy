@@ -75,8 +75,8 @@ public class BombProjectile : MonoBehaviour
 
             if (target.CompareTag("Enemy"))
             {
-                EnemyHealth eh = target.GetComponentInParent<EnemyHealth>();
-                if (eh != null) eh.TakeDamage(damage);
+                Boss boss = target.GetComponentInParent<Boss>();
+                if (boss != null) boss.TakeDamage(damage);
             }
             else if (damagePlayer && target.CompareTag("Player"))
             {
