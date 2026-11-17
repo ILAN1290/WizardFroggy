@@ -174,7 +174,10 @@ public class PlayerController : MonoBehaviour
             mana.SpendMana(spendingManaByProjectile);
             GameObject projectileObject = Instantiate(projectilePrefab, rb.position + Vector2.up * 0.5f, Quaternion.identity);
             Projectile projectile = projectileObject.GetComponent<Projectile>();
-            projectile.SetDamage(equippedStaff != null ? equippedStaff.damage : 7f);
+            PlayerEffects effects = GetComponent<PlayerEffects>();
+            float staffDamage = equippedStaff != null ? equippedStaff.damage : 7f;
+            float damageMultiplier = effects != null ? effects.DamageMultiplier : 1f;
+            projectile.SetDamage(staffDamage * damageMultiplier);
             projectile.Launch(FacingDirection, projectileForce);
         }
     }
