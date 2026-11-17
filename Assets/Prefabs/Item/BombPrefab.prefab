@@ -181,6 +181,6 @@ MonoBehaviour:
   useProceduralVfx: 1
   explosionColor: {r: 1, g: 0.5, b: 0.15, a: 1}
   explosionVfxPrefab: {fileID: 0}
-  explosionSound: {fileID: 0}
+  explosionSound: {fileID: 8300000, guid: 0de50439b0026634db1ab246a454928c, type: 3}
   soundVolume: 1
   pulse: 1
