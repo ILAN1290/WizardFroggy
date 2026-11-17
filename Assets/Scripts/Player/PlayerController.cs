@@ -9,6 +9,8 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Settings")]
     public float moveSpeed = 5f;
     private Vector2 movement;
+    private Vector2 externalVelocity;
+    private Vector2 pendingExternalForce;
     private Vector2 lookDirection = new Vector2(0, 1);  
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
@@ -87,6 +89,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // Adds physics forces without letting the movement controller erase them
+    // on the next FixedUpdate (used by wind, knockback and boss abilities).
+    public void AddExternalForce(Vector2 force)
+    {
+        pendingExternalForce += force;
+    }
+
     private void Parry()
     {
         if (InputManager.instance.ParryInput && !isInvincible && canParry && mana.CurrentMana >= spendingManaByParry)
@@ -155,15 +164,21 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!isInvincible)
+        externalVelocity += pendingExternalForce / Mathf.Max(0.01f, rb.mass) * Time.fixedDeltaTime;
+        pendingExternalForce = Vector2.zero;
+
+        // External impulses decay naturally, but remain additive to player input.
+        externalVelocity = Vector2.MoveTowards(externalVelocity, Vector2.zero,
+            10f * Time.fixedDeltaTime);
+
+        Vector2 controlledVelocity = movement.normalized * moveSpeed;
+        if (isInvincible)
         {
-            rb.linearVelocity = movement.normalized * moveSpeed;
-        }
-        else
-        {
-            rb.linearVelocity = movement.normalized * moveSpeed * speedMultiplier;
+            controlledVelocity *= speedMultiplier;
             mana.SpendMana(spendingManaByInvincibilityBySecond * Time.fixedDeltaTime);
         }
+
+        rb.linearVelocity = controlledVelocity + externalVelocity;
     }
     private void  Launch()
     {
