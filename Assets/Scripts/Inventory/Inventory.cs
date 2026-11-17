@@ -44,6 +44,10 @@ public class Inventory : MonoBehaviour
         while (slots.Count > size)
             slots.RemoveAt(slots.Count - 1);
 
+        for (int i = 0; i < slots.Count; i++)
+            if (slots[i] == null)
+                slots[i] = new ItemStack();
+
         OnChanged?.Invoke();
     }
 
@@ -69,7 +73,6 @@ public class Inventory : MonoBehaviour
     {
         if (item == null || count <= 0) return false;
 
-        int requested = count;
         for (int i = 0; i < slots.Count && count > 0; i++)
         {
             ItemStack stack = slots[i];
