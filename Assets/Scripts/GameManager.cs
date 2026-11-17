@@ -13,13 +13,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject mops;
     [SerializeField] private GameObject chih;
     [SerializeField] private GameObject bul;
-    [SerializeField] private EnemyHealth hellhoundHealth;
+    [SerializeField] private Boss hellhoundHealth;
     [SerializeField] private GameObject bodyAndHeads;
     [SerializeField] private Animator hellhoundEffectsAnimator;
+    [SerializeField] private BossBehaviourManager bossBehaviour;
     private GameState currentLearningState;
-    private WindEffect mopsStage;
-    private FireZoneManager chihStage;
-    private RandomShooter bulStage;
+    private WindAttacks mopsStage;
+    private FireAttacks chihStage;
+    private PortalAttacks bulStage;
 
 
     [Header("Player")]
@@ -112,9 +113,9 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        mopsStage = mops.GetComponent<WindEffect>();
-        chihStage = chih.GetComponent<FireZoneManager>();
-        bulStage = bul.GetComponent<RandomShooter>();
+        mopsStage = mops.GetComponent<WindAttacks>();
+        chihStage = chih.GetComponent<FireAttacks>();
+        bulStage = bul.GetComponent<PortalAttacks>();
         hasCompletedTutorial = PlayerPrefs.GetInt("HasCompletedTutorial", 0) == 1;
         mainThemeSource = GetComponent<AudioSource>();
         if(hasCompletedTutorial)
@@ -162,7 +163,7 @@ public class GameManager : MonoBehaviour
         //Boss stage 1
         healthBar.gameObject.SetActive(true);
         SetGameState(GameState.BossStage1);
-        yield return new WaitUntil(() => !mopsStage.isWindActive);
+        yield return new WaitUntil(() => !mopsStage.isRunning);
         //Learn abilities 1
         SetGameState(GameState.LearnAbilities1);
         yield return new WaitForSeconds(2);
@@ -178,7 +179,7 @@ public class GameManager : MonoBehaviour
         //Boss stage 2
         SetGameState(GameState.BossStage2);
         yield return new WaitForSeconds(1);
-        yield return new WaitUntil(() => !chihStage.isFireStageActive);
+        yield return new WaitUntil(() => !chihStage.isRunning);
 
         //Learn Abilities 2
         SetGameState(GameState.LearnAbilities2);
@@ -190,7 +191,7 @@ public class GameManager : MonoBehaviour
         //Boss stage 3
         SetGameState(GameState.BossStage3);
         yield return new WaitForSeconds(1);
-        yield return new WaitUntil(() => !bulStage.isShooting);
+        yield return new WaitUntil(() => !bulStage.isRunning);
         //Dialogue 5
         yield return new WaitForSeconds(3);
         SetGameState(GameState.Dialogue5);
@@ -211,7 +212,7 @@ public class GameManager : MonoBehaviour
         Debug.Log("�������� ���� ����");
         yield return new WaitForSeconds(3);
         // �������� ������� �������: ��������� �������������� 2 ������
-        StartCoroutine(BossBattleLoop());
+        if (bossBehaviour != null) bossBehaviour.StartBattle();
     }
 
 
@@ -279,39 +280,6 @@ public class GameManager : MonoBehaviour
                 break;
         }
     }
-
-
-
-    private IEnumerator BossBattleLoop()
-    {
-        GameState[] bossStages = { GameState.BossStage1, GameState.BossStage2, GameState.BossStage3 };
-        GameState previousFirstStage = 0;
-        GameState previousSecondStage = 0;
-        while (hellhoundHealth.CurrentHealth > 0) 
-        {
-            GameState firstStage = bossStages[Random.Range(0, bossStages.Length)];
-            GameState secondStage;
-            do
-            {
-                secondStage = bossStages[Random.Range(0, bossStages.Length)];
-            }
-            while (secondStage == firstStage);
-            //������ ��� ����� ���������� ��� ������ � ������� �� ���� �����������
-            if(firstStage == previousFirstStage && secondStage == previousSecondStage || firstStage == previousSecondStage && secondStage == previousFirstStage)
-            {
-                continue;
-            }
-            previousFirstStage = firstStage;
-            previousSecondStage = secondStage;
-            
-            SetGameState(firstStage);
-            SetGameState(secondStage);
-            yield return new WaitForSeconds(24f);
-        }
-    }
-
-    
-
     
     public void StartGoodEnding()
     {
@@ -409,6 +377,7 @@ public class GameManager : MonoBehaviour
     {
         //������������� ��� �������� ���������
         StopAllCoroutines();
+        if (bossBehaviour != null) bossBehaviour.StopBattle();
         //������������� ��� ����� ����� ������� ����
         AudioSource[] audioSources = FindObjectsOfType<AudioSource>();
         foreach (AudioSource source in audioSources)
