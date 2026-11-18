@@ -252,6 +252,15 @@ public class RoomGenerator : MonoBehaviour
 
             SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = 4;
+            if (closedDoorSprites != null && i < closedDoorSprites.Length &&
+                closedDoorSprites[i] != null)
+            {
+                renderer.sprite = closedDoorSprites[i];
+                Vector2 spriteSize = closedDoorSprites[i].bounds.size;
+                renderer.transform.localScale = new Vector3(
+                    tileWidth / Mathf.Max(0.001f, spriteSize.x),
+                    tileHeight / Mathf.Max(0.001f, spriteSize.y), 1f);
+            }
             parts[i] = renderer;
         }
 
