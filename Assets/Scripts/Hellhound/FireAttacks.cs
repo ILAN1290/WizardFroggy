@@ -321,6 +321,7 @@ public class FireAttacks : BossAttack
         if (activeTilemap != null) Destroy(activeTilemap.gameObject);
         activeTilemap = Instantiate(f.attentionMap, gridTransform);
         activeTilemap.transform.localPosition = Vector3.zero;
+        TrimTilemapToPlayableArea(activeTilemap);
         yield return new WaitForSeconds(attentionDuration);
 
         if (activeTilemap != null) Destroy(activeTilemap.gameObject);
@@ -329,6 +330,7 @@ public class FireAttacks : BossAttack
         boss.Sfx(fireSound, 0.3f, 2f);
         activeTilemap = Instantiate(f.fireMap, gridTransform);
         activeTilemap.transform.localPosition = Vector3.zero;
+        TrimTilemapToPlayableArea(activeTilemap);
         CollectHotCells(activeTilemap);
 
         // Prefab floors do not contain a FireZone damage component in this project.
@@ -637,6 +639,31 @@ public class FireAttacks : BossAttack
                 Vector2 wc = g.GetCellCenterWorld(cc);
                 if ((wc - center).sqrMagnitude <= radius * radius) tm.SetTile(cc, tile);
             }
+    }
+
+    private void TrimTilemapToPlayableArea(Tilemap map)
+    {
+        if (map == null || !useCustomFloorArea) return;
+
+        Vector2 center = floorAreaCenter + gridOffset;
+        Vector2 half = floorAreaSize * 0.5f;
+        Vector2 min = center - half;
+        Vector2 max = center + half;
+
+        BoundsInt bounds = map.cellBounds;
+        foreach (Vector3Int cell in bounds.allPositionsWithin)
+        {
+            if (!map.HasTile(cell)) continue;
+
+            Vector3 world = map.GetCellCenterWorld(cell);
+            if (world.x < min.x || world.x >= max.x ||
+                world.y < min.y || world.y >= max.y)
+            {
+                map.SetTile(cell, null);
+            }
+        }
+
+        map.CompressBounds();
     }
 
     private void CollectHotCells(Tilemap map)
