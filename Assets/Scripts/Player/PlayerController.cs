@@ -93,7 +93,7 @@ public class PlayerController : MonoBehaviour
     // on the next FixedUpdate (used by wind, knockback and boss abilities).
     public void AddExternalForce(Vector2 force)
     {
-        pendingExternalForce += force;
+        pendingExternalForce += force * Time.deltaTime;
     }
 
     private void Parry()
@@ -164,7 +164,7 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        externalVelocity += pendingExternalForce / Mathf.Max(0.01f, rb.mass) * Time.fixedDeltaTime;
+        externalVelocity += pendingExternalForce / Mathf.Max(0.01f, rb.mass);
         pendingExternalForce = Vector2.zero;
 
         // External impulses decay naturally, but remain additive to player input.
