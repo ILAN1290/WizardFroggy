@@ -109,34 +109,34 @@ public class RoomGenerator : MonoBehaviour
         {
             CreateWallSegment(root, "Западная стена • верх",
                 new Vector2(-sideX, verticalSegment * 0.5f + 1.3f),
-                new Vector2(wall, verticalSegment), 90f);
+                new Vector2(verticalSegment, wall), 90f);
             CreateWallSegment(root, "Западная стена • низ",
                 new Vector2(-sideX, -verticalSegment * 0.5f - 1.3f),
-                new Vector2(wall, verticalSegment), 90f);
+                new Vector2(verticalSegment, wall), 90f);
             CreateDoor(root, session, new Vector2(-sideX, 0f),
                 new Vector2(7f, 0f), -1, 0, 90f);
         }
         else
         {
             CreateWallSegment(root, "Западная стена",
-                new Vector2(-sideX, 0f), new Vector2(wall, RoomHeight), 90f);
+                new Vector2(-sideX, 0f), new Vector2(RoomHeight, wall), 90f);
         }
 
         if (right)
         {
             CreateWallSegment(root, "Восточная стена • верх",
                 new Vector2(sideX, verticalSegment * 0.5f + 1.3f),
-                new Vector2(wall, verticalSegment), 90f);
+                new Vector2(verticalSegment, wall), 90f);
             CreateWallSegment(root, "Восточная стена • низ",
                 new Vector2(sideX, -verticalSegment * 0.5f - 1.3f),
-                new Vector2(wall, verticalSegment), 90f);
+                new Vector2(verticalSegment, wall), 90f);
             CreateDoor(root, session, new Vector2(sideX, 0f),
                 new Vector2(-7f, 0f), 1, 0, 90f);
         }
         else
         {
             CreateWallSegment(root, "Восточная стена",
-                new Vector2(sideX, 0f), new Vector2(wall, RoomHeight), 90f);
+                new Vector2(sideX, 0f), new Vector2(RoomHeight, wall), 90f);
         }
 
         if (down)
@@ -272,7 +272,7 @@ public class RoomGenerator : MonoBehaviour
     {
         // Four authored layouts are rotated through the room graph. They are fixed,
         // keep the central combat lane open and never clutter the doorway approaches.
-        int pattern = Mathf.Abs(roomIndex + floorNumber - 1) % 4;
+        int pattern = Mathf.Abs(roomIndex + floorNumber - 1) % 8;
         Color colour = new Color(
             0.28f + floorNumber * 0.018f, 0.19f, 0.15f, 1f);
 
@@ -299,11 +299,43 @@ public class RoomGenerator : MonoBehaviour
                 CreateObstacle(root, "Полка • ЮВ", new Vector2(3.5f, -2.75f), new Vector2(1.8f, 0.72f), colour);
                 break;
 
-            default: // Corner L-shapes.
+            case 3: // Mirrored L-shapes, balanced across the room.
                 CreateObstacle(root, "Угол • СЗ горизонталь", new Vector2(-5.0f, 3.1f), new Vector2(2.0f, 0.68f), colour);
                 CreateObstacle(root, "Угол • СЗ вертикаль", new Vector2(-5.65f, 2.0f), new Vector2(0.68f, 1.5f), colour);
-                CreateObstacle(root, "Угол • СВ горизонталь", new Vector2(5.0f, -3.1f), new Vector2(2.0f, 0.68f), colour);
-                CreateObstacle(root, "Угол • СВ вертикаль", new Vector2(5.65f, -2.0f), new Vector2(0.68f, 1.5f), colour);
+                CreateObstacle(root, "Угол • СВ горизонталь", new Vector2(5.0f, 3.1f), new Vector2(2.0f, 0.68f), colour);
+                CreateObstacle(root, "Угол • СВ вертикаль", new Vector2(5.65f, 2.0f), new Vector2(0.68f, 1.5f), colour);
+                CreateObstacle(root, "Угол • ЮЗ горизонталь", new Vector2(-5.0f, -3.1f), new Vector2(2.0f, 0.68f), colour);
+                CreateObstacle(root, "Угол • ЮЗ вертикаль", new Vector2(-5.65f, -2.0f), new Vector2(0.68f, 1.5f), colour);
+                CreateObstacle(root, "Угол • ЮВ горизонталь", new Vector2(5.0f, -3.1f), new Vector2(2.0f, 0.68f), colour);
+                CreateObstacle(root, "Угол • ЮВ вертикаль", new Vector2(5.65f, -2.0f), new Vector2(0.68f, 1.5f), colour);
+                break;
+
+            case 4: // Four isolated archive pillars around a clear centre.
+                CreateObstacle(root, "Опора • СЗ", new Vector2(-2.8f, 2.0f), new Vector2(0.9f, 1.05f), colour);
+                CreateObstacle(root, "Опора • СВ", new Vector2(2.8f, 2.0f), new Vector2(0.9f, 1.05f), colour);
+                CreateObstacle(root, "Опора • ЮЗ", new Vector2(-2.8f, -2.0f), new Vector2(0.9f, 1.05f), colour);
+                CreateObstacle(root, "Опора • ЮВ", new Vector2(2.8f, -2.0f), new Vector2(0.9f, 1.05f), colour);
+                break;
+
+            case 5: // Two broken rows with a generous central passage.
+                CreateObstacle(root, "Ряд • СЗ", new Vector2(-4.3f, 2.15f), new Vector2(2.0f, 0.62f), colour);
+                CreateObstacle(root, "Ряд • СВ", new Vector2(4.3f, 2.15f), new Vector2(2.0f, 0.62f), colour);
+                CreateObstacle(root, "Ряд • ЮЗ", new Vector2(-4.3f, -2.15f), new Vector2(2.0f, 0.62f), colour);
+                CreateObstacle(root, "Ряд • ЮВ", new Vector2(4.3f, -2.15f), new Vector2(2.0f, 0.62f), colour);
+                break;
+
+            case 6: // Four long blocks form two symmetrical side alcoves.
+                CreateObstacle(root, "Алков • СЗ", new Vector2(-5.1f, 2.2f), new Vector2(0.72f, 1.9f), colour);
+                CreateObstacle(root, "Алков • ЮЗ", new Vector2(-5.1f, -2.2f), new Vector2(0.72f, 1.9f), colour);
+                CreateObstacle(root, "Алков • СВ", new Vector2(5.1f, 2.2f), new Vector2(0.72f, 1.9f), colour);
+                CreateObstacle(root, "Алков • ЮВ", new Vector2(5.1f, -2.2f), new Vector2(0.72f, 1.9f), colour);
+                break;
+
+            default: // A symmetrical four-point formation; centre stays open.
+                CreateObstacle(root, "Формация • запад", new Vector2(-3.7f, 0f), new Vector2(0.82f, 1.25f), colour);
+                CreateObstacle(root, "Формация • восток", new Vector2(3.7f, 0f), new Vector2(0.82f, 1.25f), colour);
+                CreateObstacle(root, "Формация • север", new Vector2(0f, 2.55f), new Vector2(1.25f, 0.82f), colour);
+                CreateObstacle(root, "Формация • юг", new Vector2(0f, -2.55f), new Vector2(1.25f, 0.82f), colour);
                 break;
         }
     }
