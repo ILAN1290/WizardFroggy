@@ -1616,6 +1616,9 @@ MonoBehaviour:
   rows: 8
   gridOffset: {x: 0, y: 0}
   cellSize: 1
+  useCustomFloorArea: 1
+  floorAreaCenter: {x: 0, y: -2}
+  floorAreaSize: {x: 16, y: 8}
   attentionSprite: {fileID: 0}
   fireSprite: {fileID: 0}
   attentionColor: {r: 1, g: 0.78, b: 0.2, a: 0.9}
@@ -3203,11 +3206,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 430182828}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31c8f9f78aacf6f438e88e17be425c03, type: 3}
+  m_Script: {fileID: 11500000, guid: a2f20b8dbf3f4c30a6a97d24a7bb0001, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  fireColor: 1
   damage: 5
+  damageInterval: 0.5
 --- !u!66 &430182833
 CompositeCollider2D:
   m_ObjectHideFlags: 0
@@ -4019,6 +4022,7 @@ MonoBehaviour:
   currentAttack: 0
   wind: {fileID: 1099201128}
   windForce: 10000
+  playerForceScale: 0.01
   windDuration: 20
   directionChangeInterval: 5
   rechargeTime: 1
