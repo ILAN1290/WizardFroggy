@@ -82,7 +82,9 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             {
                 for (int x = 0; x < size; x++)
                 {
-                    float distance = Vector2.Distance(new Vector2(x, y), centre) / (size * 0.5f);
+                    Vector2 offset = (new Vector2(x, y) - centre) / (size * 0.5f);
+                    // Square falloff keeps the projectile glow visibly pixel-shaped.
+                    float distance = Mathf.Max(Mathf.Abs(offset.x), Mathf.Abs(offset.y));
                     float alpha = Mathf.Pow(Mathf.Clamp01(1f - distance), 2.4f) * 0.72f;
                     pixels[y * size + x] = new Color(0.36f, 0.76f, 1f, alpha);
                 }
@@ -157,7 +159,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
         BoxCollider2D collider = bolt.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
-        collider.size = new Vector2(0.8f, 0.8f);
+        collider.size = new Vector2(0.22f, 0.22f);
         Rigidbody2D projectileBody = bolt.AddComponent<Rigidbody2D>();
         projectileBody.bodyType = RigidbodyType2D.Kinematic;
         projectileBody.gravityScale = 0f;
