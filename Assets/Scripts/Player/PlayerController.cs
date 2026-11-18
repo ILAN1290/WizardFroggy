@@ -11,6 +11,8 @@ public class PlayerController : MonoBehaviour
     private Vector2 movement;
     private Vector2 externalVelocity;
     private Vector2 pendingExternalForce;
+    private Vector2 windVelocity;
+    private Vector2 pendingWindForce;
     private Vector2 lookDirection = new Vector2(0, 1);  
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
@@ -96,6 +98,12 @@ public class PlayerController : MonoBehaviour
         pendingExternalForce += force * Time.deltaTime;
     }
 
+    // Wind is deliberately weaker than player movement and cannot overpower input.
+    public void AddWindForce(Vector2 force)
+    {
+        pendingWindForce += force * Time.deltaTime;
+    }
+
     private void Parry()
     {
         if (InputManager.instance.ParryInput && !isInvincible && canParry && mana.CurrentMana >= spendingManaByParry)
@@ -171,6 +179,11 @@ public class PlayerController : MonoBehaviour
         externalVelocity *= Mathf.Exp(-1.5f * Time.fixedDeltaTime);
         externalVelocity = Vector2.ClampMagnitude(externalVelocity, 6f);
 
+        windVelocity += pendingWindForce / Mathf.Max(0.01f, rb.mass);
+        pendingWindForce = Vector2.zero;
+        windVelocity *= Mathf.Exp(-3.5f * Time.fixedDeltaTime);
+        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0.5f, moveSpeed * 0.45f));
+
         Vector2 controlledVelocity = movement.normalized * moveSpeed;
         if (isInvincible)
         {
@@ -178,7 +191,7 @@ public class PlayerController : MonoBehaviour
             mana.SpendMana(spendingManaByInvincibilityBySecond * Time.fixedDeltaTime);
         }
 
-        rb.linearVelocity = controlledVelocity + externalVelocity;
+        rb.linearVelocity = controlledVelocity + externalVelocity + windVelocity;
     }
     private void  Launch()
     {
