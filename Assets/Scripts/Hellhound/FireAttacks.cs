@@ -470,19 +470,28 @@ public class FireAttacks : BossAttack
 
             if (paintGrid != null)
             {
-                cellOrigin = paintGrid.WorldToCell(worldMin);
+                // Include only cells whose centres are inside the playable rectangle.
+                // This prevents a row of fire tiles from spilling under the boundary flames.
+                Vector3 cellSizeWorld = paintGrid.cellSize;
+                Vector2 halfCell = new Vector2(
+                    Mathf.Abs(cellSizeWorld.x) * 0.5f,
+                    Mathf.Abs(cellSizeWorld.y) * 0.5f);
+                cellOrigin = paintGrid.WorldToCell(worldMin + halfCell);
                 Vector3Int maxCell = paintGrid.WorldToCell(
-                    worldMax - Vector2.one * 0.001f);
+                    worldMax - halfCell - Vector2.one * 0.001f);
                 gridCols = Mathf.Max(1, maxCell.x - cellOrigin.x + 1);
                 gridRows = Mathf.Max(1, maxCell.y - cellOrigin.y + 1);
             }
             else
             {
-                cellOrigin = new Vector3Int(
-                    Mathf.FloorToInt(worldMin.x / activeCellSize),
-                    Mathf.FloorToInt(worldMin.y / activeCellSize), 0);
-                gridCols = Mathf.Max(1, Mathf.CeilToInt(floorAreaSize.x / activeCellSize));
-                gridRows = Mathf.Max(1, Mathf.CeilToInt(floorAreaSize.y / activeCellSize));
+                // Fallback grid is aligned by tile centres, just like Unity's Grid.
+                int minX = Mathf.CeilToInt(worldMin.x / activeCellSize - 0.5f);
+                int minY = Mathf.CeilToInt(worldMin.y / activeCellSize - 0.5f);
+                int maxX = Mathf.FloorToInt(worldMax.x / activeCellSize - 0.5f);
+                int maxY = Mathf.FloorToInt(worldMax.y / activeCellSize - 0.5f);
+                cellOrigin = new Vector3Int(minX, minY, 0);
+                gridCols = Mathf.Max(1, maxX - minX + 1);
+                gridRows = Mathf.Max(1, maxY - minY + 1);
             }
         }
         else if (floorReference != null && paintGrid != null)
