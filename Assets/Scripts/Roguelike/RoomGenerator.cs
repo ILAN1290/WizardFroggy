@@ -13,6 +13,18 @@ public class RoomGenerator : MonoBehaviour
     private static Sprite whiteSprite;
     private static Sprite circleSprite;
 
+    [Header("Визуальные заглушки")]
+    [SerializeField, InspectorName("Использовать OnGUI если нет спрайта")]
+    private bool useOnGUIIfNoSprite = true;
+    [SerializeField] private Sprite meleeGhostSprite;
+    [SerializeField] private Sprite rangedGhostSprite;
+    [SerializeField] private Sprite chestSprite;
+    [SerializeField] private Sprite merchantSprite;
+    [SerializeField] private Sprite exitSprite;
+    [SerializeField] private Sprite trapSprite;
+    [SerializeField] private Sprite mushroomSprite;
+    [SerializeField] private Sprite itemSprite;
+
     public static Sprite CircleSprite
     {
         get
@@ -56,6 +68,7 @@ public class RoomGenerator : MonoBehaviour
             BoxCollider2D trigger = chest.AddComponent<BoxCollider2D>();
             trigger.isTrigger = true;
             chest.AddComponent<RoguelikeChest>().Initialize(session);
+            ApplyPlaceholder(chest, chestSprite, "СУНДУК", session);
         }
         else if (room.Type == RoguelikeRoomType.Merchant)
         {
@@ -65,6 +78,7 @@ public class RoomGenerator : MonoBehaviour
             trigger.isTrigger = true;
             trigger.radius = 1.8f;
             merchant.AddComponent<RoguelikeMerchant>().Initialize(session);
+            ApplyPlaceholder(merchant, merchantSprite, "ТОРГОВЕЦ", session);
         }
         if (room.IsExit)
             SpawnExit(root, session);
@@ -148,6 +162,7 @@ public class RoomGenerator : MonoBehaviour
         trigger.isTrigger = true;
         trigger.radius = 2f;
         exit.AddComponent<RoguelikeExit>().Initialize(session);
+        ApplyPlaceholder(exit, exitSprite, "ВЫХОД", session);
     }
 
     private void CreateDoor(Transform root, RoguelikeSession session, Vector2 position,
@@ -219,6 +234,8 @@ public class RoomGenerator : MonoBehaviour
             ? new Color(0.55f, 0.9f, 0.9f)
             : new Color(0.75f, 0.68f, 0.98f);
         renderer.sortingOrder = 4;
+        ApplyPlaceholder(ghost, melee ? meleeGhostSprite : rangedGhostSprite,
+            melee ? "ПРИЗРАК • БЛИЖНИЙ БОЙ" : "ПРИЗРАК • ДАЛЬНИЙ БОЙ", session);
 
         CircleCollider2D collider = ghost.AddComponent<CircleCollider2D>();
         collider.radius = 0.56f;
@@ -238,6 +255,32 @@ public class RoomGenerator : MonoBehaviour
         BoxCollider2D collider = trap.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
         trap.AddComponent<RoguelikeTrap>();
+        ApplyPlaceholder(trap, trapSprite, "ЛОВУШКА", RoguelikeSession.Instance);
+    }
+
+    public Sprite MushroomSprite => mushroomSprite;
+    public Sprite ItemSprite => itemSprite;
+
+    public void ApplyPickupPlaceholder(GameObject target, Sprite itemIcon, string label,
+        RoguelikeSession session)
+    {
+        ApplyPlaceholder(target, itemIcon != null ? itemIcon : itemSprite, label, session);
+    }
+
+    private void ApplyPlaceholder(GameObject target, Sprite sprite, string label,
+        RoguelikeSession session)
+    {
+        if (target == null) return;
+        SpriteRenderer renderer = target.GetComponent<SpriteRenderer>();
+        if (renderer != null && sprite != null)
+        {
+            renderer.sprite = sprite;
+            renderer.color = Color.white;
+        }
+        else if (sprite == null && useOnGUIIfNoSprite && session != null)
+        {
+            session.RegisterWorldPlaceholder(target.transform, label);
+        }
     }
 
     private Vector2 RandomPointAwayFromCentre()
