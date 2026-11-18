@@ -1617,8 +1617,8 @@ MonoBehaviour:
   gridOffset: {x: 0, y: 0}
   cellSize: 1
   useCustomFloorArea: 1
-  floorAreaCenter: {x: -0.04, y: -2.3175}
-  floorAreaSize: {x: 16.67, y: 6.955}
+  floorAreaCenter: {x: -0.04, y: -2.3277}
+  floorAreaSize: {x: 16.67, y: 8.6263}
   attentionSprite: {fileID: 0}
   fireSprite: {fileID: 0}
   attentionColor: {r: 1, g: 0.78, b: 0.2, a: 0.9}
