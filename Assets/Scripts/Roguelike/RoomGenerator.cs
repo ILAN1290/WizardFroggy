@@ -23,6 +23,18 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite mushroomSprite;
     [SerializeField] private Sprite itemSprite;
 
+    [Header("Геометрия комнаты")]
+    [SerializeField] private Sprite roomWallSprite;
+    [SerializeField] private Sprite[] closedDoorSprites = new Sprite[6];
+    [SerializeField] private Sprite[] openedDoorSprites = new Sprite[6];
+    [SerializeField] private Sprite interiorObstacleSprite;
+
+    [Header("Миникарта")]
+    [SerializeField] private Sprite minimapFrameSprite;
+
+    public Sprite MinimapFrameSprite => minimapFrameSprite;
+    public static Sprite WhiteSquareSprite => WhiteSprite;
+
     public static Sprite CircleSprite
     {
         get
@@ -44,7 +56,7 @@ public class RoomGenerator : MonoBehaviour
         bool up = room.Neighbours.Contains(room.Index + 4) && room.Y < 2;
 
         BuildBoundaries(root, left, right, down, up, session);
-        AddBookshelves(root, floorNumber);
+        BuildObstaclePattern(root, room.Index, floorNumber);
 
         if (room.Type == RoguelikeRoomType.Combat && !room.IsCleared)
         {
@@ -87,69 +99,107 @@ public class RoomGenerator : MonoBehaviour
     private void BuildBoundaries(Transform root, bool left, bool right, bool down,
         bool up, RoguelikeSession session)
     {
-        float wall = 0.55f;
+        const float wall = 0.55f;
         float horizontalSegment = (RoomWidth - 2.6f) * 0.5f;
         float verticalSegment = (RoomHeight - 2.6f) * 0.5f;
+        float sideX = RoomWidth * 0.5f - wall * 0.5f;
+        float topY = RoomHeight * 0.5f - wall * 0.5f;
 
         if (left)
         {
-            CreateSolid(root, "Шкаф западный верх",
-                new Vector2(-RoomWidth / 2, RoomHeight / 2 - verticalSegment / 2),
-                new Vector2(wall, verticalSegment), new Color(0.35f, 0.23f, 0.16f));
-            CreateSolid(root, "Шкаф западный низ",
-                new Vector2(-RoomWidth / 2, -RoomHeight / 2 + verticalSegment / 2),
-                new Vector2(wall, verticalSegment), new Color(0.35f, 0.23f, 0.16f));
-            CreateDoor(root, session, new Vector2(-8.85f, 0f),
-                new Vector2(7f, 0f), -1, 0);
+            CreateWallSegment(root, "Западная стена • верх",
+                new Vector2(-sideX, verticalSegment * 0.5f + 1.3f),
+                new Vector2(wall, verticalSegment), 90f);
+            CreateWallSegment(root, "Западная стена • низ",
+                new Vector2(-sideX, -verticalSegment * 0.5f - 1.3f),
+                new Vector2(wall, verticalSegment), 90f);
+            CreateDoor(root, session, new Vector2(-sideX, 0f),
+                new Vector2(7f, 0f), -1, 0, 90f);
         }
         else
-            CreateSolid(root, "Стена запад", new Vector2(-RoomWidth / 2, 0f),
-                new Vector2(wall, RoomHeight), new Color(0.29f, 0.19f, 0.14f));
+        {
+            CreateWallSegment(root, "Западная стена",
+                new Vector2(-sideX, 0f), new Vector2(wall, RoomHeight), 90f);
+        }
 
         if (right)
         {
-            CreateSolid(root, "Шкаф восточный верх",
-                new Vector2(RoomWidth / 2, RoomHeight / 2 - verticalSegment / 2),
-                new Vector2(wall, verticalSegment), new Color(0.35f, 0.23f, 0.16f));
-            CreateSolid(root, "Шкаф восточный низ",
-                new Vector2(RoomWidth / 2, -RoomHeight / 2 + verticalSegment / 2),
-                new Vector2(wall, verticalSegment), new Color(0.35f, 0.23f, 0.16f));
-            CreateDoor(root, session, new Vector2(8.85f, 0f),
-                new Vector2(-7f, 0f), 1, 0);
+            CreateWallSegment(root, "Восточная стена • верх",
+                new Vector2(sideX, verticalSegment * 0.5f + 1.3f),
+                new Vector2(wall, verticalSegment), 90f);
+            CreateWallSegment(root, "Восточная стена • низ",
+                new Vector2(sideX, -verticalSegment * 0.5f - 1.3f),
+                new Vector2(wall, verticalSegment), 90f);
+            CreateDoor(root, session, new Vector2(sideX, 0f),
+                new Vector2(-7f, 0f), 1, 0, 90f);
         }
         else
-            CreateSolid(root, "Стена восток", new Vector2(RoomWidth / 2, 0f),
-                new Vector2(wall, RoomHeight), new Color(0.29f, 0.19f, 0.14f));
+        {
+            CreateWallSegment(root, "Восточная стена",
+                new Vector2(sideX, 0f), new Vector2(wall, RoomHeight), 90f);
+        }
 
         if (down)
         {
-            CreateSolid(root, "Шкаф южный левый",
-                new Vector2(-RoomWidth / 2 + horizontalSegment / 2, -RoomHeight / 2),
-                new Vector2(horizontalSegment, wall), new Color(0.35f, 0.23f, 0.16f));
-            CreateSolid(root, "Шкаф южный правый",
-                new Vector2(RoomWidth / 2 - horizontalSegment / 2, -RoomHeight / 2),
-                new Vector2(horizontalSegment, wall), new Color(0.35f, 0.23f, 0.16f));
-            CreateDoor(root, session, new Vector2(0f, -5.85f),
-                new Vector2(0f, 4.4f), 0, -1);
+            CreateWallSegment(root, "Южная стена • левая",
+                new Vector2(-horizontalSegment * 0.5f - 1.3f, -topY),
+                new Vector2(horizontalSegment, wall), 180f);
+            CreateWallSegment(root, "Южная стена • правая",
+                new Vector2(horizontalSegment * 0.5f + 1.3f, -topY),
+                new Vector2(horizontalSegment, wall), 180f);
+            CreateDoor(root, session, new Vector2(0f, -topY),
+                new Vector2(0f, 4.4f), 0, -1, 180f);
         }
         else
-            CreateSolid(root, "Стена юг", new Vector2(0f, -RoomHeight / 2),
-                new Vector2(RoomWidth, wall), new Color(0.29f, 0.19f, 0.14f));
+        {
+            CreateWallSegment(root, "Южная стена",
+                new Vector2(0f, -topY), new Vector2(RoomWidth, wall), 180f);
+        }
 
         if (up)
         {
-            CreateSolid(root, "Шкаф северный левый",
-                new Vector2(-RoomWidth / 2 + horizontalSegment / 2, RoomHeight / 2),
-                new Vector2(horizontalSegment, wall), new Color(0.35f, 0.23f, 0.16f));
-            CreateSolid(root, "Шкаф северный правый",
-                new Vector2(RoomWidth / 2 - horizontalSegment / 2, RoomHeight / 2),
-                new Vector2(horizontalSegment, wall), new Color(0.35f, 0.23f, 0.16f));
-            CreateDoor(root, session, new Vector2(0f, 5.85f),
-                new Vector2(0f, -4.4f), 0, 1);
+            CreateWallSegment(root, "Северная стена • левая",
+                new Vector2(-horizontalSegment * 0.5f - 1.3f, topY),
+                new Vector2(horizontalSegment, wall), 0f);
+            CreateWallSegment(root, "Северная стена • правая",
+                new Vector2(horizontalSegment * 0.5f + 1.3f, topY),
+                new Vector2(horizontalSegment, wall), 0f);
+            CreateDoor(root, session, new Vector2(0f, topY),
+                new Vector2(0f, -4.4f), 0, 1, 0f);
         }
         else
-            CreateSolid(root, "Стена север", new Vector2(0f, RoomHeight / 2),
-                new Vector2(RoomWidth, wall), new Color(0.29f, 0.19f, 0.14f));
+        {
+            CreateWallSegment(root, "Северная стена",
+                new Vector2(0f, topY), new Vector2(RoomWidth, wall), 0f);
+        }
+    }
+
+    private void CreateWallSegment(Transform root, string objectName, Vector2 position,
+        Vector2 size, float rotation)
+    {
+        GameObject wall = new GameObject(objectName);
+        wall.transform.SetParent(root, false);
+        wall.transform.localPosition = new Vector3(position.x, position.y, 0f);
+        wall.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
+
+        SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
+        renderer.sprite = roomWallSprite != null ? roomWallSprite : WhiteSprite;
+        renderer.sortingOrder = 2;
+
+        BoxCollider2D blocker = wall.AddComponent<BoxCollider2D>();
+        if (roomWallSprite != null)
+        {
+            renderer.drawMode = SpriteDrawMode.Tiled;
+            renderer.tileMode = SpriteTileMode.Continuous;
+            renderer.size = size;
+            renderer.color = Color.white;
+            blocker.size = size;
+        }
+        else
+        {
+            wall.transform.localScale = new Vector3(size.x, size.y, 1f);
+            renderer.color = new Color(0.25f, 0.19f, 0.16f);
+        }
     }
 
     private void SpawnExit(Transform root, RoguelikeSession session)
@@ -164,57 +214,102 @@ public class RoomGenerator : MonoBehaviour
     }
 
     private void CreateDoor(Transform root, RoguelikeSession session, Vector2 position,
-        Vector2 spawn, int dx, int dy)
+        Vector2 spawn, int dx, int dy, float rotation)
     {
-        GameObject door = CreateRect(root, "Проход", position, new Vector2(1.0f, 2.1f),
-            new Color(0.45f, 0.62f, 0.66f), 1, false);
+        GameObject door = new GameObject("Дверь библиотеки");
+        door.transform.SetParent(root, false);
+        door.transform.localPosition = new Vector3(position.x, position.y, -0.04f);
+        door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
+
+        BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
+        blocker.size = new Vector2(2.6f, 0.68f);
+        blocker.isTrigger = false;
+
         BoxCollider2D trigger = door.AddComponent<BoxCollider2D>();
+        trigger.size = new Vector2(2.8f, 1.05f);
         trigger.isTrigger = true;
-        trigger.size = new Vector2(1.6f, 2.6f);
-        door.AddComponent<RoguelikeDoor>().Initialize(session, dx, dy, spawn);
+        trigger.enabled = false;
+
+        SpriteRenderer fallback = door.AddComponent<SpriteRenderer>();
+        fallback.sprite = WhiteSprite;
+        fallback.drawMode = SpriteDrawMode.Tiled;
+        fallback.size = new Vector2(2.55f, 0.62f);
+        fallback.sortingOrder = 3;
+        fallback.enabled = false;
+
+        SpriteRenderer[] parts = new SpriteRenderer[6];
+        const float tileWidth = 0.86f;
+        const float tileHeight = 0.9f;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            GameObject tile = new GameObject("Дверной тайл " + i);
+            tile.transform.SetParent(door.transform, false);
+            int column = i % 3;
+            int row = i / 3;
+            tile.transform.localPosition = new Vector3(
+                (column - 1) * tileWidth,
+                (0.5f - row) * tileHeight, 0f);
+
+            SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = 4;
+            parts[i] = renderer;
+        }
+
+        door.AddComponent<RoguelikeDoor>().Initialize(session, dx, dy, spawn,
+            parts, closedDoorSprites, openedDoorSprites, fallback, blocker, trigger);
     }
 
-    private void AddBookshelves(Transform root, int floorNumber)
+    private void BuildObstaclePattern(Transform root, int roomIndex, int floorNumber)
     {
-        GameObject lateralPrefab = Resources.Load<GameObject>(
-            "RoguelikePrefabs/Lateral Book Case");
-        GameObject upperPrefab = Resources.Load<GameObject>(
-            "RoguelikePrefabs/Upper Book Case");
+        // Four authored layouts are rotated through the room graph. They are fixed,
+        // keep the central combat lane open and never clutter the doorway approaches.
+        int pattern = Mathf.Abs(roomIndex + floorNumber - 1) % 4;
+        Color colour = new Color(
+            0.28f + floorNumber * 0.018f, 0.19f, 0.15f, 1f);
 
-        int count = Random.Range(3, 6);
-        for (int i = 0; i < count; i++)
+        switch (pattern)
         {
-            Vector2 point = RandomPointAwayFromCentre();
-            bool horizontal = Random.value > 0.5f;
-            GameObject prefab = horizontal ? lateralPrefab : upperPrefab;
+            case 0: // Four low book piles, arranged symmetrically.
+                CreateObstacle(root, "Книжный блок • СЗ", new Vector2(-4.5f, 2.25f), new Vector2(1.65f, 0.78f), colour);
+                CreateObstacle(root, "Книжный блок • СВ", new Vector2(4.5f, 2.25f), new Vector2(1.65f, 0.78f), colour);
+                CreateObstacle(root, "Книжный блок • ЮЗ", new Vector2(-4.5f, -2.25f), new Vector2(1.65f, 0.78f), colour);
+                CreateObstacle(root, "Книжный блок • ЮВ", new Vector2(4.5f, -2.25f), new Vector2(1.65f, 0.78f), colour);
+                break;
 
-            if (prefab == null)
-            {
-                Vector2 fallbackSize = horizontal
-                    ? new Vector2(2.2f, 0.72f)
-                    : new Vector2(0.72f, 2.2f);
-                CreateSolid(root, "Книжный шкаф", point, fallbackSize,
-                    new Color(0.28f + floorNumber * 0.025f, 0.17f, 0.12f));
-                continue;
-            }
+            case 1: // Two pillars with short side stacks.
+                CreateObstacle(root, "Архивная колонна • З", new Vector2(-4.7f, 0f), new Vector2(0.82f, 2.15f), colour);
+                CreateObstacle(root, "Архивная колонна • В", new Vector2(4.7f, 0f), new Vector2(0.82f, 2.15f), colour);
+                CreateObstacle(root, "Стопка • С", new Vector2(0f, 3.35f), new Vector2(2.0f, 0.72f), colour);
+                CreateObstacle(root, "Стопка • Ю", new Vector2(0f, -3.35f), new Vector2(2.0f, 0.72f), colour);
+                break;
 
-            GameObject shelf = Instantiate(prefab, root);
-            shelf.name = "Книжный шкаф";
-            shelf.transform.localPosition = new Vector3(point.x, point.y, 0f);
-            shelf.transform.localRotation = Quaternion.Euler(
-                0f, 0f, horizontal ? 0f : 90f);
-            shelf.transform.localScale = Vector3.one * 0.35f;
+            case 2: // Offset paired rows, leaving a zig-zag passage.
+                CreateObstacle(root, "Полка • СЗ", new Vector2(-3.5f, 2.75f), new Vector2(1.8f, 0.72f), colour);
+                CreateObstacle(root, "Полка • СВ", new Vector2(3.5f, 1.75f), new Vector2(1.8f, 0.72f), colour);
+                CreateObstacle(root, "Полка • ЮЗ", new Vector2(-3.5f, -1.75f), new Vector2(1.8f, 0.72f), colour);
+                CreateObstacle(root, "Полка • ЮВ", new Vector2(3.5f, -2.75f), new Vector2(1.8f, 0.72f), colour);
+                break;
 
-            // The imported prefabs have different collider settings. Use one predictable
-            // blocker matching the visible shelf size.
-            Collider2D[] existingColliders = shelf.GetComponents<Collider2D>();
-            foreach (Collider2D existing in existingColliders)
-                existing.enabled = false;
-
-            BoxCollider2D blocker = shelf.AddComponent<BoxCollider2D>();
-            blocker.size = new Vector2(6.6f, 2.5f);
-            blocker.usedByComposite = false;
+            default: // Corner L-shapes.
+                CreateObstacle(root, "Угол • СЗ горизонталь", new Vector2(-5.0f, 3.1f), new Vector2(2.0f, 0.68f), colour);
+                CreateObstacle(root, "Угол • СЗ вертикаль", new Vector2(-5.65f, 2.0f), new Vector2(0.68f, 1.5f), colour);
+                CreateObstacle(root, "Угол • СВ горизонталь", new Vector2(5.0f, -3.1f), new Vector2(2.0f, 0.68f), colour);
+                CreateObstacle(root, "Угол • СВ вертикаль", new Vector2(5.65f, -2.0f), new Vector2(0.68f, 1.5f), colour);
+                break;
         }
+    }
+
+    private void CreateObstacle(Transform root, string objectName, Vector2 position,
+        Vector2 size, Color fallbackColour)
+    {
+        GameObject obstacle = CreateSolid(root, objectName, position, size, fallbackColour);
+        SpriteRenderer renderer = obstacle.GetComponent<SpriteRenderer>();
+        if (renderer != null && interiorObstacleSprite != null)
+        {
+            renderer.sprite = interiorObstacleSprite;
+            renderer.color = Color.white;
+        }
+        if (renderer != null) renderer.sortingOrder = 2;
     }
 
     private void SpawnGhost(Transform root, RoguelikeSession session, int floor,
