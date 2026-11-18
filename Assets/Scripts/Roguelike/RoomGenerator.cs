@@ -13,9 +13,7 @@ public class RoomGenerator : MonoBehaviour
     private static Sprite whiteSprite;
     private static Sprite circleSprite;
 
-    [Header("Визуальные заглушки")]
-    [SerializeField, InspectorName("Использовать OnGUI если нет спрайта")]
-    private bool useOnGUIIfNoSprite = true;
+    [SerializeField] private bool useOnGUIIfNoSprite = true;
     [SerializeField] private Sprite meleeGhostSprite;
     [SerializeField] private Sprite rangedGhostSprite;
     [SerializeField] private Sprite chestSprite;
