@@ -23,6 +23,6 @@ public class RoguelikeExit : MonoBehaviour
             return;
         }
 
-        session.ReturnToLobby();
+        session.CompleteCurrentFloor();
     }
 }
