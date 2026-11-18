@@ -267,7 +267,7 @@ public class RoomGenerator : MonoBehaviour
         ApplyPlaceholder(target, itemIcon != null ? itemIcon : itemSprite, label, session);
     }
 
-    private void ApplyPlaceholder(GameObject target, Sprite sprite, string label,
+    public void ApplyPlaceholder(GameObject target, Sprite sprite, string label,
         RoguelikeSession session)
     {
         if (target == null) return;
