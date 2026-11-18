@@ -418,7 +418,7 @@ public class RoguelikeSession : MonoBehaviour
     {
         if (currentFloor == null || currentRoom == null) return;
 
-        Rect frame = new Rect(Screen.width - 238f, 14f, 224f, 174f);
+        Rect frame = new Rect(Screen.width - 202f, 14f, 188f, 148f);
         if (roomGenerator != null && roomGenerator.MinimapFrameSprite != null)
             DrawSpriteFrame(roomGenerator.MinimapFrameSprite, frame);
         else
