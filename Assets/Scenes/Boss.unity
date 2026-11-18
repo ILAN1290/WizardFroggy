@@ -4022,7 +4022,7 @@ MonoBehaviour:
   currentAttack: -1
   wind: {fileID: 1099201128}
   windForce: 10000
-  playerForceScale: 0.01
+  playerForceScale: 0.00025
   windDuration: 20
   directionChangeInterval: 5
   rechargeTime: 1
