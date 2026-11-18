@@ -69,12 +69,61 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         bolt.transform.SetParent(transform.parent, true);
         bolt.transform.position = transform.position;
         SpriteRenderer renderer = bolt.AddComponent<SpriteRenderer>();
-        renderer.sprite = RoomGenerator.CircleSprite;
-        renderer.color = new Color(0.72f, 0.56f, 1f);
-        renderer.sortingOrder = 5;
+        renderer.sprite = RoomGenerator.WhiteSquareSprite;
+        renderer.color = new Color(0.88f, 0.98f, 1f, 1f);
+        renderer.sortingOrder = 7;
+        bolt.transform.localScale = Vector3.one * 0.18f;
 
-        CircleCollider2D collider = bolt.AddComponent<CircleCollider2D>();
+        GameObject glow = new GameObject("Голубое свечение");
+        glow.transform.SetParent(bolt.transform, false);
+        SpriteRenderer glowRenderer = glow.AddComponent<SpriteRenderer>();
+        glowRenderer.sprite = RoomGenerator.WhiteSquareSprite;
+        glowRenderer.color = new Color(0.22f, 0.72f, 1f, 0.35f);
+        glowRenderer.sortingOrder = 6;
+        glow.transform.localScale = Vector3.one * 2.2f;
+
+        ParticleSystem trail = bolt.AddComponent<ParticleSystem>();
+        var main = trail.main;
+        main.loop = true;
+        main.duration = 1f;
+        main.startLifetime = 0.32f;
+        main.startSpeed = 0.45f;
+        main.startSize = 0.075f;
+        main.startColor = new Color(0.45f, 0.82f, 1f, 0.9f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.maxParticles = 48;
+
+        var emission = trail.emission;
+        emission.rateOverTime = 28f;
+
+        var shape = trail.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 14f;
+        shape.radius = 0.025f;
+        shape.rotation = new Vector3(0f, 0f,
+            Vector2.SignedAngle(Vector2.up, -direction));
+
+        var colorOverLifetime = trail.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[] {
+                new GradientColorKey(new Color(0.78f, 0.94f, 1f), 0f),
+                new GradientColorKey(new Color(0.28f, 0.68f, 1f), 1f)
+            },
+            new[] {
+                new GradientAlphaKey(0.9f, 0f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        ParticleSystemRenderer trailRenderer = trail.GetComponent<ParticleSystemRenderer>();
+        if (trailRenderer != null) trailRenderer.sortingOrder = 5;
+
+        BoxCollider2D collider = bolt.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
+        collider.size = new Vector2(0.8f, 0.8f);
         Rigidbody2D projectileBody = bolt.AddComponent<Rigidbody2D>();
         projectileBody.bodyType = RigidbodyType2D.Kinematic;
         projectileBody.gravityScale = 0f;
