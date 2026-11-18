@@ -7,7 +7,7 @@ public class WindAttacks : BossAttack
     [Header("Атака 0 — Порывы")]
     public GameObject wind;
     [SerializeField] private float windForce = 5500f;
-    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.025f;
+    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.01f;
     [SerializeField] private float windDuration = 20f;
     [SerializeField] private float directionChangeInterval = 3f;
     [SerializeField] private float rechargeTime = 1f;
@@ -116,7 +116,7 @@ public class WindAttacks : BossAttack
             if (boss.Player != null)
             {
                 PlayerController controller = boss.Player.GetComponent<PlayerController>();
-                Vector2 force = dir * windForce * Time.deltaTime * playerForceScale;
+                Vector2 force = dir * windForce * playerForceScale;
 
                 if (controller != null)
                     controller.AddExternalForce(force);
