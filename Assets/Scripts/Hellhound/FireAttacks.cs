@@ -648,7 +648,7 @@ public class FireAttacks : BossAttack
         foreach (Vector3Int p in map.cellBounds.allPositionsWithin)
         {
             if (!map.HasTile(p)) continue;
-            hotCells.Add(g != null ? (Vector2)g.GetCellCenterWorld(p) : new Vector2(p.x, p.y));
+            hotCells.Add(map.GetCellCenterWorld(p));
         }
     }
 
@@ -729,13 +729,16 @@ public class FireAttacks : BossAttack
         if (playerCollider != null)
         {
             Bounds playerBounds = playerCollider.bounds;
-            Vector3 cellSize = new Vector3(
-                activeCellSize, activeCellSize, Mathf.Max(0.1f, playerBounds.size.z));
+            float halfCell = activeCellSize * 0.5f;
 
             for (int i = 0; i < hotCells.Count; i++)
             {
-                Bounds burningCell = new Bounds(hotCells[i], cellSize);
-                if (burningCell.Intersects(playerBounds))
+                Vector2 cell = hotCells[i];
+                bool overlapsX = playerBounds.min.x <= cell.x + halfCell &&
+                    playerBounds.max.x >= cell.x - halfCell;
+                bool overlapsY = playerBounds.min.y <= cell.y + halfCell &&
+                    playerBounds.max.y >= cell.y - halfCell;
+                if (overlapsX && overlapsY)
                     return true;
             }
 
