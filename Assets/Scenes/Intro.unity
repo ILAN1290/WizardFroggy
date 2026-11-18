@@ -181,7 +181,7 @@ MonoBehaviour:
   - {fileID: 314365078}
   fadeDuration: 1.5
   leafletSound: {fileID: 8300000, guid: f6d9ab08a358aca4b900d23907d27065, type: 3}
-  MAIN_SCENE: RoguelikeLibrary
+  MAIN_SCENE: Roguelike
 --- !u!1 &117813215
 GameObject:
   m_ObjectHideFlags: 0
