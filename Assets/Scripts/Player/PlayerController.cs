@@ -182,7 +182,7 @@ public class PlayerController : MonoBehaviour
         windVelocity += pendingWindForce / Mathf.Max(0.01f, rb.mass);
         pendingWindForce = Vector2.zero;
         windVelocity *= Mathf.Exp(-3.5f * Time.fixedDeltaTime);
-        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0.5f, moveSpeed * 0.45f));
+        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0f, moveSpeed * 0.15f));
 
         Vector2 controlledVelocity = movement.normalized * moveSpeed;
         if (isInvincible)
