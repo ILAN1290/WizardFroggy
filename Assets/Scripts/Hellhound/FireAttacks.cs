@@ -746,11 +746,11 @@ public class FireAttacks : BossAttack
         }
 
         Vector2 playerPosition = boss.PlayerPos;
-        float halfCell = activeCellSize * 0.5f;
+        float positionHalfCell = activeCellSize * 0.5f;
         for (int i = 0; i < hotCells.Count; i++)
         {
-            if (Mathf.Abs(playerPosition.x - hotCells[i].x) <= halfCell &&
-                Mathf.Abs(playerPosition.y - hotCells[i].y) <= halfCell)
+            if (Mathf.Abs(playerPosition.x - hotCells[i].x) <= positionHalfCell &&
+                Mathf.Abs(playerPosition.y - hotCells[i].y) <= positionHalfCell)
                 return true;
         }
 
