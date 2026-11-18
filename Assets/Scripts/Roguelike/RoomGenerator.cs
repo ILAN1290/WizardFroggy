@@ -270,7 +270,7 @@ public class RoomGenerator : MonoBehaviour
 
     private void BuildObstaclePattern(Transform root, int roomIndex, int floorNumber)
     {
-        // Four authored layouts are rotated through the room graph. They are fixed,
+        // Eight authored layouts rotate through the room graph. They are fixed,
         // keep the central combat lane open and never clutter the doorway approaches.
         int pattern = Mathf.Abs(roomIndex + floorNumber - 1) % 8;
         Color colour = new Color(
