@@ -63,44 +63,78 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         }
     }
 
+    private static Sprite softGlowSprite;
+
+    private static Sprite SoftGlowSprite
+    {
+        get
+        {
+            if (softGlowSprite != null) return softGlowSprite;
+
+            const int size = 32;
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            Color[] pixels = new Color[size * size];
+            Vector2 centre = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), centre) / (size * 0.5f);
+                    float alpha = Mathf.Pow(Mathf.Clamp01(1f - distance), 2.4f) * 0.72f;
+                    pixels[y * size + x] = new Color(0.36f, 0.76f, 1f, alpha);
+                }
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply();
+            softGlowSprite = Sprite.Create(texture, new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f), size);
+            return softGlowSprite;
+        }
+    }
+
     private void Shoot(Vector2 direction)
     {
         GameObject bolt = new GameObject("Призрачный снаряд");
         bolt.transform.SetParent(transform.parent, true);
         bolt.transform.position = transform.position;
+
         SpriteRenderer renderer = bolt.AddComponent<SpriteRenderer>();
         renderer.sprite = RoomGenerator.WhiteSquareSprite;
-        renderer.color = new Color(0.88f, 0.98f, 1f, 1f);
+        renderer.color = new Color(0.84f, 0.96f, 1f, 1f);
         renderer.sortingOrder = 7;
-        bolt.transform.localScale = Vector3.one * 0.18f;
+        bolt.transform.localScale = Vector3.one * 0.12f;
 
-        GameObject glow = new GameObject("Голубое свечение");
+        GameObject glow = new GameObject("Мягкое голубое свечение");
         glow.transform.SetParent(bolt.transform, false);
         SpriteRenderer glowRenderer = glow.AddComponent<SpriteRenderer>();
-        glowRenderer.sprite = RoomGenerator.WhiteSquareSprite;
-        glowRenderer.color = new Color(0.22f, 0.72f, 1f, 0.35f);
+        glowRenderer.sprite = SoftGlowSprite;
+        glowRenderer.color = new Color(0.38f, 0.78f, 1f, 0.78f);
         glowRenderer.sortingOrder = 6;
-        glow.transform.localScale = Vector3.one * 2.2f;
+        glow.transform.localScale = Vector3.one * 3f;
 
         ParticleSystem trail = bolt.AddComponent<ParticleSystem>();
         var main = trail.main;
         main.loop = true;
         main.duration = 1f;
-        main.startLifetime = 0.32f;
-        main.startSpeed = 0.45f;
-        main.startSize = 0.075f;
-        main.startColor = new Color(0.45f, 0.82f, 1f, 0.9f);
+        main.startLifetime = 0.28f;
+        main.startSpeed = 0.16f;
+        main.startSize = 0.04f;
+        main.startColor = new Color(0.55f, 0.86f, 1f, 0.92f);
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.maxParticles = 48;
+        main.maxParticles = 36;
 
         var emission = trail.emission;
-        emission.rateOverTime = 28f;
+        emission.rateOverTime = 24f;
 
         var shape = trail.shape;
         shape.enabled = true;
         shape.shapeType = ParticleSystemShapeType.Cone;
-        shape.angle = 14f;
-        shape.radius = 0.025f;
+        shape.angle = 12f;
+        shape.radius = 0.018f;
         shape.rotation = new Vector3(0f, 0f,
             Vector2.SignedAngle(Vector2.up, -direction));
 
@@ -109,11 +143,11 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         Gradient gradient = new Gradient();
         gradient.SetKeys(
             new[] {
-                new GradientColorKey(new Color(0.78f, 0.94f, 1f), 0f),
-                new GradientColorKey(new Color(0.28f, 0.68f, 1f), 1f)
+                new GradientColorKey(new Color(0.86f, 0.97f, 1f), 0f),
+                new GradientColorKey(new Color(0.24f, 0.65f, 1f), 1f)
             },
             new[] {
-                new GradientAlphaKey(0.9f, 0f),
+                new GradientAlphaKey(0.92f, 0f),
                 new GradientAlphaKey(0f, 1f)
             });
         colorOverLifetime.color = gradient;
