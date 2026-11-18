@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Controls the lobby, selected floor, current room and transitions between generated rooms.
@@ -26,6 +28,13 @@ public class RoguelikeSession : MonoBehaviour
     private bool inLobby = true;
     private bool shopOpen;
     private RoguelikeMerchant activeMerchant;
+    private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
+
+    private sealed class WorldPlaceholder
+    {
+        public Transform Target;
+        public string Label;
+    }
     private string hint = "Выберите один из трёх этажей";
     private float hintUntil;
 
@@ -71,7 +80,9 @@ public class RoguelikeSession : MonoBehaviour
 
         dungeonRoot = new GameObject("Generated Roguelike Room");
         dungeonRoot.SetActive(false);
-        roomGenerator = gameObject.AddComponent<RoomGenerator>();
+        roomGenerator = GetComponent<RoomGenerator>();
+        if (roomGenerator == null)
+            roomGenerator = gameObject.AddComponent<RoomGenerator>();
 
         if (Camera.main != null)
         {
@@ -100,7 +111,15 @@ public class RoguelikeSession : MonoBehaviour
     {
         if (!inLobby) return;
 
-        PlayerRunData.EnsureInstance();
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        if (!runData.CanStartFloor(floorNumber))
+        {
+            ShowHint(runData.RoguelikeCompleted
+                ? "Все три этажа уже пройдены."
+                : "Сначала завершите предыдущий этаж.");
+            return;
+        }
+
         currentFloor = RoguelikeGenerator.GenerateFloor(floorNumber);
         currentRoomIndex = 0;
         inLobby = false;
@@ -119,6 +138,7 @@ public class RoguelikeSession : MonoBehaviour
         currentRoom = currentFloor.GetRoom(currentRoomIndex);
         if (currentRoom == null) return;
 
+        worldPlaceholders.Clear();
         for (int i = dungeonRoot.transform.childCount - 1; i >= 0; i--)
             Destroy(dungeonRoot.transform.GetChild(i).gameObject);
 
@@ -272,8 +292,65 @@ public class RoguelikeSession : MonoBehaviour
         hintUntil = Time.time + 3.5f;
     }
 
+    public void CompleteCurrentFloor()
+    {
+        if (inLobby || currentFloor == null || currentRoom == null ||
+            !currentRoom.IsExit || !currentRoom.IsCleared)
+        {
+            ShowHint("Сначала зачистите последнюю комнату этажа.");
+            return;
+        }
+
+        int completedFloor = currentFloor.FloorNumber;
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        runData.CompleteFloor(completedFloor);
+
+        if (completedFloor < 3)
+        {
+            currentFloor = RoguelikeGenerator.GenerateFloor(completedFloor + 1);
+            currentRoomIndex = 0;
+            inLobby = false;
+            shopOpen = false;
+            activeMerchant = null;
+            if (lobbyEnvironment != null) lobbyEnvironment.SetActive(false);
+            if (dungeonRoot != null) dungeonRoot.SetActive(true);
+            ShowHint("Этаж " + (completedFloor + 1) + " открыт. Путь продолжается!");
+            GenerateCurrentRoom(Vector2.zero);
+            return;
+        }
+
+        // TowerDefence is intentionally supplied by the other developer.
+        // Do not create a fake scene or attempt to load it until it is in Build Settings.
+        if (Application.CanStreamedLevelBeLoaded("TowerDefence"))
+        {
+            SceneManager.LoadScene("TowerDefence");
+        }
+        else
+        {
+            ReturnToLobby();
+            ShowHint("Все три этажа пройдены. Добавьте TowerDefence в Build Settings перед Boss.");
+        }
+    }
+
+    public void RegisterWorldPlaceholder(Transform target, string label)
+    {
+        if (target == null || string.IsNullOrWhiteSpace(label)) return;
+
+        for (int i = 0; i < worldPlaceholders.Count; i++)
+        {
+            if (worldPlaceholders[i].Target == target)
+            {
+                worldPlaceholders[i].Label = label;
+                return;
+            }
+        }
+
+        worldPlaceholders.Add(new WorldPlaceholder { Target = target, Label = label });
+    }
+
     public void ReturnToLobby()
     {
+        worldPlaceholders.Clear();
         shopOpen = false;
         activeMerchant = null;
         inLobby = true;
@@ -342,15 +419,24 @@ public class RoguelikeSession : MonoBehaviour
                 "Грибочки: " + data.Mushrooms + "     Посох: " +
                 (data.EquippedStaff != null ? data.EquippedStaff.displayName : "нет"));
 
-            if (GUI.Button(new Rect(panel.x + 35, panel.y + 132, 450, 48),
-                "Этаж I • Забытые каталоги"))
-                StartFloor(1);
-            if (GUI.Button(new Rect(panel.x + 35, panel.y + 190, 450, 48),
-                "Этаж II • Архив призраков"))
-                StartFloor(2);
-            if (GUI.Button(new Rect(panel.x + 35, panel.y + 248, 450, 48),
-                "Этаж III • Запретное хранилище"))
-                StartFloor(3);
+            if (data.RoguelikeCompleted)
+            {
+                GUI.Label(new Rect(panel.x + 35, panel.y + 150, 450, 56),
+                    "Все три этажа пройдены. Следующая остановка: TowerDefence.");
+            }
+            else
+            {
+                GUI.Label(new Rect(panel.x + 35, panel.y + 134, 450, 34),
+                    "Доступен этаж " + data.CurrentProgressFloor + " из 3");
+                string floorName = data.CurrentProgressFloor == 1
+                    ? "Забытые каталоги"
+                    : data.CurrentProgressFloor == 2
+                        ? "Архив призраков"
+                        : "Запретное хранилище";
+                if (GUI.Button(new Rect(panel.x + 35, panel.y + 190, 450, 58),
+                    "Начать экспедицию • " + floorName))
+                    StartFloor(data.CurrentProgressFloor);
+            }
         }
         else
         {
@@ -364,9 +450,11 @@ public class RoguelikeSession : MonoBehaviour
                 "Грибочки: " + data.Mushrooms + "   •   Врагов осталось: " + enemiesRemaining);
 
             if (currentRoom != null && currentRoom.IsExit && currentRoom.IsCleared &&
-                GUI.Button(new Rect(Screen.width * 0.5f - 140,
-                    Screen.height - 100, 280, 54), "Вернуться в приёмную (E)"))
-                ReturnToLobby();
+                GUI.Button(new Rect(Screen.width * 0.5f - 160,
+                    Screen.height - 100, 320, 54), CurrentFloor < 3
+                        ? "Перейти на следующий этаж (E)"
+                        : "Завершить библиотеку (E)"))
+                CompleteCurrentFloor();
 
             if (shopOpen && activeMerchant != null)
                 activeMerchant.DrawShopGUI(this);
@@ -379,6 +467,24 @@ public class RoguelikeSession : MonoBehaviour
         {
             Rect hintRect = new Rect(Screen.width * 0.5f - 320f, 18f, 640f, 42f);
             GUI.Box(hintRect, hint);
+        }
+
+        if (Camera.main != null)
+        {
+            for (int i = worldPlaceholders.Count - 1; i >= 0; i--)
+            {
+                WorldPlaceholder placeholder = worldPlaceholders[i];
+                if (placeholder.Target == null)
+                {
+                    worldPlaceholders.RemoveAt(i);
+                    continue;
+                }
+
+                Vector3 screen = Camera.main.WorldToScreenPoint(placeholder.Target.position);
+                if (screen.z <= 0f) continue;
+                Rect labelRect = new Rect(screen.x - 55f, Screen.height - screen.y - 28f, 110f, 24f);
+                GUI.Box(labelRect, placeholder.Label);
+            }
         }
     }
 }
