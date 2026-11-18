@@ -197,9 +197,19 @@ public class WindAttacks : BossAttack
                 {
                     float k = Mathf.Pow(Mathf.Clamp01(1f - d / vortexRadius), falloffPower);
                     Vector2 n = toCore / d;
-                    rb.AddForce(n * pullForce * k * Time.deltaTime);
+                    Vector2 vortexForce = n * pullForce * k;
                     if (swirlFactor > 0f)
-                        rb.AddForce(new Vector2(-n.y, n.x) * pullForce * swirlFactor * k * Time.deltaTime);
+                        vortexForce += new Vector2(-n.y, n.x) *
+                            pullForce * swirlFactor * k;
+
+                    // The tornado uses the same bounded wind channel as the gusts.
+                    PlayerController controller = boss.Player != null
+                        ? boss.Player.GetComponent<PlayerController>()
+                        : null;
+                    if (controller != null)
+                        controller.AddWindForce(vortexForce * playerForceScale);
+                    else
+                        rb.AddForce(vortexForce * playerForceScale * Time.deltaTime);
                 }
             }
             yield return null;
