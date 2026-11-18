@@ -247,9 +247,12 @@ public class RoguelikeSession : MonoBehaviour
         pickup.transform.position = position;
         if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
-        renderer.sprite = RoomGenerator.CircleSprite;
+        renderer.sprite = roomGenerator != null && roomGenerator.MushroomSprite != null
+            ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
         renderer.sortingOrder = 5;
+        if (roomGenerator != null)
+            roomGenerator.ApplyPlaceholder(pickup, roomGenerator.MushroomSprite, "ГРИБОЧКИ", this);
 
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;
@@ -263,9 +266,15 @@ public class RoguelikeSession : MonoBehaviour
         pickup.transform.position = position;
         if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
-        renderer.sprite = item.icon != null ? item.icon : RoomGenerator.CircleSprite;
+        Sprite itemSprite = item.icon != null ? item.icon :
+            roomGenerator != null && roomGenerator.ItemSprite != null
+                ? roomGenerator.ItemSprite : RoomGenerator.CircleSprite;
+        renderer.sprite = itemSprite;
         renderer.color = Color.white;
         renderer.sortingOrder = 5;
+        if (roomGenerator != null)
+            roomGenerator.ApplyPlaceholder(pickup, item.icon != null ? item.icon : roomGenerator.ItemSprite,
+                "ПРЕДМЕТ: " + item.itemName, this);
 
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;
