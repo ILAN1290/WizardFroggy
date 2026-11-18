@@ -21,6 +21,7 @@ public class RoguelikeRoomData
     public RoguelikeRoomType Type;
     public List<int> Neighbours = new List<int>();
     public bool IsCleared;
+    public bool IsVisited;
     public bool IsExit;
 }
 
