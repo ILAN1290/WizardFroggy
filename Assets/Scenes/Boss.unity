@@ -4018,8 +4018,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WindAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 1526103856}
-  isRunning: 1
-  currentAttack: 0
+  isRunning: 0
+  currentAttack: -1
   wind: {fileID: 1099201128}
   windForce: 10000
   playerForceScale: 0.01
