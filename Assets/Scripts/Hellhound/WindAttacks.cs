@@ -7,7 +7,7 @@ public class WindAttacks : BossAttack
     [Header("Атака 0 — Порывы")]
     public GameObject wind;
     [SerializeField] private float windForce = 5500f;
-    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.00025f;
+    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.00008f;
     [SerializeField] private float windDuration = 20f;
     [SerializeField] private float directionChangeInterval = 3f;
     [SerializeField] private float rechargeTime = 1f;
