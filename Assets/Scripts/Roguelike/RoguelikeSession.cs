@@ -131,12 +131,15 @@ public class RoguelikeSession : MonoBehaviour
         GenerateCurrentRoom(Vector2.zero);
     }
 
+    public bool IsCurrentRoomCleared => currentRoom != null && currentRoom.IsCleared;
+
     private void GenerateCurrentRoom(Vector2 spawnPosition)
     {
         if (currentFloor == null || roomGenerator == null) return;
 
         currentRoom = currentFloor.GetRoom(currentRoomIndex);
         if (currentRoom == null) return;
+        currentRoom.IsVisited = true;
 
         worldPlaceholders.Clear();
         for (int i = dungeonRoot.transform.childCount - 1; i >= 0; i--)
@@ -411,6 +414,142 @@ public class RoguelikeSession : MonoBehaviour
         }
     }
 
+    private void DrawMiniMap()
+    {
+        if (currentFloor == null || currentRoom == null) return;
+
+        Rect frame = new Rect(Screen.width - 238f, 14f, 224f, 174f);
+        if (roomGenerator != null && roomGenerator.MinimapFrameSprite != null)
+            DrawSpriteFrame(roomGenerator.MinimapFrameSprite, frame);
+        else
+        {
+            Color old = GUI.color;
+            GUI.color = new Color(0.24f, 0.12f, 0.075f, 1f);
+            GUI.DrawTexture(frame, Texture2D.whiteTexture);
+            GUI.color = old;
+            GUI.Box(frame, GUIContent.none);
+        }
+
+        Rect map = new Rect(frame.x + 15f, frame.y + 14f,
+            frame.width - 30f, frame.height - 28f);
+        DrawMiniMapRect(map, new Color(0.16f, 0.075f, 0.045f, 1f));
+
+        float left = map.x + 18f;
+        float top = map.y + 18f;
+        float pitchX = currentFloor.Width > 1
+            ? (map.width - 36f) / (currentFloor.Width - 1)
+            : 0f;
+        float pitchY = currentFloor.Height > 1
+            ? (map.height - 36f) / (currentFloor.Height - 1)
+            : 0f;
+        float roomWidth = 16f;
+        float roomHeight = 12f;
+        const float corridorThickness = 3.5f;
+
+        Vector2 RoomCentre(RoguelikeRoomData room)
+        {
+            return new Vector2(
+                left + room.X * pitchX,
+                top + (currentFloor.Height - 1 - room.Y) * pitchY);
+        }
+
+        // Corridors are drawn first. Only explored rooms are drawn as room blocks;
+        // a short corridor stub marks a possible route into an undiscovered room.
+        for (int i = 0; i < currentFloor.Rooms.Count; i++)
+        {
+            RoguelikeRoomData room = currentFloor.Rooms[i];
+            if (room == null || !room.IsVisited) continue;
+
+            Vector2 from = RoomCentre(room);
+            for (int n = 0; n < room.Neighbours.Count; n++)
+            {
+                RoguelikeRoomData neighbour = currentFloor.GetRoom(room.Neighbours[n]);
+                if (neighbour == null) continue;
+                if (neighbour.IsVisited && room.Index > neighbour.Index) continue;
+
+                Vector2 to = RoomCentre(neighbour);
+                if (!neighbour.IsVisited)
+                {
+                    Vector2 direction = new Vector2(neighbour.X - room.X,
+                        -(neighbour.Y - room.Y)).normalized;
+                    float stubLength = direction.x != 0f ? pitchX * 0.42f : pitchY * 0.42f;
+                    to = from + direction * stubLength;
+                }
+
+                Rect corridor = Mathf.Abs(to.x - from.x) >= Mathf.Abs(to.y - from.y)
+                    ? new Rect(Mathf.Min(from.x, to.x), from.y - corridorThickness * 0.5f,
+                        Mathf.Abs(to.x - from.x), corridorThickness)
+                    : new Rect(from.x - corridorThickness * 0.5f, Mathf.Min(from.y, to.y),
+                        corridorThickness, Mathf.Abs(to.y - from.y));
+                DrawMiniMapRect(corridor, new Color(0.48f, 0.48f, 0.48f, 1f));
+            }
+        }
+
+        for (int i = 0; i < currentFloor.Rooms.Count; i++)
+        {
+            RoguelikeRoomData room = currentFloor.Rooms[i];
+            if (room == null || !room.IsVisited) continue;
+
+            Vector2 centre = RoomCentre(room);
+            Rect roomRect = new Rect(centre.x - roomWidth * 0.5f,
+                centre.y - roomHeight * 0.5f, roomWidth, roomHeight);
+            Color roomColour = room.Index == currentRoomIndex
+                ? new Color(0.78f, 0.78f, 0.78f, 1f)
+                : room.IsCleared
+                    ? new Color(0.46f, 0.46f, 0.46f, 1f)
+                    : new Color(0.34f, 0.34f, 0.34f, 1f);
+            DrawMiniMapRect(roomRect, roomColour);
+        }
+    }
+
+    private static void DrawMiniMapRect(Rect rect, Color colour)
+    {
+        if (rect.width <= 0f || rect.height <= 0f) return;
+        Color old = GUI.color;
+        GUI.color = colour;
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = old;
+    }
+
+    private static void DrawSpriteFrame(Sprite sprite, Rect destination)
+    {
+        if (sprite == null || sprite.texture == null)
+        {
+            GUI.Box(destination, GUIContent.none);
+            return;
+        }
+
+        Texture2D texture = sprite.texture;
+        Rect source = sprite.textureRect;
+        float sourceBorderX = Mathf.Min(28f, source.width * 0.18f);
+        float sourceBorderY = Mathf.Min(26f, source.height * 0.28f);
+        float destinationBorderX = Mathf.Min(12f, destination.width * 0.12f);
+        float destinationBorderY = Mathf.Min(12f, destination.height * 0.12f);
+
+        float[] sx = { source.x, source.x + sourceBorderX,
+            source.xMax - sourceBorderX, source.xMax };
+        float[] sy = { source.y, source.y + sourceBorderY,
+            source.yMax - sourceBorderY, source.yMax };
+        float[] dx = { destination.x, destination.x + destinationBorderX,
+            destination.xMax - destinationBorderX, destination.xMax };
+        float[] dy = { destination.y, destination.y + destinationBorderY,
+            destination.yMax - destinationBorderY, destination.yMax };
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int column = 0; column < 3; column++)
+            {
+                Rect target = Rect.MinMaxRect(dx[column], dy[row],
+                    dx[column + 1], dy[row + 1]);
+                Rect uv = new Rect(sx[column] / texture.width,
+                    sy[row] / texture.height,
+                    (sx[column + 1] - sx[column]) / texture.width,
+                    (sy[row + 1] - sy[row]) / texture.height);
+                GUI.DrawTextureWithTexCoords(target, texture, uv, true);
+            }
+        }
+    }
+
     private void OnGUI()
     {
         PlayerRunData data = PlayerRunData.EnsureInstance();
@@ -457,6 +596,8 @@ public class RoguelikeSession : MonoBehaviour
                 "   •   " + roomText);
             GUI.Label(new Rect(18, 48, 420, 30),
                 "Грибочки: " + data.Mushrooms + "   •   Врагов осталось: " + enemiesRemaining);
+
+            DrawMiniMap();
 
             if (currentRoom != null && currentRoom.IsExit && currentRoom.IsCleared &&
                 GUI.Button(new Rect(Screen.width * 0.5f - 160,
