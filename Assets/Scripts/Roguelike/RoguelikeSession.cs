@@ -39,7 +39,7 @@ public class RoguelikeSession : MonoBehaviour
     private float hintUntil;
 
     public bool InLobby => inLobby;
-    public bool IsCurrentRoomCleared => currentRoom == null || currentRoom.IsCleared;
+    public bool IsCurrentRoomCleared => currentRoom != null && currentRoom.IsCleared;
     public int CurrentFloor => currentFloor == null ? 0 : currentFloor.FloorNumber;
     public int EnemiesRemaining => enemiesRemaining;
     public RoguelikeRoomType CurrentRoomType =>
@@ -130,8 +130,6 @@ public class RoguelikeSession : MonoBehaviour
         ShowHint("Этаж " + floorNumber + ". Исследуйте комнаты и найдите выход.");
         GenerateCurrentRoom(Vector2.zero);
     }
-
-    public bool IsCurrentRoomCleared => currentRoom != null && currentRoom.IsCleared;
 
     private void GenerateCurrentRoom(Vector2 spawnPosition)
     {
