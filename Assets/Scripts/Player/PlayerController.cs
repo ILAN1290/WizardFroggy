@@ -104,6 +104,14 @@ public class PlayerController : MonoBehaviour
         pendingWindForce += force * Time.deltaTime;
     }
 
+    // Boss wind is a temporary external force. Clear both accumulated and pending
+    // values when the attack ends so the player does not keep drifting afterwards.
+    public void ClearWindForce()
+    {
+        windVelocity = Vector2.zero;
+        pendingWindForce = Vector2.zero;
+    }
+
     private void Parry()
     {
         if (InputManager.instance.ParryInput && !isInvincible && canParry && mana.CurrentMana >= spendingManaByParry)
@@ -182,7 +190,7 @@ public class PlayerController : MonoBehaviour
         windVelocity += pendingWindForce / Mathf.Max(0.01f, rb.mass);
         pendingWindForce = Vector2.zero;
         windVelocity *= Mathf.Exp(-3.5f * Time.fixedDeltaTime);
-        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0f, moveSpeed * 0.15f));
+        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0f, moveSpeed * 0.75f));
 
         Vector2 controlledVelocity = movement.normalized * moveSpeed;
         if (isInvincible)
