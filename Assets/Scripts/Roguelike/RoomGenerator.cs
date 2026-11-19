@@ -29,6 +29,9 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite[] openedDoorSprites = new Sprite[6];
     [SerializeField] private Sprite interiorObstacleSprite;
 
+    private GameObject upperShelfPrefab;
+    private GameObject lateralShelfPrefab;
+
     [Header("Миникарта")]
     [SerializeField] private Sprite minimapFrameSprite;
 
@@ -56,7 +59,13 @@ public class RoomGenerator : MonoBehaviour
         bool up = room.Neighbours.Contains(room.Index + 4) && room.Y < 2;
 
         BuildBoundaries(root, left, right, down, up, session);
-        BuildObstaclePattern(root, room.Index, floorNumber);
+
+        // The first room is a guaranteed safe spawn. Special rooms stay uncluttered.
+        bool specialRoom = room.Index == 0 || room.Type == RoguelikeRoomType.Chest ||
+            room.Type == RoguelikeRoomType.Merchant || room.Type == RoguelikeRoomType.Stairs;
+        if (!specialRoom) BuildObstaclePattern(root, room.Index, floorNumber);
+
+        if (room.Index == 0) return 0;
 
         if (room.Type == RoguelikeRoomType.Combat && !room.IsCleared)
         {
@@ -69,6 +78,14 @@ public class RoomGenerator : MonoBehaviour
             if (room.IsExit) SpawnExit(root, session);
             session.SetEnemyCount(count);
             return count;
+        }
+
+        if (room.Type == RoguelikeRoomType.Stairs && !room.IsCleared)
+        {
+            SpawnGhost(root, session, floorNumber, RandomPointAwayFromCentre(), true, true);
+            session.SetEnemyCount(1);
+            SpawnExit(root, session);
+            return 1;
         }
 
         if (room.Type == RoguelikeRoomType.Chest && !room.IsCleared)
@@ -90,7 +107,7 @@ public class RoomGenerator : MonoBehaviour
             merchant.AddComponent<RoguelikeMerchant>().Initialize(session);
             ApplyPlaceholder(merchant, merchantSprite, "ТОРГОВЕЦ", session);
         }
-        if (room.IsExit)
+        if (room.IsExit && room.Type != RoguelikeRoomType.Stairs)
             SpawnExit(root, session);
 
         return 0;
@@ -182,6 +199,12 @@ public class RoomGenerator : MonoBehaviour
         wall.transform.localPosition = new Vector3(position.x, position.y, 0f);
         wall.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
+        // Side walls use the north-wall texture turned by 90 degrees and are
+        // shortened by 20%; the southern wall is turned 180 degrees and halved.
+        float compression = Mathf.Abs(Mathf.DeltaAngle(rotation, 90f)) < 0.01f
+            ? 0.8f : Mathf.Abs(Mathf.DeltaAngle(rotation, 180f)) < 0.01f ? 0.5f : 1f;
+        Vector2 compressedSize = new Vector2(size.x * compression, size.y);
+
         SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
         renderer.sprite = roomWallSprite != null ? roomWallSprite : WhiteSprite;
         renderer.sortingOrder = 2;
@@ -191,13 +214,13 @@ public class RoomGenerator : MonoBehaviour
         {
             renderer.drawMode = SpriteDrawMode.Tiled;
             renderer.tileMode = SpriteTileMode.Continuous;
-            renderer.size = size;
+            renderer.size = compressedSize;
             renderer.color = Color.white;
-            blocker.size = size;
+            blocker.size = compressedSize;
         }
         else
         {
-            wall.transform.localScale = new Vector3(size.x, size.y, 1f);
+            wall.transform.localScale = new Vector3(compressedSize.x, compressedSize.y, 1f);
             renderer.color = new Color(0.25f, 0.19f, 0.16f);
         }
     }
@@ -270,116 +293,118 @@ public class RoomGenerator : MonoBehaviour
 
     private void BuildObstaclePattern(Transform root, int roomIndex, int floorNumber)
     {
-        // Eight authored layouts rotate through the room graph. They are fixed,
-        // keep the central combat lane open and never clutter the doorway approaches.
+        // Shelf artwork is perspective-specific: place the authored prefabs as-is
+        // and never rotate them. Eight layouts keep the combat lane and doorways open.
         int pattern = Mathf.Abs(roomIndex + floorNumber - 1) % 8;
-        Color colour = new Color(
-            0.28f + floorNumber * 0.018f, 0.19f, 0.15f, 1f);
-
+        float y = 2.65f;
         switch (pattern)
         {
-            case 0: // Four low book piles, arranged symmetrically.
-                CreateObstacle(root, "Книжный блок • СЗ", new Vector2(-4.5f, 2.25f), new Vector2(1.65f, 0.78f), colour);
-                CreateObstacle(root, "Книжный блок • СВ", new Vector2(4.5f, 2.25f), new Vector2(1.65f, 0.78f), colour);
-                CreateObstacle(root, "Книжный блок • ЮЗ", new Vector2(-4.5f, -2.25f), new Vector2(1.65f, 0.78f), colour);
-                CreateObstacle(root, "Книжный блок • ЮВ", new Vector2(4.5f, -2.25f), new Vector2(1.65f, 0.78f), colour);
+            case 0:
+                CreateShelf(root, "Стеллаж СЗ", new Vector2(-4.8f, y), false, 0.48f);
+                CreateShelf(root, "Стеллаж СВ", new Vector2(4.8f, y), false, 0.48f);
+                CreateShelf(root, "Стеллаж ЮЗ", new Vector2(-4.8f, -y), false, 0.48f);
+                CreateShelf(root, "Стеллаж ЮВ", new Vector2(4.8f, -y), false, 0.48f);
                 break;
-
-            case 1: // Two pillars with short side stacks.
-                CreateObstacle(root, "Архивная колонна • З", new Vector2(-4.7f, 0f), new Vector2(0.82f, 2.15f), colour);
-                CreateObstacle(root, "Архивная колонна • В", new Vector2(4.7f, 0f), new Vector2(0.82f, 2.15f), colour);
-                CreateObstacle(root, "Стопка • С", new Vector2(0f, 3.35f), new Vector2(2.0f, 0.72f), colour);
-                CreateObstacle(root, "Стопка • Ю", new Vector2(0f, -3.35f), new Vector2(2.0f, 0.72f), colour);
+            case 1:
+                CreateShelf(root, "Стеллаж север", new Vector2(0f, 3.4f), true, 0.42f);
+                CreateShelf(root, "Стеллаж юг", new Vector2(0f, -3.4f), true, 0.42f);
+                CreateShelf(root, "Стеллаж запад", new Vector2(-5.8f, 0f), false, 0.34f);
+                CreateShelf(root, "Стеллаж восток", new Vector2(5.8f, 0f), false, 0.34f);
                 break;
-
-            case 2: // Offset paired rows, leaving a zig-zag passage.
-                CreateObstacle(root, "Полка • СЗ", new Vector2(-3.5f, 2.75f), new Vector2(1.8f, 0.72f), colour);
-                CreateObstacle(root, "Полка • СВ", new Vector2(3.5f, 1.75f), new Vector2(1.8f, 0.72f), colour);
-                CreateObstacle(root, "Полка • ЮЗ", new Vector2(-3.5f, -1.75f), new Vector2(1.8f, 0.72f), colour);
-                CreateObstacle(root, "Полка • ЮВ", new Vector2(3.5f, -2.75f), new Vector2(1.8f, 0.72f), colour);
+            case 2:
+                CreateShelf(root, "Стеллаж СЗ", new Vector2(-4.5f, 2.6f), true, 0.34f);
+                CreateShelf(root, "Стеллаж СВ", new Vector2(4.5f, 1.5f), true, 0.34f);
+                CreateShelf(root, "Стеллаж ЮЗ", new Vector2(-4.5f, -1.5f), true, 0.34f);
+                CreateShelf(root, "Стеллаж ЮВ", new Vector2(4.5f, -2.6f), true, 0.34f);
                 break;
-
-            case 3: // Mirrored L-shapes, balanced across the room.
-                CreateObstacle(root, "Угол • СЗ горизонталь", new Vector2(-5.0f, 3.1f), new Vector2(2.0f, 0.68f), colour);
-                CreateObstacle(root, "Угол • СЗ вертикаль", new Vector2(-5.65f, 2.0f), new Vector2(0.68f, 1.5f), colour);
-                CreateObstacle(root, "Угол • СВ горизонталь", new Vector2(5.0f, 3.1f), new Vector2(2.0f, 0.68f), colour);
-                CreateObstacle(root, "Угол • СВ вертикаль", new Vector2(5.65f, 2.0f), new Vector2(0.68f, 1.5f), colour);
-                CreateObstacle(root, "Угол • ЮЗ горизонталь", new Vector2(-5.0f, -3.1f), new Vector2(2.0f, 0.68f), colour);
-                CreateObstacle(root, "Угол • ЮЗ вертикаль", new Vector2(-5.65f, -2.0f), new Vector2(0.68f, 1.5f), colour);
-                CreateObstacle(root, "Угол • ЮВ горизонталь", new Vector2(5.0f, -3.1f), new Vector2(2.0f, 0.68f), colour);
-                CreateObstacle(root, "Угол • ЮВ вертикаль", new Vector2(5.65f, -2.0f), new Vector2(0.68f, 1.5f), colour);
+            case 3:
+                CreateShelf(root, "Стеллаж СЗ", new Vector2(-5.1f, 3.15f), false, 0.38f);
+                CreateShelf(root, "Стеллаж СВ", new Vector2(5.1f, 3.15f), false, 0.38f);
+                CreateShelf(root, "Стеллаж ЮЗ", new Vector2(-5.1f, -3.15f), false, 0.38f);
+                CreateShelf(root, "Стеллаж ЮВ", new Vector2(5.1f, -3.15f), false, 0.38f);
                 break;
-
-            case 4: // Four isolated archive pillars around a clear centre.
-                CreateObstacle(root, "Опора • СЗ", new Vector2(-2.8f, 2.0f), new Vector2(0.9f, 1.05f), colour);
-                CreateObstacle(root, "Опора • СВ", new Vector2(2.8f, 2.0f), new Vector2(0.9f, 1.05f), colour);
-                CreateObstacle(root, "Опора • ЮЗ", new Vector2(-2.8f, -2.0f), new Vector2(0.9f, 1.05f), colour);
-                CreateObstacle(root, "Опора • ЮВ", new Vector2(2.8f, -2.0f), new Vector2(0.9f, 1.05f), colour);
+            case 4:
+                CreateShelf(root, "Архивная линия север", new Vector2(0f, 3.1f), true, 0.5f);
+                CreateShelf(root, "Архивная линия юг", new Vector2(0f, -3.1f), true, 0.5f);
                 break;
-
-            case 5: // Two broken rows with a generous central passage.
-                CreateObstacle(root, "Ряд • СЗ", new Vector2(-4.3f, 2.15f), new Vector2(2.0f, 0.62f), colour);
-                CreateObstacle(root, "Ряд • СВ", new Vector2(4.3f, 2.15f), new Vector2(2.0f, 0.62f), colour);
-                CreateObstacle(root, "Ряд • ЮЗ", new Vector2(-4.3f, -2.15f), new Vector2(2.0f, 0.62f), colour);
-                CreateObstacle(root, "Ряд • ЮВ", new Vector2(4.3f, -2.15f), new Vector2(2.0f, 0.62f), colour);
+            case 5:
+                CreateShelf(root, "Стеллаж запад север", new Vector2(-5.3f, 2.0f), false, 0.38f);
+                CreateShelf(root, "Стеллаж запад юг", new Vector2(-5.3f, -2.0f), false, 0.38f);
+                CreateShelf(root, "Стеллаж восток север", new Vector2(5.3f, 2.0f), false, 0.38f);
+                CreateShelf(root, "Стеллаж восток юг", new Vector2(5.3f, -2.0f), false, 0.38f);
                 break;
-
-            case 6: // Four long blocks form two symmetrical side alcoves.
-                CreateObstacle(root, "Алков • СЗ", new Vector2(-5.1f, 2.2f), new Vector2(0.72f, 1.9f), colour);
-                CreateObstacle(root, "Алков • ЮЗ", new Vector2(-5.1f, -2.2f), new Vector2(0.72f, 1.9f), colour);
-                CreateObstacle(root, "Алков • СВ", new Vector2(5.1f, 2.2f), new Vector2(0.72f, 1.9f), colour);
-                CreateObstacle(root, "Алков • ЮВ", new Vector2(5.1f, -2.2f), new Vector2(0.72f, 1.9f), colour);
+            case 6:
+                CreateShelf(root, "Полка северо-запад", new Vector2(-3.7f, 3.0f), true, 0.3f);
+                CreateShelf(root, "Полка северо-восток", new Vector2(3.7f, 3.0f), true, 0.3f);
+                CreateShelf(root, "Полка юго-запад", new Vector2(-3.7f, -3.0f), true, 0.3f);
+                CreateShelf(root, "Полка юго-восток", new Vector2(3.7f, -3.0f), true, 0.3f);
                 break;
-
-            default: // A symmetrical four-point formation; centre stays open.
-                CreateObstacle(root, "Формация • запад", new Vector2(-3.7f, 0f), new Vector2(0.82f, 1.25f), colour);
-                CreateObstacle(root, "Формация • восток", new Vector2(3.7f, 0f), new Vector2(0.82f, 1.25f), colour);
-                CreateObstacle(root, "Формация • север", new Vector2(0f, 2.55f), new Vector2(1.25f, 0.82f), colour);
-                CreateObstacle(root, "Формация • юг", new Vector2(0f, -2.55f), new Vector2(1.25f, 0.82f), colour);
+            default:
+                CreateShelf(root, "Центральный архив слева", new Vector2(-4.7f, 0f), false, 0.44f);
+                CreateShelf(root, "Центральный архив справа", new Vector2(4.7f, 0f), false, 0.44f);
+                CreateShelf(root, "Полка севера", new Vector2(0f, 3.5f), true, 0.3f);
+                CreateShelf(root, "Полка юга", new Vector2(0f, -3.5f), true, 0.3f);
                 break;
         }
     }
 
-    private void CreateObstacle(Transform root, string objectName, Vector2 position,
-        Vector2 size, Color fallbackColour)
+    private void CreateShelf(Transform root, string objectName, Vector2 position,
+        bool upper, float scale)
     {
-        GameObject obstacle = CreateSolid(root, objectName, position, size, fallbackColour);
-        SpriteRenderer renderer = obstacle.GetComponent<SpriteRenderer>();
-        if (renderer != null && interiorObstacleSprite != null)
+        if (upperShelfPrefab == null)
+            upperShelfPrefab = Resources.Load<GameObject>("RoguelikePrefabs/Upper Book Case");
+        if (lateralShelfPrefab == null)
+            lateralShelfPrefab = Resources.Load<GameObject>("RoguelikePrefabs/Lateral Book Case");
+
+        GameObject prefab = upper ? upperShelfPrefab : lateralShelfPrefab;
+        if (prefab != null)
         {
-            renderer.sprite = interiorObstacleSprite;
-            renderer.color = Color.white;
+            GameObject shelf = Instantiate(prefab, root);
+            shelf.name = objectName;
+            shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
+            shelf.transform.localRotation = Quaternion.identity;
+            shelf.transform.localScale = Vector3.one * scale;
+            foreach (Collider2D collider in shelf.GetComponents<Collider2D>())
+                collider.enabled = true;
+            return;
         }
-        if (renderer != null) renderer.sortingOrder = 2;
+
+        // Safe fallback if the resource prefab has been moved from Resources.
+        CreateRect(root, objectName, position, new Vector2(2.6f, 0.85f),
+            new Color(0.3f, 0.2f, 0.16f), 2, true);
     }
 
     private void SpawnGhost(Transform root, RoguelikeSession session, int floor,
-        Vector2 position, bool melee)
+        Vector2 position, bool melee, bool miniBoss = false)
     {
-        GameObject ghost = new GameObject(melee
+        GameObject ghost = new GameObject(miniBoss ? "Мини-босс • Красный призрак" : melee
             ? "Призрак-библиотекарь" : "Призрак-читатель");
         ghost.transform.SetParent(root, false);
-        ghost.transform.position = position;
+        ghost.transform.localPosition = new Vector3(position.x, position.y, 0f);
         ghost.tag = "Enemy";
 
         SpriteRenderer renderer = ghost.AddComponent<SpriteRenderer>();
-        renderer.sprite = CircleSprite;
-        renderer.color = melee
-            ? new Color(0.55f, 0.9f, 0.9f)
-            : new Color(0.75f, 0.68f, 0.98f);
-        renderer.sortingOrder = 4;
-        ApplyPlaceholder(ghost, melee ? meleeGhostSprite : rangedGhostSprite,
-            melee ? "ПРИЗРАК • БЛИЖНИЙ БОЙ" : "ПРИЗРАК • ДАЛЬНИЙ БОЙ", session);
+        renderer.sprite = melee ? meleeGhostSprite : rangedGhostSprite;
+        if (renderer.sprite == null) renderer.sprite = CircleSprite;
+        renderer.color = miniBoss ? new Color(1f, 0.35f, 0.35f, 1f) : melee
+            ? Color.white : new Color(0.38f, 0.62f, 1f, 1f);
+        renderer.sortingOrder = miniBoss ? 8 : 4;
+
+        Vector2 desiredSize = miniBoss ? new Vector2(1.5f, 1.0f) : new Vector2(1.3f, 0.8f);
+        Vector2 spriteSize = renderer.sprite.bounds.size;
+        ghost.transform.localScale = new Vector3(
+            desiredSize.x / Mathf.Max(0.001f, spriteSize.x),
+            desiredSize.y / Mathf.Max(0.001f, spriteSize.y), 1f);
 
         CircleCollider2D collider = ghost.AddComponent<CircleCollider2D>();
-        collider.radius = 0.56f;
+        collider.radius = miniBoss ? 0.72f : 0.56f;
         Rigidbody2D body = ghost.AddComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
         body.freezeRotation = true;
 
         GhostEnemy enemy = ghost.AddComponent<GhostEnemy>();
-        enemy.Initialize(session, floor, melee);
+        enemy.Initialize(session, floor, melee, miniBoss);
     }
 
     private void SpawnTrap(Transform root, Vector2 position)
