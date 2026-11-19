@@ -76,7 +76,7 @@ public class RoguelikeSession : MonoBehaviour
 
         lobbyEnvironment = GameObject.Find(lobbyEnvironmentName);
         if (lobbyEnvironment != null)
-            lobbyEnvironment.SetActive(true);
+            lobbyEnvironment.SetActive(false);
 
         dungeonRoot = new GameObject("Generated Roguelike Room");
         dungeonRoot.SetActive(false);
@@ -92,8 +92,10 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         EnablePlayerBars();
-        transform.position = lobbyPlayerPosition;
-        ShowHint("Добро пожаловать в библиотеку. Выберите этаж.");
+        transform.position = Vector2.zero;
+        // Roguelike starts directly in the first available floor. There is no lobby panel.
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        StartFloor(runData.RoguelikeCompleted ? 1 : runData.CurrentProgressFloor);
     }
 
     private void EnablePlayerBars()
@@ -112,7 +114,7 @@ public class RoguelikeSession : MonoBehaviour
         if (!inLobby) return;
 
         PlayerRunData runData = PlayerRunData.EnsureInstance();
-        if (!runData.CanStartFloor(floorNumber))
+        if (!runData.CanStartFloor(floorNumber) && !(runData.RoguelikeCompleted && floorNumber == 1))
         {
             ShowHint(runData.RoguelikeCompleted
                 ? "Все три этажа уже пройдены."
@@ -416,7 +418,9 @@ public class RoguelikeSession : MonoBehaviour
     {
         if (currentFloor == null || currentRoom == null) return;
 
-        Rect frame = new Rect(Screen.width - 202f, 14f, 188f, 148f);
+        float size = Mathf.Min(240f, Screen.width - 100f, Screen.height - 120f);
+        size = Mathf.Max(150f, size);
+        Rect frame = new Rect(Screen.width - size - 50f, 50f, size, size);
         if (roomGenerator != null && roomGenerator.MinimapFrameSprite != null)
             DrawSpriteFrame(roomGenerator.MinimapFrameSprite, frame);
         else
@@ -428,52 +432,41 @@ public class RoguelikeSession : MonoBehaviour
             GUI.Box(frame, GUIContent.none);
         }
 
-        Rect map = new Rect(frame.x + 15f, frame.y + 14f,
-            frame.width - 30f, frame.height - 28f);
+        Rect map = new Rect(frame.x + 12f, frame.y + 12f,
+            frame.width - 24f, frame.height - 24f);
         DrawMiniMapRect(map, new Color(0.16f, 0.075f, 0.045f, 1f));
 
-        float left = map.x + 18f;
-        float top = map.y + 18f;
-        float pitchX = currentFloor.Width > 1
-            ? (map.width - 36f) / (currentFloor.Width - 1)
-            : 0f;
-        float pitchY = currentFloor.Height > 1
-            ? (map.height - 36f) / (currentFloor.Height - 1)
-            : 0f;
-        float roomWidth = 16f;
-        float roomHeight = 12f;
-        const float corridorThickness = 3.5f;
+        float left = map.x + 22f;
+        float top = map.y + 22f;
+        float pitchX = currentFloor.Width > 1 ? (map.width - 44f) / (currentFloor.Width - 1) : 0f;
+        float pitchY = currentFloor.Height > 1 ? (map.height - 44f) / (currentFloor.Height - 1) : 0f;
+        const float roomWidth = 26f;
+        const float roomHeight = 22f;
+        const float corridorThickness = 4f;
 
         Vector2 RoomCentre(RoguelikeRoomData room)
         {
-            return new Vector2(
-                left + room.X * pitchX,
+            return new Vector2(left + room.X * pitchX,
                 top + (currentFloor.Height - 1 - room.Y) * pitchY);
         }
 
-        // Corridors are drawn first. Only explored rooms are drawn as room blocks;
-        // a short corridor stub marks a possible route into an undiscovered room.
+        // Corridors are visible once their source room has been explored.
         for (int i = 0; i < currentFloor.Rooms.Count; i++)
         {
             RoguelikeRoomData room = currentFloor.Rooms[i];
             if (room == null || !room.IsVisited) continue;
-
             Vector2 from = RoomCentre(room);
             for (int n = 0; n < room.Neighbours.Count; n++)
             {
                 RoguelikeRoomData neighbour = currentFloor.GetRoom(room.Neighbours[n]);
-                if (neighbour == null) continue;
-                if (neighbour.IsVisited && room.Index > neighbour.Index) continue;
-
+                if (neighbour == null || (neighbour.IsVisited && room.Index > neighbour.Index)) continue;
                 Vector2 to = RoomCentre(neighbour);
                 if (!neighbour.IsVisited)
                 {
                     Vector2 direction = new Vector2(neighbour.X - room.X,
                         -(neighbour.Y - room.Y)).normalized;
-                    float stubLength = direction.x != 0f ? pitchX * 0.42f : pitchY * 0.42f;
-                    to = from + direction * stubLength;
+                    to = from + direction * (direction.x != 0f ? pitchX * 0.42f : pitchY * 0.42f);
                 }
-
                 Rect corridor = Mathf.Abs(to.x - from.x) >= Mathf.Abs(to.y - from.y)
                     ? new Rect(Mathf.Min(from.x, to.x), from.y - corridorThickness * 0.5f,
                         Mathf.Abs(to.x - from.x), corridorThickness)
@@ -486,18 +479,40 @@ public class RoguelikeSession : MonoBehaviour
         for (int i = 0; i < currentFloor.Rooms.Count; i++)
         {
             RoguelikeRoomData room = currentFloor.Rooms[i];
-            if (room == null || !room.IsVisited) continue;
+            if (room == null) continue;
+            bool special = room.Type == RoguelikeRoomType.Chest ||
+                room.Type == RoguelikeRoomType.Merchant || room.Type == RoguelikeRoomType.Stairs;
+            if (!room.IsVisited && !special) continue;
 
             Vector2 centre = RoomCentre(room);
             Rect roomRect = new Rect(centre.x - roomWidth * 0.5f,
                 centre.y - roomHeight * 0.5f, roomWidth, roomHeight);
             Color roomColour = room.Index == currentRoomIndex
-                ? new Color(0.78f, 0.78f, 0.78f, 1f)
-                : room.IsCleared
-                    ? new Color(0.46f, 0.46f, 0.46f, 1f)
-                    : new Color(0.34f, 0.34f, 0.34f, 1f);
+                ? new Color(0.9f, 0.9f, 0.82f, 1f)
+                : room.IsCleared ? new Color(0.46f, 0.46f, 0.46f, 1f)
+                : special ? new Color(0.5f, 0.42f, 0.3f, 1f)
+                : new Color(0.27f, 0.27f, 0.27f, 1f);
             DrawMiniMapRect(roomRect, roomColour);
+
+            string marker = room.Type == RoguelikeRoomType.Chest ? "C"
+                : room.Type == RoguelikeRoomType.Merchant ? "$"
+                : room.Type == RoguelikeRoomType.Stairs ? "↓" : "";
+            if (room.Index == currentRoomIndex) marker = "●";
+            if (!string.IsNullOrEmpty(marker))
+            {
+                Color old = GUI.color;
+                GUI.color = room.Type == RoguelikeRoomType.Chest ? new Color(1f, 0.82f, 0.3f)
+                    : room.Type == RoguelikeRoomType.Merchant ? new Color(0.75f, 0.9f, 1f)
+                    : room.Type == RoguelikeRoomType.Stairs ? new Color(1f, 0.42f, 0.35f)
+                    : Color.black;
+                GUI.Label(roomRect, marker);
+                GUI.color = old;
+            }
         }
+
+        // Currency is deliberately the only additional text outside the allowed HUD.
+        Rect mushroomRect = new Rect(frame.x, frame.yMax + 6f, size, 28f);
+        GUI.Label(mushroomRect, "Грибочки: " + PlayerRunData.EnsureInstance().Mushrooms);
     }
 
     private static void DrawMiniMapRect(Rect rect, Color colour)
@@ -550,89 +565,9 @@ public class RoguelikeSession : MonoBehaviour
 
     private void OnGUI()
     {
-        PlayerRunData data = PlayerRunData.EnsureInstance();
-        GUI.skin.label.fontSize = 18;
-        GUI.skin.button.fontSize = 17;
-
-        if (inLobby)
-        {
-            Rect panel = new Rect(Screen.width * 0.5f - 260f,
-                Screen.height * 0.5f - 175f, 520f, 350f);
-            GUI.Box(panel, "БИБЛИОТЕКА • ПРИЁМНАЯ");
-            GUI.Label(new Rect(panel.x + 30, panel.y + 48, 460, 42),
-                "В глубине библиотеки открыты три этажа.");
-            GUI.Label(new Rect(panel.x + 30, panel.y + 86, 460, 30),
-                "Грибочки: " + data.Mushrooms + "     Посох: " +
-                (data.EquippedStaff != null ? data.EquippedStaff.displayName : "нет"));
-
-            if (data.RoguelikeCompleted)
-            {
-                GUI.Label(new Rect(panel.x + 35, panel.y + 150, 450, 56),
-                    "Все три этажа пройдены. Следующая остановка: TowerDefence.");
-            }
-            else
-            {
-                GUI.Label(new Rect(panel.x + 35, panel.y + 134, 450, 34),
-                    "Доступен этаж " + data.CurrentProgressFloor + " из 3");
-                string floorName = data.CurrentProgressFloor == 1
-                    ? "Забытые каталоги"
-                    : data.CurrentProgressFloor == 2
-                        ? "Архив призраков"
-                        : "Запретное хранилище";
-                if (GUI.Button(new Rect(panel.x + 35, panel.y + 190, 450, 58),
-                    "Начать экспедицию • " + floorName))
-                    StartFloor(data.CurrentProgressFloor);
-            }
-        }
-        else
-        {
-            string roomText = currentRoom == null ? "" : GetRoomLabel(currentRoom.Type);
-            GUI.Label(new Rect(18, 16, 620, 32),
-                "Этаж " + CurrentFloor + "   •   Комната " +
-                (currentRoomIndex + 1) + "/" +
-                (currentFloor != null ? currentFloor.Rooms.Count : 0) +
-                "   •   " + roomText);
-            GUI.Label(new Rect(18, 48, 420, 30),
-                "Грибочки: " + data.Mushrooms + "   •   Врагов осталось: " + enemiesRemaining);
-
-            DrawMiniMap();
-
-            if (currentRoom != null && currentRoom.IsExit && currentRoom.IsCleared &&
-                GUI.Button(new Rect(Screen.width * 0.5f - 160,
-                    Screen.height - 100, 320, 54), CurrentFloor < 3
-                        ? "Перейти на следующий этаж (E)"
-                        : "Завершить библиотеку (E)"))
-                CompleteCurrentFloor();
-
-            if (shopOpen && activeMerchant != null)
-                activeMerchant.DrawShopGUI(this);
-            else
-                GUI.Label(new Rect(18, Screen.height - 36, 720, 28),
-                    "WASD • движение     ЛКМ • выстрел     E • взаимодействие     Tab • инвентарь");
-        }
-
-        if (!string.IsNullOrEmpty(hint) && Time.time < hintUntil)
-        {
-            Rect hintRect = new Rect(Screen.width * 0.5f - 320f, 18f, 640f, 42f);
-            GUI.Box(hintRect, hint);
-        }
-
-        if (Camera.main != null)
-        {
-            for (int i = worldPlaceholders.Count - 1; i >= 0; i--)
-            {
-                WorldPlaceholder placeholder = worldPlaceholders[i];
-                if (placeholder.Target == null)
-                {
-                    worldPlaceholders.RemoveAt(i);
-                    continue;
-                }
-
-                Vector3 screen = Camera.main.WorldToScreenPoint(placeholder.Target.position);
-                if (screen.z <= 0f) continue;
-                Rect labelRect = new Rect(screen.x - 55f, Screen.height - screen.y - 28f, 110f, 24f);
-                GUI.Box(labelRect, placeholder.Label);
-            }
-        }
+        if (inLobby) return;
+        DrawMiniMap();
+        if (shopOpen && activeMerchant != null)
+            activeMerchant.DrawShopGUI(this);
     }
 }
