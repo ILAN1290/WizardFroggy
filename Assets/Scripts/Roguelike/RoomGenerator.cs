@@ -116,7 +116,7 @@ public class RoomGenerator : MonoBehaviour
             merchant.AddComponent<RoguelikeMerchant>().Initialize(session);
             ApplyPlaceholder(merchant, merchantSprite, "ТОРГОВЕЦ", session);
         }
-        if (room.IsExit && room.Type != RoguelikeRoomType.Stairs)
+        if (room.IsExit && (room.Type != RoguelikeRoomType.Stairs || room.IsCleared))
             SpawnExit(root, session);
 
         return 0;
