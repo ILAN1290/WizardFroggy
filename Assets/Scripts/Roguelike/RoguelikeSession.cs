@@ -30,6 +30,7 @@ public class RoguelikeSession : MonoBehaviour
     private RoguelikeMerchant activeMerchant;
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
     private GUIStyle minimapMarkerStyle;
+    private GUIStyle mushroomCountStyle;
 
     private sealed class WorldPlaceholder
     {
@@ -502,7 +503,7 @@ public class RoguelikeSession : MonoBehaviour
             string marker = room.Type == RoguelikeRoomType.Chest ? "C"
                 : room.Type == RoguelikeRoomType.Merchant ? "$"
                 : room.Type == RoguelikeRoomType.Stairs ? "↓" : "";
-            if (room.Index == currentRoomIndex) marker = "●";
+            if (room.Index == currentRoomIndex && !special) marker = "●";
             if (!string.IsNullOrEmpty(marker))
             {
                 Color old = GUI.color;
@@ -524,7 +525,15 @@ public class RoguelikeSession : MonoBehaviour
 
         // Currency is deliberately the only additional text outside the allowed HUD.
         Rect mushroomRect = new Rect(frame.x, frame.yMax + 6f, size, 28f);
-        GUI.Label(mushroomRect, "Грибочки: " + PlayerRunData.EnsureInstance().Mushrooms);
+        if (mushroomCountStyle == null)
+        {
+            mushroomCountStyle = new GUIStyle(GUI.skin.label);
+            mushroomCountStyle.fontSize = 18;
+            mushroomCountStyle.fontStyle = FontStyle.Bold;
+            mushroomCountStyle.normal.textColor = Color.white;
+        }
+        GUI.Label(mushroomRect, "Грибочки: " + PlayerRunData.EnsureInstance().Mushrooms,
+            mushroomCountStyle);
     }
 
     private static void DrawMiniMapRect(Rect rect, Color colour)
