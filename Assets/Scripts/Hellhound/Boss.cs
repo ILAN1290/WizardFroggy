@@ -38,6 +38,7 @@ public class Boss : MonoBehaviour
 
     private float currentHealth;
     private int invincibleLayer = -1;
+    private SpriteRenderer[] bossRenderers;
 
     public Transform Player { get; private set; }
     public Rigidbody2D PlayerRb { get; private set; }
