@@ -81,7 +81,7 @@ public class RoomGenerator : MonoBehaviour
 
         if (room.Type == RoguelikeRoomType.Stairs && !room.IsCleared)
         {
-            SpawnGhost(root, session, floorNumber, RandomPointAwayFromCentre(), true, true);
+            SpawnGhost(root, session, floorNumber, new Vector2(0f, -2f), true, true);
             session.SetEnemyCount(1);
             SpawnExit(root, session);
             return 1;
