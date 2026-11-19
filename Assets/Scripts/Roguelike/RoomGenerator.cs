@@ -27,7 +27,6 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite roomWallSprite;
     [SerializeField] private Sprite[] closedDoorSprites = new Sprite[6];
     [SerializeField] private Sprite[] openedDoorSprites = new Sprite[6];
-    [SerializeField] private Sprite interiorObstacleSprite;
 
     private GameObject upperShelfPrefab;
     private GameObject lateralShelfPrefab;
@@ -213,7 +212,7 @@ public class RoomGenerator : MonoBehaviour
         // shortened by 20%; the southern wall is turned 180 degrees and halved.
         float compression = Mathf.Abs(Mathf.DeltaAngle(rotation, 90f)) < 0.01f
             ? 0.8f : Mathf.Abs(Mathf.DeltaAngle(rotation, 180f)) < 0.01f ? 0.5f : 1f;
-        Vector2 compressedSize = new Vector2(size.x * compression, size.y);
+        Vector2 compressedSize = new Vector2(size.x, size.y * compression);
 
         SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
         renderer.sprite = roomWallSprite != null ? roomWallSprite : WhiteSprite;
