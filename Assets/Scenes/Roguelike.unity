@@ -18671,7 +18671,7 @@ MonoBehaviour:
   useOnGUIIfNoSprite: 1
   meleeGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
   rangedGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
-  chestSprite: {fileID: 0}
+  chestSprite: {fileID: 4123257111082171673, guid: fe39a879b8b42a4459b113be884d7e7d, type: 3}
   merchantSprite: {fileID: 0}
   exitSprite: {fileID: 0}
   trapSprite: {fileID: 0}
