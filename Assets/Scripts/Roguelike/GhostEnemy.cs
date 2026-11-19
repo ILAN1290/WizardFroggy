@@ -76,7 +76,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
     private void SpawnMeleeAttackEffect(Vector2 direction)
     {
-        SpriteRenderer source = GetComponent<SpriteRenderer>();
+        SpriteRenderer source = GetComponentInChildren<SpriteRenderer>();
         if (source == null || source.sprite == null) return;
 
         GameObject slash = new GameObject("Вспышка ближней атаки призрака");
