@@ -89,7 +89,10 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         visual.color = miniBoss ? new Color(1f, 0.35f, 0.35f, 0.82f)
             : new Color(0.8f, 1f, 1f, 0.78f);
         visual.sortingOrder = 9;
-        slash.transform.localScale = new Vector3(0.78f, 0.56f, 1f);
+        Vector2 spriteSize = source.sprite.bounds.size;
+        slash.transform.localScale = new Vector3(
+            0.85f / Mathf.Max(0.001f, spriteSize.x),
+            0.6f / Mathf.Max(0.001f, spriteSize.y), 1f);
         Destroy(slash, 0.22f);
     }
 
