@@ -392,7 +392,11 @@ public class RoomGenerator : MonoBehaviour
         ghost.transform.localPosition = new Vector3(position.x, position.y, 0f);
         ghost.tag = "Enemy";
 
-        SpriteRenderer renderer = ghost.AddComponent<SpriteRenderer>();
+        // Keep physics on the root at unit scale. Only the visual child is resized,
+        // so the hitbox remains correctly sized in world units.
+        GameObject visual = new GameObject("Спрайт призрака");
+        visual.transform.SetParent(ghost.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
         renderer.sprite = melee ? meleeGhostSprite : rangedGhostSprite;
         if (renderer.sprite == null) renderer.sprite = CircleSprite;
         renderer.color = miniBoss ? new Color(1f, 0.35f, 0.35f, 1f) : melee
@@ -401,7 +405,7 @@ public class RoomGenerator : MonoBehaviour
 
         Vector2 desiredSize = miniBoss ? new Vector2(1.5f, 1.0f) : new Vector2(1.3f, 0.8f);
         Vector2 spriteSize = renderer.sprite.bounds.size;
-        ghost.transform.localScale = new Vector3(
+        visual.transform.localScale = new Vector3(
             desiredSize.x / Mathf.Max(0.001f, spriteSize.x),
             desiredSize.y / Mathf.Max(0.001f, spriteSize.y), 1f);
 
