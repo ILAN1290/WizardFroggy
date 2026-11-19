@@ -58,9 +58,26 @@ public class Boss : MonoBehaviour
         if (bul != null) bul.boss = this;
 
         // Keep the boss above floor fire, ground decals and other arena effects.
-        SpriteRenderer[] bossRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        bossRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        ApplyBossRenderOrder();
+    }
+
+    private void LateUpdate()
+    {
+        // Animators may write sprite sorting values during Update, so restore the
+        // foreground order after animation has evaluated for this frame.
+        ApplyBossRenderOrder();
+    }
+
+    private void ApplyBossRenderOrder()
+    {
+        if (bossRenderers == null) return;
         foreach (SpriteRenderer spriteRenderer in bossRenderers)
-            if (spriteRenderer != null) spriteRenderer.sortingOrder = Mathf.Max(50, spriteRenderer.sortingOrder);
+        {
+            if (spriteRenderer == null) continue;
+            spriteRenderer.sortingLayerName = "Default";
+            spriteRenderer.sortingOrder = Mathf.Max(50, spriteRenderer.sortingOrder);
+        }
     }
 
     // ---------- здоровье ----------
