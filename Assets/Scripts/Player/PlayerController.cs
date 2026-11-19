@@ -98,7 +98,7 @@ public class PlayerController : MonoBehaviour
         pendingExternalForce += force * Time.deltaTime;
     }
 
-    // Wind is deliberately weaker than player movement and cannot overpower input.
+    // Wind is bounded so it pushes strongly without taking permanent control from input.
     public void AddWindForce(Vector2 force)
     {
         pendingWindForce += force * Time.deltaTime;
