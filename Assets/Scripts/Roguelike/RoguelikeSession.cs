@@ -29,6 +29,7 @@ public class RoguelikeSession : MonoBehaviour
     private bool shopOpen;
     private RoguelikeMerchant activeMerchant;
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
+    private GUIStyle minimapMarkerStyle;
 
     private sealed class WorldPlaceholder
     {
@@ -398,8 +399,13 @@ public class RoguelikeSession : MonoBehaviour
     public bool HandlePlayerDeath()
     {
         if (inLobby) return false;
+        int restartFloor = currentFloor != null
+            ? currentFloor.FloorNumber
+            : PlayerRunData.EnsureInstance().CurrentProgressFloor;
         ReturnToLobby();
-        ShowHint("Путешествие прервано. Вы вернулись в приёмную.");
+        // There is no lobby menu anymore, so restart the current floor immediately
+        // after the normal health/mana reset instead of leaving the player in an empty scene.
+        StartFloor(restartFloor);
         return true;
     }
 
@@ -505,7 +511,14 @@ public class RoguelikeSession : MonoBehaviour
                     : room.Type == RoguelikeRoomType.Merchant ? new Color(0.75f, 0.9f, 1f)
                     : room.Type == RoguelikeRoomType.Stairs ? new Color(1f, 0.42f, 0.35f)
                     : Color.black;
-                GUI.Label(roomRect, marker);
+                if (minimapMarkerStyle == null)
+                {
+                    minimapMarkerStyle = new GUIStyle(GUI.skin.label);
+                    minimapMarkerStyle.alignment = TextAnchor.MiddleCenter;
+                    minimapMarkerStyle.fontSize = 16;
+                    minimapMarkerStyle.fontStyle = FontStyle.Bold;
+                }
+                GUI.Label(roomRect, marker, minimapMarkerStyle);
                 GUI.color = old;
             }
         }
