@@ -56,6 +56,11 @@ public class Boss : MonoBehaviour
         if (mops != null) mops.boss = this;
         if (chih != null) chih.boss = this;
         if (bul != null) bul.boss = this;
+
+        // Keep the boss above floor fire, ground decals and other arena effects.
+        SpriteRenderer[] bossRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (SpriteRenderer spriteRenderer in bossRenderers)
+            if (spriteRenderer != null) spriteRenderer.sortingOrder = Mathf.Max(50, spriteRenderer.sortingOrder);
     }
 
     // ---------- здоровье ----------
@@ -208,6 +213,7 @@ public abstract class BossAttack : MonoBehaviour
 
     public Boss boss;
     public GameObject fireAboveHead;
+    [SerializeField, Min(0.1f)] private float attackDuration = 20f;
 
     [HideInInspector] public bool isRunning;
     [HideInInspector] public int currentAttack = -1;
@@ -234,18 +240,31 @@ public abstract class BossAttack : MonoBehaviour
     public void Stop()
     {
         StopAllCoroutines();
-        OnForceStop();
         Finish();
     }
 
     private IEnumerator Wrap(int index)
     {
-        yield return Attack(index);
+        // All three boss heads share one fixed attack window. The attack logic may
+        // finish early, but its controller remains active until the common deadline.
+        bool bodyFinished = false;
+        Coroutine body = StartCoroutine(RunAttack(index, () => bodyFinished = true));
+        yield return new WaitForSeconds(Mathf.Max(0.1f, attackDuration));
+
+        if (!bodyFinished && body != null)
+            StopCoroutine(body);
         Finish();
+    }
+
+    private IEnumerator RunAttack(int index, System.Action onFinished)
+    {
+        yield return Attack(index);
+        onFinished?.Invoke();
     }
 
     private void Finish()
     {
+        OnForceStop();
         isRunning = false;
         currentAttack = -1;
         Cleanup();
