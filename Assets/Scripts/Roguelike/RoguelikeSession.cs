@@ -95,8 +95,7 @@ public class RoguelikeSession : MonoBehaviour
         EnablePlayerBars();
         transform.position = Vector2.zero;
         // Roguelike starts directly in the first available floor. There is no lobby panel.
-        PlayerRunData runData = PlayerRunData.EnsureInstance();
-        StartFloor(runData.RoguelikeCompleted ? 1 : runData.CurrentProgressFloor);
+        StartFloor(1);
     }
 
     private void EnablePlayerBars()
@@ -115,7 +114,7 @@ public class RoguelikeSession : MonoBehaviour
         if (!inLobby) return;
 
         PlayerRunData runData = PlayerRunData.EnsureInstance();
-        if (!runData.CanStartFloor(floorNumber) && !(runData.RoguelikeCompleted && floorNumber == 1))
+        if (!runData.CanStartFloor(floorNumber) && floorNumber != 1)
         {
             ShowHint(runData.RoguelikeCompleted
                 ? "Все три этажа уже пройдены."
