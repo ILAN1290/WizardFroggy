@@ -11,14 +11,18 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private bool melee;
     private float nextAttackTime;
     private bool defeated;
+    private bool miniBoss;
+    private float nextRadialShotTime;
 
-    public void Initialize(RoguelikeSession owner, int floor, bool isMelee)
+    public void Initialize(RoguelikeSession owner, int floor, bool isMelee, bool isMiniBoss = false)
     {
         session = owner;
         melee = isMelee;
-        health = 22f + floor * 8f;
-        damage = 8f + floor * 2.5f;
+        miniBoss = isMiniBoss;
+        health = isMiniBoss ? 125f + floor * 25f : 22f + floor * 8f;
+        damage = isMiniBoss ? 16f + floor * 3f : 8f + floor * 2.5f;
         body = GetComponent<Rigidbody2D>();
+        nextRadialShotTime = Time.time + 2.5f;
     }
 
     private void Start()
@@ -33,7 +37,13 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
     private void Update()
     {
-        if (defeated || player == null) return;
+        if (defeated || player == null || body == null) return;
+
+        if (miniBoss && Time.time >= nextRadialShotTime)
+        {
+            nextRadialShotTime = Time.time + 4.5f;
+            ShootRadialBurst();
+        }
 
         Vector2 toPlayer = (Vector2)player.position - body.position;
         float distance = toPlayer.magnitude;
@@ -45,7 +55,8 @@ public class GhostEnemy : MonoBehaviour, IDamageable
                 body.MovePosition(body.position + toPlayer.normalized * moveSpeed * Time.deltaTime);
             else if (Time.time >= nextAttackTime)
             {
-                nextAttackTime = Time.time + 1.15f;
+                nextAttackTime = Time.time + (miniBoss ? 0.95f : 1.15f);
+                SpawnMeleeAttackEffect(toPlayer.normalized);
                 if (playerHealth != null) playerHealth.TakeDamage(damage);
             }
         }
@@ -60,6 +71,54 @@ public class GhostEnemy : MonoBehaviour, IDamageable
                 nextAttackTime = Time.time + 1.8f;
                 Shoot(toPlayer.normalized);
             }
+        }
+    }
+
+    private void SpawnMeleeAttackEffect(Vector2 direction)
+    {
+        SpriteRenderer source = GetComponent<SpriteRenderer>();
+        if (source == null || source.sprite == null) return;
+
+        GameObject slash = new GameObject("Вспышка ближней атаки призрака");
+        slash.transform.SetParent(transform.parent, true);
+        slash.transform.position = transform.position + (Vector3)(direction * 0.58f);
+        slash.transform.rotation = Quaternion.Euler(0f, 0f,
+            Vector2.SignedAngle(Vector2.right, direction));
+        SpriteRenderer visual = slash.AddComponent<SpriteRenderer>();
+        visual.sprite = source.sprite;
+        visual.color = miniBoss ? new Color(1f, 0.35f, 0.35f, 0.82f)
+            : new Color(0.8f, 1f, 1f, 0.78f);
+        visual.sortingOrder = 9;
+        slash.transform.localScale = new Vector3(0.78f, 0.56f, 1f);
+        Destroy(slash, 0.22f);
+    }
+
+    private void ShootRadialBurst()
+    {
+        const int projectileCount = 8;
+        for (int i = 0; i < projectileCount; i++)
+        {
+            float angle = i * (360f / projectileCount);
+            Vector2 direction = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad),
+                Mathf.Sin(angle * Mathf.Deg2Rad));
+            GameObject bolt = new GameObject("Красный снаряд мини-босса");
+            bolt.transform.SetParent(transform.parent, true);
+            bolt.transform.position = transform.position;
+
+            SpriteRenderer renderer = bolt.AddComponent<SpriteRenderer>();
+            renderer.sprite = RoomGenerator.WhiteSquareSprite;
+            renderer.color = new Color(1f, 0.16f, 0.2f, 1f);
+            renderer.sortingOrder = 8;
+            bolt.transform.localScale = Vector3.one * 0.16f;
+
+            BoxCollider2D hitbox = bolt.AddComponent<BoxCollider2D>();
+            hitbox.isTrigger = true;
+            hitbox.size = Vector2.one * 0.8f;
+            Rigidbody2D projectileBody = bolt.AddComponent<Rigidbody2D>();
+            projectileBody.bodyType = RigidbodyType2D.Kinematic;
+            projectileBody.gravityScale = 0f;
+            bolt.AddComponent<RoguelikeProjectile>().Initialize(direction, 4.6f,
+                damage * 0.65f);
         }
     }
 
