@@ -96,6 +96,16 @@ public class RoomGenerator : MonoBehaviour
             trigger.isTrigger = true;
             chest.AddComponent<RoguelikeChest>().Initialize(session);
             ApplyPlaceholder(chest, chestSprite, "СУНДУК", session);
+            if (chestSprite != null)
+            {
+                Vector2 spriteSize = chestSprite.bounds.size;
+                chest.transform.localScale = new Vector3(
+                    1.5f / Mathf.Max(0.001f, spriteSize.x),
+                    1.1f / Mathf.Max(0.001f, spriteSize.y), 1f);
+                trigger.size = new Vector2(
+                    1.5f / Mathf.Max(0.001f, chest.transform.localScale.x),
+                    1.1f / Mathf.Max(0.001f, chest.transform.localScale.y));
+            }
         }
         else if (room.Type == RoguelikeRoomType.Merchant)
         {
