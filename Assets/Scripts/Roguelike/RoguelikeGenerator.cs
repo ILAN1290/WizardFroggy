@@ -71,8 +71,8 @@ public static class RoguelikeGenerator
         // Nine to eleven rooms occupy a 4x4 grid. A randomized frontier growth
         // keeps every generated room reachable without filling the entire map.
         int roomCount = random.Next(9, 12);
-        int startX = random.Next(1, 3);
-        int startY = random.Next(1, 3);
+        const int startX = 0;
+        const int startY = 0;
         int startIndex = startY * width + startX;
 
         HashSet<int> selected = new HashSet<int>();
