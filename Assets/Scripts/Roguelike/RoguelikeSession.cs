@@ -151,7 +151,8 @@ public class RoguelikeSession : MonoBehaviour
         shopOpen = false;
 
         int spawnedEnemies = roomGenerator.GenerateRoom(
-            dungeonRoot.transform, currentRoom, currentFloor.FloorNumber, this);
+            dungeonRoot.transform, currentRoom, currentFloor.FloorNumber,
+            currentFloor.Seed, this);
         enemiesRemaining = spawnedEnemies;
 
         if (currentRoom.Type == RoguelikeRoomType.Combat && spawnedEnemies == 0)
