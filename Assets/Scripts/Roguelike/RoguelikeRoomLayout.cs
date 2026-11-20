@@ -137,7 +137,7 @@ public static class RoguelikeRoomLayoutGenerator
     private static void AddWallsAndDoors(RoguelikeRoomLayout layout,
         RoguelikeRoomData room, float width, float height, Vector2 centre)
     {
-        const float opening = 2f;
+        const float opening = 2.2f;
         const float wallThickness = 1.9f;
         const float sideCompression = 0.8f;
         const float bottomCompression = 0.5f;
@@ -260,8 +260,8 @@ public static class RoguelikeRoomLayoutGenerator
         Vector2 position = Vector2.zero;
         for (int attempt = 0; attempt < 20; attempt++)
         {
-            float x = (float)(random.NextDouble() * 2.0 - 1.0) * (width * 0.5f - 1.3f);
-            float y = (float)(random.NextDouble() * 2.0 - 1.0) * (height * 0.5f - 1.0f);
+            float x = (float)(random.NextDouble() * 2.0 - 1.0) * (width * 0.5f - 2.1f);
+            float y = (float)(random.NextDouble() * 2.0 - 1.0) * (height * 0.5f - 2.0f);
             position = new Vector2(x, y);
             if (position.magnitude >= minimumDistanceFromCentre) break;
         }
