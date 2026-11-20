@@ -76,7 +76,9 @@ public static class RoguelikeGenerator
         int startIndex = startY * width + startX;
 
         HashSet<int> selected = new HashSet<int>();
+        Dictionary<int, int> parentRoom = new Dictionary<int, int>();
         selected.Add(startIndex);
+        parentRoom[startIndex] = -1;
 
         while (selected.Count < roomCount)
         {
@@ -96,7 +98,18 @@ public static class RoguelikeGenerator
             }
 
             if (frontier.Count == 0) break;
-            selected.Add(frontier[random.Next(frontier.Count)]);
+
+            int nextRoom = frontier[random.Next(frontier.Count)];
+            int nextX = nextRoom % width;
+            int nextY = nextRoom / width;
+            List<int> possibleParents = new List<int>();
+            if (nextX > 0 && selected.Contains(nextRoom - 1)) possibleParents.Add(nextRoom - 1);
+            if (nextX < width - 1 && selected.Contains(nextRoom + 1)) possibleParents.Add(nextRoom + 1);
+            if (nextY > 0 && selected.Contains(nextRoom - width)) possibleParents.Add(nextRoom - width);
+            if (nextY < height - 1 && selected.Contains(nextRoom + width)) possibleParents.Add(nextRoom + width);
+
+            selected.Add(nextRoom);
+            parentRoom[nextRoom] = possibleParents[random.Next(possibleParents.Count)];
         }
 
         RoguelikeFloorData floor = new RoguelikeFloorData
@@ -128,19 +141,13 @@ public static class RoguelikeGenerator
             };
         }
 
-        // Build only doors between rooms that actually exist.
-        foreach (RoguelikeRoomData room in floor.Rooms)
+        // Keep a tree-shaped route graph. Every room is reachable, and the
+        // tree always has dead ends so the stairs can be placed at a true leaf.
+        foreach (KeyValuePair<int, int> link in parentRoom)
         {
-            if (room == null) continue;
-
-            if (room.X > 0 && floor.GetRoom(room.Index - 1) != null)
-                room.Neighbours.Add(room.Index - 1);
-            if (room.X < width - 1 && floor.GetRoom(room.Index + 1) != null)
-                room.Neighbours.Add(room.Index + 1);
-            if (room.Y > 0 && floor.GetRoom(room.Index - width) != null)
-                room.Neighbours.Add(room.Index - width);
-            if (room.Y < height - 1 && floor.GetRoom(room.Index + width) != null)
-                room.Neighbours.Add(room.Index + width);
+            if (link.Value < 0) continue;
+            floor.GetRoom(link.Key).Neighbours.Add(link.Value);
+            floor.GetRoom(link.Value).Neighbours.Add(link.Key);
         }
 
         AssignSpecialRooms(floor, random);
