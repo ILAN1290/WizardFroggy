@@ -29,9 +29,6 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite wallFillTileSprite;
     [SerializeField] private Sprite[] mossyWallSprites = new Sprite[3];
 
-    // Set while the room's perspective wall bands are calculated, then reused
-    // to align the side and bottom door artwork with those exact outer edges.
-    private float currentSideWallDepth;
     [SerializeField] private Sprite topLeftWallCornerSprite;
     [SerializeField] private Sprite topRightWallCornerSprite;
     [SerializeField] private Sprite bottomLeftWallCornerSprite;
@@ -169,8 +166,6 @@ public class RoomGenerator : MonoBehaviour
         float topDepth = viewHeight * (260f / 1080f);
         float bottomDepth = viewHeight * (130f / 1080f);
 
-        currentSideWallDepth = sideDepth;
-
         float left = centre.x - width * 0.5f;
         float right = centre.x + width * 0.5f;
         float top = centre.y + height * 0.5f;
@@ -206,16 +201,6 @@ public class RoomGenerator : MonoBehaviour
         CreateVerticalWallBand(root, "Правая кирпичная стена",
             right, centre.y, height, sideDepth, topDepth, bottomDepth, 1f, -90f);
 
-        // Dark brick seams mark the four diagonal joins from the floor corners
-        // to the outer corners, matching the perspective guides in the mock-up.
-        CreateDiagonalWallSeam(root, "Шов верхний левый",
-            new Vector2(left, top), new Vector2(left - sideDepth, top + topDepth));
-        CreateDiagonalWallSeam(root, "Шов верхний правый",
-            new Vector2(right, top), new Vector2(right + sideDepth, top + topDepth));
-        CreateDiagonalWallSeam(root, "Шов нижний левый",
-            new Vector2(left, bottom), new Vector2(left - sideDepth, bottom - bottomDepth));
-        CreateDiagonalWallSeam(root, "Шов нижний правый",
-            new Vector2(right, bottom), new Vector2(right + sideDepth, bottom - bottomDepth));
     }
 
     private void CreateWallBackingBand(Transform root, string name,
@@ -357,28 +342,6 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
-    private void CreateDiagonalWallSeam(Transform root, string name, Vector2 inner, Vector2 outer)
-    {
-        Vector2 delta = outer - inner;
-        float length = delta.magnitude;
-        float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
-
-        GameObject seam = CreateRect(root, name, (inner + outer) * 0.5f,
-            new Vector2(length, 0.075f), new Color(0.055f, 0.035f, 0.03f, 0.95f), 3, false);
-        seam.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
-    }
-
-    private void SpawnExit(Transform root, RoguelikeSession session, Vector2 position)
-    {
-        GameObject exit = CreateRect(root, "Выход", position,
-            new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
-        CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
-        trigger.isTrigger = true;
-        trigger.radius = 1.1f;
-        exit.AddComponent<RoguelikeExit>().Initialize(session);
-        ApplyPlaceholder(exit, exitSprite, "ВЫХОД", session);
-    }
-
     private void CreateDoor(Transform root, RoguelikeSession session, Vector2 position,
         Vector2 spawn, int dx, int dy, float rotation)
     {
@@ -432,24 +395,51 @@ public class RoomGenerator : MonoBehaviour
         Vector3 outward = new Vector3(dx, dy, 0f);
         Vector3 localOutward = Quaternion.Euler(0f, 0f, -rotation) * outward;
         const float artworkHalfHeightLocal = 0.95f;
-        float normalScale = Mathf.Max(0.01f, door.transform.localScale.y);
+        const float artworkWidthLocal = 2.04f;
+        const float artworkHeightLocal = 1.9f;
+        float doorScaleY = Mathf.Max(0.01f, door.transform.localScale.y);
         float artworkOffsetLocal = artworkHalfHeightLocal;
 
+        // Restore side doors closer to their openings. The previous outer-edge
+        // compensation moved them too far into the side wall bands.
         if (dx != 0)
         {
-            // Side-door texture is shortened to 70%. Shift it outward until its
-            // outer edge exactly meets the outer edge of the side masonry.
-            float artworkHalfDepthWorld = artworkHalfHeightLocal * normalScale;
-            artworkOffsetLocal = Mathf.Max(0f,
-                (currentSideWallDepth - artworkHalfDepthWorld) / normalScale);
-        }
-        else if (dy < 0)
-        {
-            // The top edge of the bottom door must sit on the inner wall line.
-            // Use local units here; parent scaling is applied by Unity once.
             artworkOffsetLocal = artworkHalfHeightLocal;
         }
 
+        // Stretch only the top and bottom door artwork, preserving the edge
+        // that touches the wall. Pixel values are converted using the active camera.
+        Camera camera = Camera.main;
+        float pixelsPerWorldUnitY = camera != null && camera.orthographic
+            ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
+            : Mathf.Max(1f, Screen.height) / 12f;
+        float pixelsPerWorldUnitX = camera != null && camera.orthographic
+            ? camera.pixelWidth / Mathf.Max(0.01f, camera.orthographicSize * 2f * camera.aspect)
+            : Mathf.Max(1f, Screen.width) / 16f;
+
+        float extraWidthWorld = 10f / Mathf.Max(1f, pixelsPerWorldUnitX);
+        float artworkScaleX = (artworkWidthLocal + extraWidthWorld) / artworkWidthLocal;
+        float artworkScaleY = 1f;
+
+        if (dx == 0 && dy > 0)
+        {
+            // Upper doorway: +10 px wide and +5 px outward/upward.
+            float extraHeightWorld = 5f / Mathf.Max(1f, pixelsPerWorldUnitY);
+            artworkScaleY = (artworkHeightLocal + extraHeightWorld) / artworkHeightLocal;
+            artworkOffsetLocal += extraHeightWorld * 0.5f;
+        }
+        else if (dx == 0 && dy < 0)
+        {
+            // Lower doorway: +10 px wide and +3 px outward/downward.
+            // Its parent is already scaled to 50%, so convert the added height
+            // back into the door's local coordinate system.
+            float extraHeightWorld = 3f / Mathf.Max(1f, pixelsPerWorldUnitY);
+            artworkScaleY = (artworkHeightLocal + extraHeightWorld / doorScaleY) /
+                artworkHeightLocal;
+            artworkOffsetLocal += extraHeightWorld * 0.5f / doorScaleY;
+        }
+
+        doorArtwork.transform.localScale = new Vector3(artworkScaleX, artworkScaleY, 1f);
         doorArtwork.transform.localPosition =
             localOutward.normalized * artworkOffsetLocal;
 
@@ -560,12 +550,24 @@ public class RoomGenerator : MonoBehaviour
 
     private void SpawnTrap(Transform root, Vector2 position)
     {
-        GameObject trap = CreateRect(root, "Магическая ловушка", position,
-            new Vector2(1.15f, 0.85f), new Color(0.65f, 0.19f, 0.29f), 1, false);
+        // Keep the damage trigger, but do not draw the old solid-colour
+        // placeholder rectangle when the scene has no trap texture assigned.
+        GameObject trap = new GameObject("Магическая ловушка");
+        trap.transform.SetParent(root, false);
+        trap.transform.localPosition = new Vector3(position.x, position.y, 0f);
+
         BoxCollider2D collider = trap.AddComponent<BoxCollider2D>();
+        collider.size = new Vector2(1.15f, 0.85f);
         collider.isTrigger = true;
         trap.AddComponent<RoguelikeTrap>();
-        ApplyPlaceholder(trap, trapSprite, "ЛОВУШКА", RoguelikeSession.Instance);
+
+        if (trapSprite != null)
+        {
+            SpriteRenderer renderer = trap.AddComponent<SpriteRenderer>();
+            renderer.sprite = trapSprite;
+            renderer.color = Color.white;
+            renderer.sortingOrder = 1;
+        }
     }
 
     public Sprite MushroomSprite => mushroomSprite;
