@@ -5,11 +5,13 @@ public class RoguelikePickup : MonoBehaviour
     private Item item;
     private int count;
     private int currency;
+    private AudioClip pickupSound;
 
-    public void SetupItem(Item source, int amount)
+    public void SetupItem(Item source, int amount, AudioClip sound = null)
     {
         item = source;
         count = Mathf.Max(1, amount);
+        pickupSound = sound;
     }
 
     public void SetupCurrency(int amount)
@@ -34,6 +36,8 @@ public class RoguelikePickup : MonoBehaviour
         {
             if (RoguelikeSession.Instance != null)
                 RoguelikeSession.Instance.ShowHint("Получен предмет: " + item.itemName);
+            if (pickupSound != null && AudioManager.instance != null)
+                AudioManager.instance.PlaySoundFXClip(pickupSound, transform, 0.55f);
             Destroy(gameObject);
         }
         else if (RoguelikeSession.Instance != null)
