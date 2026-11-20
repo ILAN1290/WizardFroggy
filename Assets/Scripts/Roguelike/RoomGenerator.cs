@@ -220,7 +220,7 @@ public class RoomGenerator : MonoBehaviour
         GameObject door = new GameObject("Дверь библиотеки");
         door.transform.SetParent(root, false);
         door.transform.localPosition = new Vector3(position.x, position.y, -0.04f);
-        // Left: -90°, right: +90°, bottom: 180°, top: 0°.
+        // Door frame follows the room layout; the right-side artwork is turned 180° below.
         door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
         // Side doors are 70% as wide; the bottom door is 50% as tall.
