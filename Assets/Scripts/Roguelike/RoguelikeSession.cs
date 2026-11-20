@@ -124,7 +124,7 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         currentFloor = RoguelikeGenerator.GenerateFloor(floorNumber);
-        currentRoomIndex = 0;
+        currentRoomIndex = currentFloor.StartRoomIndex;
         inLobby = false;
         shopOpen = false;
 
@@ -321,7 +321,7 @@ public class RoguelikeSession : MonoBehaviour
         if (completedFloor < 3)
         {
             currentFloor = RoguelikeGenerator.GenerateFloor(completedFloor + 1);
-            currentRoomIndex = 0;
+            currentRoomIndex = currentFloor.StartRoomIndex;
             inLobby = false;
             shopOpen = false;
             activeMerchant = null;
@@ -446,8 +446,8 @@ public class RoguelikeSession : MonoBehaviour
         float top = map.y + 22f;
         float pitchX = currentFloor.Width > 1 ? (map.width - 44f) / (currentFloor.Width - 1) : 0f;
         float pitchY = currentFloor.Height > 1 ? (map.height - 44f) / (currentFloor.Height - 1) : 0f;
-        const float roomWidth = 26f;
-        const float roomHeight = 22f;
+        const float roomWidth = 24f;
+        const float roomHeight = 24f;
         const float corridorThickness = 4f;
 
         Vector2 RoomCentre(RoguelikeRoomData room)
@@ -486,9 +486,8 @@ public class RoguelikeSession : MonoBehaviour
         {
             RoguelikeRoomData room = currentFloor.Rooms[i];
             if (room == null) continue;
-            bool special = room.Type == RoguelikeRoomType.Chest ||
-                room.Type == RoguelikeRoomType.Merchant || room.Type == RoguelikeRoomType.Stairs;
-            if (!room.IsVisited && !special) continue;
+            // Special-room icons are only revealed after the player enters the room.
+            if (!room.IsVisited) continue;
 
             Vector2 centre = RoomCentre(room);
             Rect roomRect = new Rect(centre.x - roomWidth * 0.5f,
@@ -503,7 +502,7 @@ public class RoguelikeSession : MonoBehaviour
             string marker = room.Type == RoguelikeRoomType.Chest ? "C"
                 : room.Type == RoguelikeRoomType.Merchant ? "$"
                 : room.Type == RoguelikeRoomType.Stairs ? "↓" : "";
-            if (room.Index == currentRoomIndex && !special) marker = "●";
+            if (room.Index == currentRoomIndex && marker.Length == 0) marker = "●";
             if (!string.IsNullOrEmpty(marker))
             {
                 Color old = GUI.color;
