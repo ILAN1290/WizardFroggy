@@ -56,16 +56,16 @@ public class RoomGenerator : MonoBehaviour
         bool left = room.Neighbours.Contains(room.Index - 1) && room.X > 0;
         bool right = room.Neighbours.Contains(room.Index + 1) && room.X < 3;
         bool down = room.Neighbours.Contains(room.Index - 4) && room.Y > 0;
-        bool up = room.Neighbours.Contains(room.Index + 4) && room.Y < 2;
+        bool up = room.Neighbours.Contains(room.Index + 4) && room.Y < 3;
 
         BuildBoundaries(root, left, right, down, up, session);
 
         // The first room is a guaranteed safe spawn. Special rooms stay uncluttered.
-        bool specialRoom = room.Index == 0 || room.Type == RoguelikeRoomType.Chest ||
+        bool specialRoom = room.IsStartRoom || room.Type == RoguelikeRoomType.Chest ||
             room.Type == RoguelikeRoomType.Merchant || room.Type == RoguelikeRoomType.Stairs;
         if (!specialRoom) BuildObstaclePattern(root, room.Index, floorNumber);
 
-        if (room.Index == 0) return 0;
+        if (room.IsStartRoom) return 0;
 
         if (room.Type == RoguelikeRoomType.Combat && !room.IsCleared)
         {
