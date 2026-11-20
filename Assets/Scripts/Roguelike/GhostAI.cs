@@ -19,7 +19,6 @@ public class GhostAI : MonoBehaviour
     [SerializeField, Min(0.25f)] private float flankSwitchInterval = 2.6f;
 
     private Rigidbody2D body;
-    private CircleCollider2D bodyCollider;
     private Transform player;
     private bool melee;
     private bool miniBoss;
@@ -34,7 +33,6 @@ public class GhostAI : MonoBehaviour
     public void Initialize(Transform target, bool isMelee, bool isMiniBoss)
     {
         body = GetComponent<Rigidbody2D>();
-        bodyCollider = GetComponent<CircleCollider2D>();
         player = target != null ? target : FindPlayer();
         melee = isMelee;
         miniBoss = isMiniBoss;
