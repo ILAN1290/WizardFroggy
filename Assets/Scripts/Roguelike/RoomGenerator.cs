@@ -10,7 +10,6 @@ public class RoomGenerator : MonoBehaviour
     // Room dimensions include the wall frame. The walkable wooden area sits inside it.
     public const float RoomWidth = 17.5f;
     public const float RoomHeight = 7.6f;
-    private static readonly Vector2 PlayAreaCenter = Vector2.zero;
 
     private static Sprite whiteSprite;
     private static Sprite circleSprite;
@@ -52,8 +51,9 @@ public class RoomGenerator : MonoBehaviour
     {
         // The scene's existing Floor Tilemap already contains the wooden tiles.
         // Do not create a coloured background panel over that tilemap.
+        GetPlayableMetrics(out Vector2 roomCentre, out float roomWidth, out float roomHeight);
         RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
-            room, floorNumber, floorSeed, RoomWidth, RoomHeight, PlayAreaCenter);
+            room, floorNumber, floorSeed, roomWidth, roomHeight, roomCentre);
 
         // The layout file decides where every wall, door, shelf, trap and enemy belongs.
         foreach (RoguelikeWallSection wall in layout.Walls)
@@ -306,13 +306,59 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
+    private static void GetPlayableMetrics(out Vector2 centre, out float width, out float height)
+    {
+        const float referenceWidth = 1920f;
+        const float referenceHeight = 1080f;
+        const float topMargin = 260f;
+        const float leftMargin = 170f;
+        const float rightMargin = 170f;
+        const float bottomMargin = 130f;
+
+        Camera camera = Camera.main;
+        float halfHeight = camera != null && camera.orthographic
+            ? camera.orthographicSize : 6f;
+        float aspect = camera != null
+            ? camera.aspect
+            : Screen.height > 0 ? (float)Screen.width / Screen.height : 16f / 9f;
+        Vector2 cameraCentre = camera != null
+            ? new Vector2(camera.transform.position.x, camera.transform.position.y)
+            : Vector2.zero;
+
+        float halfWidth = halfHeight * aspect;
+        float viewportWidth = camera != null && camera.pixelWidth > 0
+            ? camera.pixelWidth : Mathf.Max(1, Screen.width);
+        float viewportHeight = camera != null && camera.pixelHeight > 0
+            ? camera.pixelHeight : Mathf.Max(1, Screen.height);
+        float pixelsPerWorldUnitX = viewportWidth / Mathf.Max(0.01f, halfWidth * 2f);
+        float pixelsPerWorldUnitY = viewportHeight / Mathf.Max(0.01f, halfHeight * 2f);
+
+        float leftInset = leftMargin * (viewportWidth / referenceWidth)
+            / pixelsPerWorldUnitX;
+        float rightInset = rightMargin * (viewportWidth / referenceWidth)
+            / pixelsPerWorldUnitX;
+        float topInset = topMargin * (viewportHeight / referenceHeight)
+            / pixelsPerWorldUnitY;
+        float bottomInset = bottomMargin * (viewportHeight / referenceHeight)
+            / pixelsPerWorldUnitY;
+
+        float left = cameraCentre.x - halfWidth + leftInset;
+        float right = cameraCentre.x + halfWidth - rightInset;
+        float top = cameraCentre.y + halfHeight - topInset;
+        float bottom = cameraCentre.y - halfHeight + bottomInset;
+
+        centre = new Vector2((left + right) * 0.5f, (bottom + top) * 0.5f);
+        width = Mathf.Max(1f, right - left);
+        height = Mathf.Max(1f, top - bottom);
+    }
+
     private Vector2 RandomPointAwayFromCentre()
     {
         Vector2 point = Random.insideUnitCircle;
         point.x *= 6.0f;
         point.y *= 3.1f;
         if (point.magnitude < 2.8f) point = point.normalized * 3.0f;
-        return PlayAreaCenter + point;
+        return point;
     }
 
     private GameObject CreateSolid(Transform parent, string objectName, Vector2 position,
