@@ -285,7 +285,7 @@ public class RoguelikeSession : MonoBehaviour
         renderer.sortingOrder = 6;
 
         Camera camera = Camera.main;
-        float pixelsPerUnit = camera != null && camera.orthographic
+        float pixelsPerUnit = camera != null && camera.orthographic && camera.pixelHeight > 0
             ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
             : 120f;
         float worldSize = 70f / Mathf.Max(1f, pixelsPerUnit);
