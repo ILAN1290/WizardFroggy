@@ -231,7 +231,7 @@ public static class RoguelikeRoomLayoutGenerator
     private static void AddHorizontalWallPair(RoguelikeRoomLayout layout, string name,
         float centreX, float y, float length, float thickness, float rotation)
     {
-        float offset = 1f + length * 0.5f;
+        float offset = 1.1f + length * 0.5f;
         layout.Walls.Add(new RoguelikeWallSection(name + " • левая",
             new Vector2(centreX - offset, y), new Vector2(length, thickness), rotation));
         layout.Walls.Add(new RoguelikeWallSection(name + " • правая",
