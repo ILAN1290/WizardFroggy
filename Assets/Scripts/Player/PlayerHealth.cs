@@ -14,6 +14,7 @@ public class PlayerHealth : MonoBehaviour
     private float currentHealth;
     private Coroutine burnCoroutine;
     private PlayerEffects effects;
+    private bool initialized;
 
     public float CurrentHealth
     {
@@ -35,7 +36,8 @@ public class PlayerHealth : MonoBehaviour
     {
         playerController = GetComponent<PlayerController>();
         effects = GetComponent<PlayerEffects>();
-        currentHealth = maxHealth;
+        currentHealth = PlayerRunData.EnsureInstance().LoadHealth(maxHealth);
+        initialized = true;
     }
     private void Update()
     {
@@ -126,11 +128,26 @@ public class PlayerHealth : MonoBehaviour
 
     private void Die()
     {
-        if(!gameManager.isGoodEndingActive && !gameManager.isBadEndingActive)
+        // In the roguelike, death ends the expedition and returns the player to the lobby.
+        if (RoguelikeSession.Instance != null && RoguelikeSession.Instance.HandlePlayerDeath())
+            return;
+
+        if (gameManager != null && !gameManager.isGoodEndingActive && !gameManager.isBadEndingActive)
         {
             gameManager.GameOver();
             gameManager.StartBadEnding();
         }
-        
+    }
+
+    private void OnDisable()
+    {
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveHealth(currentHealth);
+    }
+
+    private void OnDestroy()
+    {
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveHealth(currentHealth);
     }
 }

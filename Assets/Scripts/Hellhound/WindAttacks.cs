@@ -7,6 +7,7 @@ public class WindAttacks : BossAttack
     [Header("Атака 0 — Порывы")]
     public GameObject wind;
     [SerializeField] private float windForce = 5500f;
+    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.0008f;
     [SerializeField] private float windDuration = 20f;
     [SerializeField] private float directionChangeInterval = 3f;
     [SerializeField] private float rechargeTime = 1f;
@@ -80,6 +81,11 @@ public class WindAttacks : BossAttack
         if (stunRoutine != null) { StopCoroutine(stunRoutine); stunRoutine = null; }
         EndStun();
         if (tornadoVisual != null) tornadoVisual.SetActive(false);
+        if (boss != null && boss.Player != null)
+        {
+            PlayerController controller = boss.Player.GetComponent<PlayerController>();
+            if (controller != null) controller.ClearWindForce();
+        }
     }
 
     // ================= 0: порывы =================
@@ -112,8 +118,16 @@ public class WindAttacks : BossAttack
         float t = 0f;
         while (t < directionChangeInterval && Time.time < end)
         {
-            if (boss.PlayerRb != null)
-                boss.PlayerRb.AddForce(dir * windForce * Time.deltaTime);
+            if (boss.Player != null)
+            {
+                PlayerController controller = boss.Player.GetComponent<PlayerController>();
+                Vector2 force = dir * windForce * playerForceScale;
+
+                if (controller != null)
+                    controller.AddWindForce(force);
+                else if (boss.PlayerRb != null)
+                    boss.PlayerRb.AddForce(force);
+            }
             t += Time.deltaTime;
             yield return null;
         }
@@ -188,9 +202,19 @@ public class WindAttacks : BossAttack
                 {
                     float k = Mathf.Pow(Mathf.Clamp01(1f - d / vortexRadius), falloffPower);
                     Vector2 n = toCore / d;
-                    rb.AddForce(n * pullForce * k * Time.deltaTime);
+                    Vector2 vortexForce = n * pullForce * k;
                     if (swirlFactor > 0f)
-                        rb.AddForce(new Vector2(-n.y, n.x) * pullForce * swirlFactor * k * Time.deltaTime);
+                        vortexForce += new Vector2(-n.y, n.x) *
+                            pullForce * swirlFactor * k;
+
+                    // The tornado uses the same bounded wind channel as the gusts.
+                    PlayerController controller = boss.Player != null
+                        ? boss.Player.GetComponent<PlayerController>()
+                        : null;
+                    if (controller != null)
+                        controller.AddWindForce(vortexForce * playerForceScale);
+                    else
+                        rb.AddForce(vortexForce * playerForceScale * Time.deltaTime);
                 }
             }
             yield return null;

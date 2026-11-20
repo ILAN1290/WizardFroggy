@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: d365efc6cd100a64ea2254c0aa09bd5f
+guid: b0f578d14ecafc14386ac662666ccd19
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 9095485781221239215
-    second: Portal_00_0
+      213: -8804783980236045272
+    second: "\u0433\u0440\u0438\u0431\u043E\u0447\u0435\u043A_0"
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -115,13 +115,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Portal_00_0
+      name: "\u0433\u0440\u0438\u0431\u043E\u0447\u0435\u043A_0"
       rect:
         serializedVersion: 2
-        x: 116
-        y: 118
-        width: 243
-        height: 243
+        x: 26
+        y: 81
+        width: 596
+        height: 542
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -130,8 +130,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: fa9ee49c028a93e70800000000000000
-      internalID: 9095485781221239215
+      spriteID: 8240bf5ae9f1fc580800000000000000
+      internalID: -8804783980236045272
       vertices: []
       indices: 
       edges: []
@@ -150,7 +150,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Portal_00_0: 9095485781221239215
+      "\u0433\u0440\u0438\u0431\u043E\u0447\u0435\u043A_0": -8804783980236045272
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

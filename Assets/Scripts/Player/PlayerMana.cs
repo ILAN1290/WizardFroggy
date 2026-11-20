@@ -8,6 +8,7 @@ public class PlayerMana : MonoBehaviour
 
     private float currentManaValue;
     private PlayerEffects effects;
+    private bool initialized;
 
     public float CurrentMana { get { return currentManaValue; } }
     public float MaxMana { get { return maxManaValue; } }
@@ -15,7 +16,8 @@ public class PlayerMana : MonoBehaviour
     private void Start()
     {
         effects = GetComponent<PlayerEffects>();
-        currentManaValue = maxManaValue;
+        currentManaValue = PlayerRunData.EnsureInstance().LoadMana(maxManaValue);
+        initialized = true;
     }
 
     public void SpendMana(float value)
@@ -27,6 +29,18 @@ public class PlayerMana : MonoBehaviour
     public void RestoreMana(float value)
     {
         currentManaValue = Mathf.Clamp(currentManaValue + value, 0, maxManaValue);
+    }
+
+    private void OnDisable()
+    {
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveMana(currentManaValue);
+    }
+
+    private void OnDestroy()
+    {
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveMana(currentManaValue);
     }
 
     private void Update()

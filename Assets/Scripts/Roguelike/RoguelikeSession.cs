@@ -1,0 +1,734 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+/// <summary>
+/// Controls the lobby, selected floor, current room and transitions between generated rooms.
+/// Room graph generation and room decoration live in their own files.
+/// </summary>
+public class RoguelikeSession : MonoBehaviour
+{
+    public static RoguelikeSession Instance { get; private set; }
+
+    [Header("Lobby")]
+    [SerializeField] private string lobbyEnvironmentName = "Library Environment";
+    [SerializeField] private Vector2 lobbyPlayerPosition = new Vector2(0f, -3f);
+    [SerializeField] private AudioClip itemPickupSound;
+
+    private PlayerController playerController;
+    private PlayerHealth playerHealth;
+    private PlayerMana playerMana;
+    private Rigidbody2D playerBody;
+    private GameObject lobbyEnvironment;
+    private GameObject dungeonRoot;
+    private RoomGenerator roomGenerator;
+    private RoguelikeFloorData currentFloor;
+    private RoguelikeRoomData currentRoom;
+    private int currentRoomIndex;
+    private int enemiesRemaining;
+    private bool inLobby = true;
+    private bool shopOpen;
+    private RoguelikeMerchant activeMerchant;
+    private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
+    private GUIStyle minimapMarkerStyle;
+    private GUIStyle mushroomCountStyle;
+    private static Texture2D mushroomHudTexture;
+
+    private sealed class WorldPlaceholder
+    {
+        public Transform Target;
+        public string Label;
+    }
+    private string hint = "Выберите один из трёх этажей";
+    private float hintUntil;
+
+    public bool InLobby => inLobby;
+    public bool IsCurrentRoomCleared => currentRoom != null && currentRoom.IsCleared;
+    public int CurrentFloor => currentFloor == null ? 0 : currentFloor.FloorNumber;
+    public int EnemiesRemaining => enemiesRemaining;
+    public RoguelikeRoomType CurrentRoomType =>
+        currentRoom == null ? RoguelikeRoomType.Combat : currentRoom.Type;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this);
+            return;
+        }
+
+        Instance = this;
+        PlayerRunData.EnsureInstance();
+    }
+
+    private void Start()
+    {
+        playerController = GetComponent<PlayerController>();
+        playerHealth = GetComponent<PlayerHealth>();
+        playerMana = GetComponent<PlayerMana>();
+        playerBody = GetComponent<Rigidbody2D>();
+
+        if (playerController != null)
+        {
+            playerController.canShoot = true;
+            playerController.canParry = true;
+            playerController.canBeInvincible = true;
+        }
+
+        if (InputManager.PlayerInput != null)
+            InputManager.PlayerInput.SwitchCurrentActionMap("Player");
+
+        lobbyEnvironment = GameObject.Find(lobbyEnvironmentName);
+        if (lobbyEnvironment != null)
+            lobbyEnvironment.SetActive(false);
+
+        dungeonRoot = new GameObject("Generated Roguelike Room");
+        dungeonRoot.SetActive(false);
+        roomGenerator = GetComponent<RoomGenerator>();
+        if (roomGenerator == null)
+            roomGenerator = gameObject.AddComponent<RoomGenerator>();
+
+        if (Camera.main != null)
+        {
+            Camera.main.orthographic = true;
+            Camera.main.orthographicSize = 6f;
+            Camera.main.transform.position = new Vector3(0f, 0f, -10f);
+        }
+
+        EnablePlayerBars();
+        transform.position = Vector2.zero;
+        // Roguelike starts directly in the first available floor. There is no lobby panel.
+        StartFloor(1);
+    }
+
+    private void EnablePlayerBars()
+    {
+        HealthBar[] healthBars = Resources.FindObjectsOfTypeAll<HealthBar>();
+        foreach (HealthBar bar in healthBars)
+            if (bar != null && bar.gameObject.scene.IsValid()) bar.gameObject.SetActive(true);
+
+        ManaBar[] manaBars = Resources.FindObjectsOfTypeAll<ManaBar>();
+        foreach (ManaBar bar in manaBars)
+            if (bar != null && bar.gameObject.scene.IsValid()) bar.gameObject.SetActive(true);
+    }
+
+    public void StartFloor(int floorNumber)
+    {
+        if (!inLobby) return;
+
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        if (!runData.CanStartFloor(floorNumber) && floorNumber != 1)
+        {
+            ShowHint(runData.RoguelikeCompleted
+                ? "Все три этажа уже пройдены."
+                : "Сначала завершите предыдущий этаж.");
+            return;
+        }
+
+        currentFloor = RoguelikeGenerator.GenerateFloor(floorNumber);
+        currentRoomIndex = currentFloor.StartRoomIndex;
+        inLobby = false;
+        shopOpen = false;
+
+        if (lobbyEnvironment != null) lobbyEnvironment.SetActive(false);
+        dungeonRoot.SetActive(true);
+        ShowHint("Этаж " + floorNumber + ". Исследуйте комнаты и найдите выход.");
+        GenerateCurrentRoom(Vector2.zero);
+    }
+
+    private void GenerateCurrentRoom(Vector2 spawnPosition)
+    {
+        if (currentFloor == null || roomGenerator == null) return;
+
+        currentRoom = currentFloor.GetRoom(currentRoomIndex);
+        if (currentRoom == null) return;
+        currentRoom.IsVisited = true;
+
+        worldPlaceholders.Clear();
+        for (int i = dungeonRoot.transform.childCount - 1; i >= 0; i--)
+            Destroy(dungeonRoot.transform.GetChild(i).gameObject);
+
+        enemiesRemaining = 0;
+        activeMerchant = null;
+        shopOpen = false;
+
+        int spawnedEnemies = roomGenerator.GenerateRoom(
+            dungeonRoot.transform, currentRoom, currentFloor.FloorNumber,
+            currentFloor.Seed, this);
+        enemiesRemaining = spawnedEnemies;
+
+        if (currentRoom.Type == RoguelikeRoomType.Combat && spawnedEnemies == 0)
+            currentRoom.IsCleared = true;
+        if (currentRoom.Type == RoguelikeRoomType.Merchant)
+            currentRoom.IsCleared = true;
+
+        transform.position = spawnPosition;
+        if (playerBody != null) playerBody.linearVelocity = Vector2.zero;
+
+        ShowHint(GetRoomLabel(currentRoom.Type) +
+            (currentRoom.IsCleared ? " • пройдено" : " • зачистите комнату"));
+    }
+
+    public void TryMoveByDirection(int dx, int dy, Vector2 spawnPosition)
+    {
+        if (currentFloor == null || currentRoom == null) return;
+        if (!currentRoom.IsCleared)
+        {
+            ShowHint("Сначала зачистите комнату!");
+            return;
+        }
+
+        int destination = currentFloor.FindNeighbour(currentRoomIndex, dx, dy);
+        if (destination < 0) return;
+        TryEnterRoom(destination, spawnPosition);
+    }
+
+    public void MarkCurrentRoomCleared()
+    {
+        if (currentRoom != null)
+            currentRoom.IsCleared = true;
+    }
+
+    public void TryEnterRoom(int destinationIndex, Vector2 spawnPosition)
+    {
+        if (inLobby || currentFloor == null) return;
+        if (currentRoom != null && !currentRoom.IsCleared)
+        {
+            ShowHint("Сначала завершите комнату!");
+            return;
+        }
+
+        RoguelikeRoomData destination = currentFloor.GetRoom(destinationIndex);
+        if (destination == null) return;
+        currentRoomIndex = destinationIndex;
+        GenerateCurrentRoom(spawnPosition);
+    }
+
+    public void SetEnemyCount(int count)
+    {
+        enemiesRemaining = Mathf.Max(0, count);
+    }
+
+    public void OnEnemyDefeated(Vector2 position)
+    {
+        enemiesRemaining = Mathf.Max(0, enemiesRemaining - 1);
+        PlayerRunData.EnsureInstance();
+
+        SpawnMushroomPickup(position, Random.Range(1, 4));
+
+        Item[] loot = Resources.LoadAll<Item>("RoguelikeLoot");
+        if (loot.Length > 0 && Random.value < 0.38f)
+        {
+            Item item = loot[Random.Range(0, loot.Length)];
+            SpawnItemPickup(item, 1, position + Random.insideUnitCircle * 0.55f);
+        }
+
+        if (enemiesRemaining == 0 && currentRoom != null)
+        {
+            currentRoom.IsCleared = true;
+            ShowHint(currentRoom.IsExit
+                ? "Последняя комната зачищена. Выход открыт!"
+                : "Комната зачищена. Выходы открыты!");
+        }
+    }
+
+    public void OpenChest(Vector2 position)
+    {
+        Item[] loot = Resources.LoadAll<Item>("RoguelikeLoot");
+        if (loot.Length > 0)
+        {
+            int drops = Random.Range(1, 4);
+            for (int i = 0; i < drops; i++)
+                SpawnItemPickup(loot[Random.Range(0, loot.Length)], 1,
+                    position + Random.insideUnitCircle * 1.25f);
+        }
+
+        SpawnMushroomPickup(position + new Vector2(0.6f, 0f), Random.Range(6, 13));
+        if (currentRoom != null) currentRoom.IsCleared = true;
+        ShowHint("Сундук открыт! Заберите добычу.");
+    }
+
+    private void SpawnMushroomPickup(Vector2 position, int amount)
+    {
+        GameObject pickup = new GameObject("Грибочки x" + amount);
+        pickup.transform.position = position;
+        if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
+        SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
+        renderer.sprite = roomGenerator != null && roomGenerator.MushroomSprite != null
+            ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
+        renderer.color = new Color(0.88f, 0.42f, 0.74f);
+        renderer.sortingOrder = 5;
+
+        // Keep the pickup at exactly 50x50 screen pixels, independent of sprite PPU.
+        if (renderer.sprite != null)
+        {
+            Camera camera = Camera.main;
+            if (camera != null && camera.orthographic)
+            {
+                float pixelsPerWorldUnitY = camera.pixelHeight /
+                    Mathf.Max(0.01f, camera.orthographicSize * 2f);
+                float pixelsPerWorldUnitX = camera.pixelWidth /
+                    Mathf.Max(0.01f, camera.orthographicSize * 2f * camera.aspect);
+                Vector2 sourceSize = renderer.sprite.bounds.size;
+                pickup.transform.localScale = new Vector3(
+                    50f / Mathf.Max(0.001f, sourceSize.x * pixelsPerWorldUnitX),
+                    50f / Mathf.Max(0.001f, sourceSize.y * pixelsPerWorldUnitY), 1f);
+            }
+        }
+        if (roomGenerator != null)
+            roomGenerator.ApplyPlaceholder(pickup, roomGenerator.MushroomSprite, "ГРИБОЧКИ", this);
+
+        CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
+        collider.isTrigger = true;
+        pickup.AddComponent<RoguelikePickup>().SetupCurrency(amount);
+    }
+
+    private void SpawnItemPickup(Item item, int count, Vector2 position)
+    {
+        if (item == null) return;
+
+        GameObject pickup = new GameObject("Предмет: " + item.itemName);
+        pickup.transform.position = position;
+        if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
+
+        Sprite itemSprite = item.icon != null ? item.icon :
+            roomGenerator != null && roomGenerator.ItemSprite != null
+                ? roomGenerator.ItemSprite : RoomGenerator.CircleSprite;
+
+        GameObject visual = new GameObject("Иконка предмета 70x70");
+        visual.transform.SetParent(pickup.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = itemSprite;
+        renderer.color = Color.white;
+        renderer.sortingOrder = 6;
+
+        Camera camera = Camera.main;
+        float pixelsPerUnit = camera != null && camera.orthographic && camera.pixelHeight > 0
+            ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
+            : 120f;
+        float worldSize = 70f / Mathf.Max(1f, pixelsPerUnit);
+        Vector2 spriteSize = itemSprite.bounds.size;
+        visual.transform.localScale = new Vector3(
+            worldSize / Mathf.Max(0.001f, spriteSize.x),
+            worldSize / Mathf.Max(0.001f, spriteSize.y), 1f);
+
+        CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
+        collider.isTrigger = true;
+        collider.radius = worldSize * 0.48f;
+
+        pickup.AddComponent<RoguelikePickup>().SetupItem(item, count, itemPickupSound);
+    }
+
+    public void OpenShop(RoguelikeMerchant merchant)
+    {
+        if (merchant == null) return;
+        activeMerchant = merchant;
+        shopOpen = true;
+        ShowHint("Торговец: покупайте, продавайте и меняйте посох.");
+    }
+
+    public void CloseShop()
+    {
+        shopOpen = false;
+        activeMerchant = null;
+    }
+
+    public void ShowHint(string message)
+    {
+        hint = message;
+        hintUntil = Time.time + 3.5f;
+    }
+
+    public void CompleteCurrentFloor()
+    {
+        if (inLobby || currentFloor == null || currentRoom == null ||
+            !currentRoom.IsExit || !currentRoom.IsCleared)
+        {
+            ShowHint("Сначала зачистите последнюю комнату этажа.");
+            return;
+        }
+
+        int completedFloor = currentFloor.FloorNumber;
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        runData.CompleteFloor(completedFloor);
+
+        if (completedFloor < 3)
+        {
+            currentFloor = RoguelikeGenerator.GenerateFloor(completedFloor + 1);
+            currentRoomIndex = currentFloor.StartRoomIndex;
+            inLobby = false;
+            shopOpen = false;
+            activeMerchant = null;
+            if (lobbyEnvironment != null) lobbyEnvironment.SetActive(false);
+            if (dungeonRoot != null) dungeonRoot.SetActive(true);
+            ShowHint("Этаж " + (completedFloor + 1) + " открыт. Путь продолжается!");
+            GenerateCurrentRoom(Vector2.zero);
+            return;
+        }
+
+        // TowerDefence is intentionally supplied by the other developer.
+        // Do not create a fake scene or attempt to load it until it is in Build Settings.
+        if (Application.CanStreamedLevelBeLoaded("TowerDefence"))
+        {
+            SceneManager.LoadScene("TowerDefence");
+        }
+        else
+        {
+            ReturnToLobby();
+            ShowHint("Все три этажа пройдены. Добавьте TowerDefence в Build Settings перед Boss.");
+        }
+    }
+
+    public void RegisterWorldPlaceholder(Transform target, string label)
+    {
+        if (target == null || string.IsNullOrWhiteSpace(label)) return;
+
+        for (int i = 0; i < worldPlaceholders.Count; i++)
+        {
+            if (worldPlaceholders[i].Target == target)
+            {
+                worldPlaceholders[i].Label = label;
+                return;
+            }
+        }
+
+        worldPlaceholders.Add(new WorldPlaceholder { Target = target, Label = label });
+    }
+
+    public void ReturnToLobby()
+    {
+        worldPlaceholders.Clear();
+        shopOpen = false;
+        activeMerchant = null;
+        inLobby = true;
+        currentFloor = null;
+        currentRoom = null;
+        enemiesRemaining = 0;
+
+        if (dungeonRoot != null)
+        {
+            for (int i = dungeonRoot.transform.childCount - 1; i >= 0; i--)
+                Destroy(dungeonRoot.transform.GetChild(i).gameObject);
+            dungeonRoot.SetActive(false);
+        }
+
+        if (lobbyEnvironment != null) lobbyEnvironment.SetActive(true);
+        transform.position = lobbyPlayerPosition;
+        if (playerBody != null) playerBody.linearVelocity = Vector2.zero;
+
+        if (playerHealth != null)
+            playerHealth.Healing(playerHealth.MaxHealth);
+        if (playerMana != null)
+            playerMana.RestoreMana(playerMana.MaxMana);
+
+        if (PlayerRunData.Instance != null)
+        {
+            PlayerRunData.Instance.SaveHealth(playerHealth != null ? playerHealth.CurrentHealth : 100f);
+            PlayerRunData.Instance.SaveMana(playerMana != null ? playerMana.CurrentMana : 100f);
+        }
+
+        ShowHint("Вы снова в библиотеке. Можно выбрать другой этаж.");
+    }
+
+    public bool HandlePlayerDeath()
+    {
+        if (inLobby) return false;
+        int restartFloor = currentFloor != null
+            ? currentFloor.FloorNumber
+            : PlayerRunData.EnsureInstance().CurrentProgressFloor;
+        ReturnToLobby();
+        // There is no lobby menu anymore, so restart the current floor immediately
+        // after the normal health/mana reset instead of leaving the player in an empty scene.
+        StartFloor(restartFloor);
+        return true;
+    }
+
+    private string GetRoomLabel(RoguelikeRoomType type)
+    {
+        switch (type)
+        {
+            case RoguelikeRoomType.Combat: return "Комната с призраками";
+            case RoguelikeRoomType.Chest: return "Комната с сундуком";
+            case RoguelikeRoomType.Merchant: return "Лавка торговца";
+            default: return "Комната";
+        }
+    }
+
+    private void DrawMiniMap()
+    {
+        if (currentFloor == null || currentRoom == null) return;
+
+        float size = Mathf.Min(240f, Screen.width - 100f, Screen.height - 120f);
+        size = Mathf.Max(150f, size);
+        Rect frame = new Rect(Screen.width - size - 50f, 50f, size, size);
+        if (roomGenerator != null && roomGenerator.MinimapFrameSprite != null)
+            DrawSpriteFrame(roomGenerator.MinimapFrameSprite, frame);
+        else
+        {
+            Color old = GUI.color;
+            GUI.color = new Color(0.24f, 0.12f, 0.075f, 1f);
+            GUI.DrawTexture(frame, Texture2D.whiteTexture);
+            GUI.color = old;
+            GUI.Box(frame, GUIContent.none);
+        }
+
+        Rect map = new Rect(frame.x + 12f, frame.y + 12f,
+            frame.width - 24f, frame.height - 24f);
+        DrawMiniMapRect(map, new Color(0.16f, 0.075f, 0.045f, 1f));
+
+        float left = map.x + 22f;
+        float top = map.y + 22f;
+        float pitchX = currentFloor.Width > 1 ? (map.width - 44f) / (currentFloor.Width - 1) : 0f;
+        float pitchY = currentFloor.Height > 1 ? (map.height - 44f) / (currentFloor.Height - 1) : 0f;
+        const float roomWidth = 24f;
+        const float roomHeight = 24f;
+        const float corridorThickness = 4f;
+
+        Vector2 RoomCentre(RoguelikeRoomData room)
+        {
+            return new Vector2(left + room.X * pitchX,
+                top + (currentFloor.Height - 1 - room.Y) * pitchY);
+        }
+
+        // Corridors are visible once their source room has been explored.
+        for (int i = 0; i < currentFloor.Rooms.Count; i++)
+        {
+            RoguelikeRoomData room = currentFloor.Rooms[i];
+            if (room == null || !room.IsVisited) continue;
+            Vector2 from = RoomCentre(room);
+            for (int n = 0; n < room.Neighbours.Count; n++)
+            {
+                RoguelikeRoomData neighbour = currentFloor.GetRoom(room.Neighbours[n]);
+                if (neighbour == null || (neighbour.IsVisited && room.Index > neighbour.Index)) continue;
+                Vector2 to = RoomCentre(neighbour);
+                if (!neighbour.IsVisited)
+                {
+                    Vector2 direction = new Vector2(neighbour.X - room.X,
+                        -(neighbour.Y - room.Y)).normalized;
+                    to = from + direction * (direction.x != 0f ? pitchX * 0.42f : pitchY * 0.42f);
+                }
+                Rect corridor = Mathf.Abs(to.x - from.x) >= Mathf.Abs(to.y - from.y)
+                    ? new Rect(Mathf.Min(from.x, to.x), from.y - corridorThickness * 0.5f,
+                        Mathf.Abs(to.x - from.x), corridorThickness)
+                    : new Rect(from.x - corridorThickness * 0.5f, Mathf.Min(from.y, to.y),
+                        corridorThickness, Mathf.Abs(to.y - from.y));
+                DrawMiniMapRect(corridor, new Color(0.48f, 0.48f, 0.48f, 1f));
+            }
+        }
+
+        for (int i = 0; i < currentFloor.Rooms.Count; i++)
+        {
+            RoguelikeRoomData room = currentFloor.Rooms[i];
+            if (room == null) continue;
+            // Special-room icons are only revealed after the player enters the room.
+            if (!room.IsVisited) continue;
+
+            Vector2 centre = RoomCentre(room);
+            Rect roomRect = new Rect(centre.x - roomWidth * 0.5f,
+                centre.y - roomHeight * 0.5f, roomWidth, roomHeight);
+            Color roomColour = room.Index == currentRoomIndex
+                ? new Color(0.9f, 0.9f, 0.82f, 1f)
+                : room.IsCleared ? new Color(0.46f, 0.46f, 0.46f, 1f)
+                : new Color(0.27f, 0.27f, 0.27f, 1f);
+            DrawMiniMapRect(roomRect, roomColour);
+
+            string marker = room.Type == RoguelikeRoomType.Chest ? "C"
+                : room.Type == RoguelikeRoomType.Merchant ? "$"
+                : room.Type == RoguelikeRoomType.Stairs ? "↓" : "";
+            if (room.Index == currentRoomIndex && marker.Length == 0) marker = "●";
+            if (!string.IsNullOrEmpty(marker))
+            {
+                Color old = GUI.color;
+                GUI.color = room.Type == RoguelikeRoomType.Chest ? new Color(1f, 0.82f, 0.3f)
+                    : room.Type == RoguelikeRoomType.Merchant ? new Color(0.75f, 0.9f, 1f)
+                    : room.Type == RoguelikeRoomType.Stairs ? new Color(1f, 0.42f, 0.35f)
+                    : Color.black;
+                if (minimapMarkerStyle == null)
+                {
+                    minimapMarkerStyle = new GUIStyle(GUI.skin.label);
+                    minimapMarkerStyle.alignment = TextAnchor.MiddleCenter;
+                    minimapMarkerStyle.fontSize = 16;
+                    minimapMarkerStyle.fontStyle = FontStyle.Bold;
+                }
+                GUI.Label(roomRect, marker, minimapMarkerStyle);
+                GUI.color = old;
+            }
+        }
+
+        // Compact currency HUD: a small mushroom icon followed by the amount.
+        Rect mushroomRect = new Rect(frame.x + 2f, frame.yMax + 5f, 25f, 25f);
+        Texture2D icon = GetMushroomHudTexture();
+        if (icon != null)
+            GUI.DrawTexture(mushroomRect, icon, ScaleMode.ScaleToFit, true);
+
+        if (mushroomCountStyle == null)
+        {
+            mushroomCountStyle = new GUIStyle(GUI.skin.label);
+            mushroomCountStyle.alignment = TextAnchor.MiddleLeft;
+            mushroomCountStyle.fontSize = 45;
+            mushroomCountStyle.fontStyle = FontStyle.Bold;
+            mushroomCountStyle.normal.textColor = Color.white;
+        }
+
+        Rect countRect = new Rect(mushroomRect.xMax + 4f, mushroomRect.y - 10f,
+            150f, 45f);
+        GUI.Label(countRect, PlayerRunData.EnsureInstance().Mushrooms.ToString(),
+            mushroomCountStyle);
+    }
+
+    private static Texture2D GetMushroomHudTexture()
+    {
+        if (mushroomHudTexture != null) return mushroomHudTexture;
+
+        const int size = 32;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = "Roguelike Mushroom HUD Icon";
+        texture.filterMode = FilterMode.Point;
+        texture.wrapMode = TextureWrapMode.Clamp;
+
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        Color outline = new Color(0.20f, 0.055f, 0.035f, 1f);
+        Color cap = new Color(0.78f, 0.16f, 0.12f, 1f);
+        Color capLight = new Color(0.96f, 0.31f, 0.20f, 1f);
+        Color capShadow = new Color(0.48f, 0.075f, 0.065f, 1f);
+        Color stem = new Color(0.94f, 0.86f, 0.65f, 1f);
+        Color stemShadow = new Color(0.69f, 0.55f, 0.38f, 1f);
+        Color spots = new Color(1f, 0.94f, 0.78f, 1f);
+
+        Color[] pixels = new Color[size * size];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = clear;
+
+        // Draw the stem first so the cap overlaps it naturally.
+        for (int y = 3; y <= 17; y++)
+        {
+            int half = y < 6 ? 5 : y < 13 ? 4 : 3;
+            int left = 16 - half;
+            int right = 16 + half;
+            for (int x = left - 1; x <= right + 1; x++)
+            {
+                if (x < 0 || x >= size) continue;
+                bool edge = x == left - 1 || x == right + 1 ||
+                    y == 3 || y == 17;
+                pixels[y * size + x] = edge ? outline :
+                    x >= right - 1 ? stemShadow : stem;
+            }
+        }
+
+        // Red dotted woodland cap with dark pixel outline.
+        int[] halfWidths = new int[32];
+        halfWidths[15] = 5;
+        halfWidths[16] = 9;
+        halfWidths[17] = 12;
+        halfWidths[18] = 14;
+        halfWidths[19] = 15;
+        halfWidths[20] = 15;
+        halfWidths[21] = 15;
+        halfWidths[22] = 15;
+        halfWidths[23] = 14;
+        halfWidths[24] = 12;
+        halfWidths[25] = 9;
+        halfWidths[26] = 6;
+        halfWidths[27] = 3;
+
+        for (int y = 14; y <= 28; y++)
+        {
+            int half = y < 15 ? 3 : halfWidths[y];
+            if (half <= 0) continue;
+            int left = 16 - half;
+            int right = 16 + half;
+            for (int x = left - 1; x <= right + 1; x++)
+            {
+                if (x < 0 || x >= size) continue;
+                bool edge = x == left - 1 || x == right + 1 ||
+                    y == 14 || y == 28;
+                Color value;
+                if (edge) value = outline;
+                else if (y <= 17 || x <= 11) value = capLight;
+                else if (x >= 24 || y >= 25) value = capShadow;
+                else value = cap;
+                pixels[y * size + x] = value;
+            }
+        }
+
+        // A few pale cap spots make the tiny icon read as a mushroom, not a berry.
+        void Spot(int cx, int cy, int radius)
+        {
+            for (int y = -radius; y <= radius; y++)
+            {
+                for (int x = -radius; x <= radius; x++)
+                {
+                    if (x * x + y * y > radius * radius) continue;
+                    int px = cx + x;
+                    int py = cy + y;
+                    if (px >= 0 && px < size && py >= 0 && py < size)
+                        pixels[py * size + px] = spots;
+                }
+            }
+        }
+
+        Spot(10, 22, 2);
+        Spot(21, 24, 2);
+        Spot(17, 18, 1);
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, true);
+        mushroomHudTexture = texture;
+        return mushroomHudTexture;
+    }
+
+    private static void DrawMiniMapRect(Rect rect, Color colour)
+    {
+        if (rect.width <= 0f || rect.height <= 0f) return;
+        Color old = GUI.color;
+        GUI.color = colour;
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = old;
+    }
+
+    private static void DrawSpriteFrame(Sprite sprite, Rect destination)
+    {
+        if (sprite == null || sprite.texture == null)
+        {
+            GUI.Box(destination, GUIContent.none);
+            return;
+        }
+
+        Texture2D texture = sprite.texture;
+        Rect source = sprite.textureRect;
+        float sourceBorderX = Mathf.Min(28f, source.width * 0.18f);
+        float sourceBorderY = Mathf.Min(26f, source.height * 0.28f);
+        float destinationBorderX = Mathf.Min(12f, destination.width * 0.12f);
+        float destinationBorderY = Mathf.Min(12f, destination.height * 0.12f);
+
+        float[] sx = { source.x, source.x + sourceBorderX,
+            source.xMax - sourceBorderX, source.xMax };
+        float[] sy = { source.y, source.y + sourceBorderY,
+            source.yMax - sourceBorderY, source.yMax };
+        float[] dx = { destination.x, destination.x + destinationBorderX,
+            destination.xMax - destinationBorderX, destination.xMax };
+        float[] dy = { destination.y, destination.y + destinationBorderY,
+            destination.yMax - destinationBorderY, destination.yMax };
+
+        for (int row = 0; row < 3; row++)
+        {
+            for (int column = 0; column < 3; column++)
+            {
+                Rect target = Rect.MinMaxRect(dx[column], dy[row],
+                    dx[column + 1], dy[row + 1]);
+                Rect uv = new Rect(sx[column] / texture.width,
+                    sy[row] / texture.height,
+                    (sx[column + 1] - sx[column]) / texture.width,
+                    (sy[row + 1] - sy[row]) / texture.height);
+                GUI.DrawTextureWithTexCoords(target, texture, uv, true);
+            }
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (inLobby) return;
+        DrawMiniMap();
+        if (shopOpen && activeMerchant != null)
+            activeMerchant.DrawShopGUI(this);
+    }
+}

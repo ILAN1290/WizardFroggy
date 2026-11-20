@@ -31,6 +31,11 @@ public class Projectile : MonoBehaviour
         cam = Camera.main;
     }
 
+    public void SetDamage(float value)
+    {
+        damage = Mathf.Max(0f, value);
+    }
+
     public void Launch(Vector2 direction, float force)
     {
         rigidbody2d.AddForce(direction * force);
@@ -74,11 +79,17 @@ public class Projectile : MonoBehaviour
         // снаряд игрока — поведение как раньше
         if (other.CompareTag("Enemy"))
         {
-            Boss boss = other.GetComponentInParent<Boss>();
-            if (boss != null)
+            GhostEnemy ghost = other.GetComponentInParent<GhostEnemy>();
+            if (ghost != null)
+                ghost.TakeDamage(damage);
+            else
             {
-                boss.TakeDamage(damage);
-                Debug.Log(boss.CurrentHealth);
+                Boss boss = other.GetComponentInParent<Boss>();
+                if (boss != null)
+                {
+                    boss.TakeDamage(damage);
+                    Debug.Log(boss.CurrentHealth);
+                }
             }
         }
         Destroy(gameObject);

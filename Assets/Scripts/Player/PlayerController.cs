@@ -9,6 +9,10 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Settings")]
     public float moveSpeed = 5f;
     private Vector2 movement;
+    private Vector2 externalVelocity;
+    private Vector2 pendingExternalForce;
+    private Vector2 windVelocity;
+    private Vector2 pendingWindForce;
     private Vector2 lookDirection = new Vector2(0, 1);  
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
@@ -54,6 +58,7 @@ public class PlayerController : MonoBehaviour
 
     //Health
     private PlayerHealth playerHealth;
+    private StaffData equippedStaff;
 
 
     void Start()
@@ -64,14 +69,47 @@ public class PlayerController : MonoBehaviour
         cooldownTimer = projectileCooldown;
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
+        ApplyEquippedStaff();
+    }
+
+    private void ApplyEquippedStaff()
+    {
+        StaffData selected = PlayerRunData.EnsureInstance().EquippedStaff;
+        if (selected == null || selected == equippedStaff) return;
+        equippedStaff = selected;
+        projectileCooldown = equippedStaff.ShotCooldown;
+        spendingManaByProjectile = equippedStaff.manaCost;
+        cooldownTimer = Mathf.Clamp(cooldownTimer, 0f, projectileCooldown);
     }
 
     private void Shoot()
     {
+        ApplyEquippedStaff();
         if(canShoot && !isInvincible && mana.CurrentMana >= spendingManaByProjectile && InputManager.instance.ShootInput)
         {
             Launch();
         }
+    }
+
+    // Adds physics forces without letting the movement controller erase them
+    // on the next FixedUpdate (used by wind, knockback and boss abilities).
+    public void AddExternalForce(Vector2 force)
+    {
+        pendingExternalForce += force * Time.deltaTime;
+    }
+
+    // Wind is bounded so it pushes strongly without taking permanent control from input.
+    public void AddWindForce(Vector2 force)
+    {
+        pendingWindForce += force * Time.deltaTime;
+    }
+
+    // Boss wind is a temporary external force. Clear both accumulated and pending
+    // values when the attack ends so the player does not keep drifting afterwards.
+    public void ClearWindForce()
+    {
+        windVelocity = Vector2.zero;
+        pendingWindForce = Vector2.zero;
     }
 
     private void Parry()
@@ -142,15 +180,26 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!isInvincible)
+        externalVelocity += pendingExternalForce / Mathf.Max(0.01f, rb.mass);
+        pendingExternalForce = Vector2.zero;
+
+        // External impulses decay naturally, but remain additive to player input.
+        externalVelocity *= Mathf.Exp(-1.5f * Time.fixedDeltaTime);
+        externalVelocity = Vector2.ClampMagnitude(externalVelocity, 6f);
+
+        windVelocity += pendingWindForce / Mathf.Max(0.01f, rb.mass);
+        pendingWindForce = Vector2.zero;
+        windVelocity *= Mathf.Exp(-3.5f * Time.fixedDeltaTime);
+        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0f, moveSpeed * 0.75f));
+
+        Vector2 controlledVelocity = movement.normalized * moveSpeed;
+        if (isInvincible)
         {
-            rb.linearVelocity = movement.normalized * moveSpeed;
-        }
-        else
-        {
-            rb.linearVelocity = movement.normalized * moveSpeed * speedMultiplier;
+            controlledVelocity *= speedMultiplier;
             mana.SpendMana(spendingManaByInvincibilityBySecond * Time.fixedDeltaTime);
         }
+
+        rb.linearVelocity = controlledVelocity + externalVelocity + windVelocity;
     }
     private void  Launch()
     {
@@ -161,7 +210,11 @@ public class PlayerController : MonoBehaviour
             mana.SpendMana(spendingManaByProjectile);
             GameObject projectileObject = Instantiate(projectilePrefab, rb.position + Vector2.up * 0.5f, Quaternion.identity);
             Projectile projectile = projectileObject.GetComponent<Projectile>();
-            projectile.Launch(projectileDirection, projectileForce);
+            PlayerEffects effects = GetComponent<PlayerEffects>();
+            float staffDamage = equippedStaff != null ? equippedStaff.damage : 7f;
+            float damageMultiplier = effects != null ? effects.DamageMultiplier : 1f;
+            projectile.SetDamage(staffDamage * damageMultiplier);
+            projectile.Launch(FacingDirection, projectileForce);
         }
     }
 }
