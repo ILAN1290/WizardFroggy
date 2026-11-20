@@ -1582,9 +1582,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FireAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 1175110945}
+  attackDuration: 20
   isRunning: 0
   currentAttack: -1
-  attackDuration: 20
   mode: 0
   countOfFireFloors: 4
   attentionDuration: 1.5
@@ -1640,7 +1640,7 @@ MonoBehaviour:
   aimLead: 0.35
   boomSound: {fileID: 8300000, guid: 1fd31868d68903d4f9e2c4a3b7ef98f3, type: 3}
   tileFirePool: 1
-  meteorSprite: {fileID: 8961090413319157468, guid: b06f487bd18f49f42bb06f1f5f532d6c, type: 3}
+  meteorSprite: {fileID: 3972488667177137343, guid: fc7a331f097948f4fafabdbc3eea029b, type: 3}
   meteorSize: 1.3
   fallHeight: 9
   fallAngle: 22
@@ -1903,9 +1903,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PortalAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 57743860}
+  attackDuration: 20
   isRunning: 0
   currentAttack: -1
-  attackDuration: 20
   portal: {fileID: 1502566175}
   portalSpriteRenderer: {fileID: 1502566178}
   restartAnimationOnOpen: 1
@@ -1923,7 +1923,7 @@ MonoBehaviour:
   shooterDuration: 20
   singleKnifeSpeed: 11
   knifeFlySound: {fileID: 8300000, guid: 33a64212605933445aa26a9de908ad5c, type: 3}
-  orbitPortalSprite: {fileID: 9095485781221239215, guid: d365efc6cd100a64ea2254c0aa09bd5f, type: 3}
+  orbitPortalSprite: {fileID: 5835527079520390318, guid: 54acb96315ea39f4381e03ada6ec5a9f, type: 3}
   orbitPortal: {fileID: 0}
   orbitPortalSize: 1.6
   orbitPortalSpin: 180
@@ -2770,7 +2770,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: -2, y: -7, z: 0}
@@ -2924,7 +2924,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: 8, y: -6, z: 0}
@@ -3436,7 +3436,7 @@ MonoBehaviour:
   arenaSize: {x: 18, y: 10}
   mopsAttacksEnabled: 1
   chihAttacksEnabled: 1
-  bulAttacksEnabled: 0
+  bulAttacksEnabled: 1
 --- !u!1001 &507733656
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4020,9 +4020,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WindAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 1526103856}
+  attackDuration: 20
   isRunning: 0
   currentAttack: -1
-  attackDuration: 20
   wind: {fileID: 1099201128}
   windForce: 10000
   playerForceScale: 0.0008
