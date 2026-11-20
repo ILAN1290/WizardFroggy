@@ -13,6 +13,7 @@ public class RoguelikeSession : MonoBehaviour
     [Header("Lobby")]
     [SerializeField] private string lobbyEnvironmentName = "Library Environment";
     [SerializeField] private Vector2 lobbyPlayerPosition = new Vector2(0f, -3f);
+    [SerializeField] private AudioClip itemPickupSound;
 
     private PlayerController playerController;
     private PlayerHealth playerHealth;
@@ -267,23 +268,37 @@ public class RoguelikeSession : MonoBehaviour
     private void SpawnItemPickup(Item item, int count, Vector2 position)
     {
         if (item == null) return;
+
         GameObject pickup = new GameObject("Предмет: " + item.itemName);
         pickup.transform.position = position;
         if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
-        SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
+
         Sprite itemSprite = item.icon != null ? item.icon :
             roomGenerator != null && roomGenerator.ItemSprite != null
                 ? roomGenerator.ItemSprite : RoomGenerator.CircleSprite;
+
+        GameObject visual = new GameObject("Иконка предмета 70x70");
+        visual.transform.SetParent(pickup.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
         renderer.sprite = itemSprite;
         renderer.color = Color.white;
-        renderer.sortingOrder = 5;
-        if (roomGenerator != null)
-            roomGenerator.ApplyPlaceholder(pickup, item.icon != null ? item.icon : roomGenerator.ItemSprite,
-                "ПРЕДМЕТ: " + item.itemName, this);
+        renderer.sortingOrder = 6;
+
+        Camera camera = Camera.main;
+        float pixelsPerUnit = camera != null && camera.orthographic
+            ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
+            : 120f;
+        float worldSize = 70f / Mathf.Max(1f, pixelsPerUnit);
+        Vector2 spriteSize = itemSprite.bounds.size;
+        visual.transform.localScale = new Vector3(
+            worldSize / Mathf.Max(0.001f, spriteSize.x),
+            worldSize / Mathf.Max(0.001f, spriteSize.y), 1f);
 
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;
-        pickup.AddComponent<RoguelikePickup>().SetupItem(item, count);
+        collider.radius = worldSize * 0.48f;
+
+        pickup.AddComponent<RoguelikePickup>().SetupItem(item, count, itemPickupSound);
     }
 
     public void OpenShop(RoguelikeMerchant merchant)
