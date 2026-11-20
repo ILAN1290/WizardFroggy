@@ -93,6 +93,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         renderer.enabled = true;
 
         const float frameTime = 0.11f;
+        Destroy(effect, attackSprites.Length * frameTime + 0.2f);
         float targetHeight = 1.35f * (miniBoss ? 1.2f : 1f);
 
         for (int i = 0; i < attackSprites.Length; i++)
