@@ -16,6 +16,7 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private bool useOnGUIIfNoSprite = true;
     [SerializeField] private Sprite meleeGhostSprite;
     [SerializeField] private Sprite rangedGhostSprite;
+    [SerializeField] private Sprite[] ghostAttackSprites = new Sprite[3];
     [SerializeField] private Sprite chestSprite;
     [SerializeField] private Sprite merchantSprite;
     [SerializeField] private Sprite exitSprite;
@@ -128,24 +129,25 @@ public class RoomGenerator : MonoBehaviour
         const float wall = 0.55f;
         float horizontalSegment = (RoomWidth - 2.6f) * 0.5f;
         float verticalSegment = (RoomHeight - 2.6f) * 0.5f;
-        float sideX = RoomWidth * 0.5f - wall * 0.5f;
+        float sideX = RoomWidth * 0.5f - wall * 0.8f * 0.5f;
         float topY = RoomHeight * 0.5f - wall * 0.5f;
+        float bottomY = -RoomHeight * 0.5f + wall * 0.5f * 0.5f;
 
         if (left)
         {
             CreateWallSegment(root, "Западная стена • верх",
                 new Vector2(-sideX, verticalSegment * 0.5f + 1.3f),
-                new Vector2(verticalSegment, wall), 90f);
+                new Vector2(verticalSegment, wall), -90f);
             CreateWallSegment(root, "Западная стена • низ",
                 new Vector2(-sideX, -verticalSegment * 0.5f - 1.3f),
-                new Vector2(verticalSegment, wall), 90f);
+                new Vector2(verticalSegment, wall), -90f);
             CreateDoor(root, session, new Vector2(-sideX, 0f),
-                new Vector2(7f, 0f), -1, 0, 90f);
+                new Vector2(7f, 0f), -1, 0, -90f);
         }
         else
         {
             CreateWallSegment(root, "Западная стена",
-                new Vector2(-sideX, 0f), new Vector2(RoomHeight, wall), 90f);
+                new Vector2(-sideX, 0f), new Vector2(RoomHeight, wall), -90f);
         }
 
         if (right)
@@ -168,18 +170,18 @@ public class RoomGenerator : MonoBehaviour
         if (down)
         {
             CreateWallSegment(root, "Южная стена • левая",
-                new Vector2(-horizontalSegment * 0.5f - 1.3f, -topY),
+                new Vector2(-horizontalSegment * 0.5f - 1.3f, bottomY),
                 new Vector2(horizontalSegment, wall), 180f);
             CreateWallSegment(root, "Южная стена • правая",
-                new Vector2(horizontalSegment * 0.5f + 1.3f, -topY),
+                new Vector2(horizontalSegment * 0.5f + 1.3f, bottomY),
                 new Vector2(horizontalSegment, wall), 180f);
-            CreateDoor(root, session, new Vector2(0f, -topY),
+            CreateDoor(root, session, new Vector2(0f, bottomY),
                 new Vector2(0f, 4.4f), 0, -1, 180f);
         }
         else
         {
             CreateWallSegment(root, "Южная стена",
-                new Vector2(0f, -topY), new Vector2(RoomWidth, wall), 180f);
+                new Vector2(0f, bottomY), new Vector2(RoomWidth, wall), 180f);
         }
 
         if (up)
@@ -210,7 +212,8 @@ public class RoomGenerator : MonoBehaviour
 
         // Side walls use the north-wall texture turned by 90 degrees and are
         // shortened by 20%; the southern wall is turned 180 degrees and halved.
-        float compression = Mathf.Abs(Mathf.DeltaAngle(rotation, 90f)) < 0.01f
+        float angle = Mathf.Abs(rotation);
+        float compression = Mathf.Abs(angle - 90f) < 0.01f
             ? 0.8f : Mathf.Abs(Mathf.DeltaAngle(rotation, 180f)) < 0.01f ? 0.5f : 1f;
         Vector2 compressedSize = new Vector2(size.x, size.y * compression);
 
@@ -403,7 +406,7 @@ public class RoomGenerator : MonoBehaviour
             ? Color.white : new Color(0.38f, 0.62f, 1f, 1f);
         renderer.sortingOrder = miniBoss ? 8 : 4;
 
-        Vector2 desiredSize = miniBoss ? new Vector2(1.5f, 1.0f) : new Vector2(1.3f, 0.8f);
+        Vector2 desiredSize = miniBoss ? new Vector2(1.0f, 1.5f) : new Vector2(0.8f, 1.3f);
         Vector2 spriteSize = renderer.sprite.bounds.size;
         visual.transform.localScale = new Vector3(
             desiredSize.x / Mathf.Max(0.001f, spriteSize.x),
@@ -417,7 +420,7 @@ public class RoomGenerator : MonoBehaviour
         body.freezeRotation = true;
 
         GhostEnemy enemy = ghost.AddComponent<GhostEnemy>();
-        enemy.Initialize(session, floor, melee, miniBoss);
+        enemy.Initialize(session, floor, melee, miniBoss, ghostAttackSprites);
     }
 
     private void SpawnTrap(Transform root, Vector2 position)
