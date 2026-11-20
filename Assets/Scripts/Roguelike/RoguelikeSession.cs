@@ -258,6 +258,23 @@ public class RoguelikeSession : MonoBehaviour
             ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
         renderer.sortingOrder = 5;
+
+        // Keep the pickup at exactly 50x50 screen pixels, independent of sprite PPU.
+        if (renderer.sprite != null)
+        {
+            Camera camera = Camera.main;
+            if (camera != null && camera.orthographic)
+            {
+                float pixelsPerWorldUnitY = camera.pixelHeight /
+                    Mathf.Max(0.01f, camera.orthographicSize * 2f);
+                float pixelsPerWorldUnitX = camera.pixelWidth /
+                    Mathf.Max(0.01f, camera.orthographicSize * 2f * camera.aspect);
+                Vector2 sourceSize = renderer.sprite.bounds.size;
+                pickup.transform.localScale = new Vector3(
+                    50f / Mathf.Max(0.001f, sourceSize.x * pixelsPerWorldUnitX),
+                    50f / Mathf.Max(0.001f, sourceSize.y * pixelsPerWorldUnitY), 1f);
+            }
+        }
         if (roomGenerator != null)
             roomGenerator.ApplyPlaceholder(pickup, roomGenerator.MushroomSprite, "ГРИБОЧКИ", this);
 
@@ -548,13 +565,13 @@ public class RoguelikeSession : MonoBehaviour
         {
             mushroomCountStyle = new GUIStyle(GUI.skin.label);
             mushroomCountStyle.alignment = TextAnchor.MiddleLeft;
-            mushroomCountStyle.fontSize = 18;
+            mushroomCountStyle.fontSize = 45;
             mushroomCountStyle.fontStyle = FontStyle.Bold;
             mushroomCountStyle.normal.textColor = Color.white;
         }
 
-        Rect countRect = new Rect(mushroomRect.xMax + 4f, mushroomRect.y,
-            64f, mushroomRect.height);
+        Rect countRect = new Rect(mushroomRect.xMax + 4f, mushroomRect.y - 10f,
+            150f, 45f);
         GUI.Label(countRect, PlayerRunData.EnsureInstance().Mushrooms.ToString(),
             mushroomCountStyle);
     }
