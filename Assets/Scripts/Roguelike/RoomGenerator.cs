@@ -7,12 +7,12 @@ using UnityEngine;
 /// </summary>
 public class RoomGenerator : MonoBehaviour
 {
-    // Playable rectangle matches the red boundary shown in the boss-arena reference.
-    public const float RoomWidth = 16.67f;
-    public const float RoomHeight = 8.6263f;
-    private const float FloorWidth = 18f;
+    // Room dimensions include the wall frame. The walkable wooden area sits inside it.
+    public const float RoomWidth = 21f;
+    public const float RoomHeight = 10.1f;
+    private const float FloorWidth = 23f;
     private const float FloorHeight = 12f;
-    private static readonly Vector2 PlayAreaCenter = new Vector2(-0.04f, -2.3277f);
+    private static readonly Vector2 PlayAreaCenter = Vector2.zero;
 
     private static Sprite whiteSprite;
     private static Sprite circleSprite;
@@ -52,54 +52,41 @@ public class RoomGenerator : MonoBehaviour
     }
 
     public int GenerateRoom(Transform root, RoguelikeRoomData room, int floorNumber,
-        RoguelikeSession session)
+        int floorSeed, RoguelikeSession session)
     {
         CreateRect(root, "Floor", PlayAreaCenter, new Vector2(FloorWidth, FloorHeight),
             new Color(0.16f, 0.17f, 0.22f), -10, false);
 
-        bool left = room.Neighbours.Contains(room.Index - 1) && room.X > 0;
-        bool right = room.Neighbours.Contains(room.Index + 1) && room.X < 3;
-        bool down = room.Neighbours.Contains(room.Index - 4) && room.Y > 0;
-        bool up = room.Neighbours.Contains(room.Index + 4) && room.Y < 3;
+        RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
+            room, floorNumber, floorSeed, RoomWidth, RoomHeight, PlayAreaCenter);
 
-        BuildBoundaries(root, left, right, down, up, session);
+        // The layout file decides where every wall, door, shelf, trap and enemy belongs.
+        foreach (RoguelikeWallSection wall in layout.Walls)
+            CreateWallSegment(root, wall.Name, wall.Position, wall.Size, wall.Rotation);
 
-        // The first room is a guaranteed safe spawn. Special rooms stay uncluttered.
-        bool specialRoom = room.IsStartRoom || room.Type == RoguelikeRoomType.Chest ||
-            room.Type == RoguelikeRoomType.Merchant || room.Type == RoguelikeRoomType.Stairs;
-        if (!specialRoom) BuildObstaclePattern(root, room.Index, floorNumber);
+        foreach (RoguelikeDoorPlacement door in layout.Doors)
+            CreateDoor(root, session, door.Position, door.SpawnPosition,
+                door.DirectionX, door.DirectionY, door.Rotation);
 
-        if (room.IsStartRoom) return 0;
+        foreach (RoguelikeShelfPlacement shelf in layout.Shelves)
+            CreateShelf(root, shelf.Name, shelf.Position, shelf.Upper, shelf.Scale);
 
-        if (room.Type == RoguelikeRoomType.Combat && !room.IsCleared)
+        foreach (Vector2 trapPosition in layout.TrapPositions)
+            SpawnTrap(root, trapPosition);
+
+        foreach (RoguelikeGhostPlacement ghost in layout.Ghosts)
+            SpawnGhost(root, session, floorNumber, ghost.Position,
+                ghost.Melee, ghost.MiniBoss);
+
+        if (layout.SpawnChest)
         {
-            int count = Random.Range(2 + floorNumber, 4 + floorNumber);
-            for (int i = 0; i < count; i++)
-                SpawnGhost(root, session, floorNumber, RandomPointAwayFromCentre(),
-                    Random.value > 0.30f);
-            for (int i = 0; i < Mathf.Clamp(floorNumber, 1, 3); i++)
-                SpawnTrap(root, RandomPointAwayFromCentre());
-            if (room.IsExit) SpawnExit(root, session);
-            session.SetEnemyCount(count);
-            return count;
-        }
-
-        if (room.Type == RoguelikeRoomType.Stairs && !room.IsCleared)
-        {
-            SpawnGhost(root, session, floorNumber, PlayAreaCenter + new Vector2(0f, -2f), true, true);
-            session.SetEnemyCount(1);
-            SpawnExit(root, session);
-            return 1;
-        }
-
-        if (room.Type == RoguelikeRoomType.Chest && !room.IsCleared)
-        {
-            GameObject chest = CreateRect(root, "Сундук", PlayAreaCenter,
+            GameObject chest = CreateRect(root, "Сундук", layout.ChestPosition,
                 new Vector2(1.5f, 1.1f), new Color(0.56f, 0.31f, 0.12f), 4, false);
             BoxCollider2D trigger = chest.AddComponent<BoxCollider2D>();
             trigger.isTrigger = true;
             chest.AddComponent<RoguelikeChest>().Initialize(session);
             ApplyPlaceholder(chest, chestSprite, "СУНДУК", session);
+
             if (chestSprite != null)
             {
                 Vector2 spriteSize = chestSprite.bounds.size;
@@ -111,9 +98,10 @@ public class RoomGenerator : MonoBehaviour
                     1.1f / Mathf.Max(0.001f, chest.transform.localScale.y));
             }
         }
-        else if (room.Type == RoguelikeRoomType.Merchant)
+
+        if (layout.SpawnMerchant)
         {
-            GameObject merchant = CreateRect(root, "Торговец", PlayAreaCenter,
+            GameObject merchant = CreateRect(root, "Торговец", layout.MerchantPosition,
                 new Vector2(1.1f, 1.5f), new Color(0.55f, 0.38f, 0.72f), 4, false);
             CircleCollider2D trigger = merchant.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
@@ -121,94 +109,12 @@ public class RoomGenerator : MonoBehaviour
             merchant.AddComponent<RoguelikeMerchant>().Initialize(session);
             ApplyPlaceholder(merchant, merchantSprite, "ТОРГОВЕЦ", session);
         }
-        if (room.IsExit && (room.Type != RoguelikeRoomType.Stairs || room.IsCleared))
-            SpawnExit(root, session);
 
-        return 0;
-    }
+        if (layout.SpawnExit)
+            SpawnExit(root, session, layout.ExitPosition);
 
-    private void BuildBoundaries(Transform root, bool left, bool right, bool down,
-        bool up, RoguelikeSession session)
-    {
-        const float wall = 0.55f;
-        float horizontalSegment = (RoomWidth - 2.6f) * 0.5f;
-        float verticalSegment = (RoomHeight - 2.6f) * 0.5f;
-
-        // Side walls are 20% thinner; the bottom wall is half-thickness.
-        // Their outer edges sit exactly on the playable rectangle.
-        float sideOffset = RoomWidth * 0.5f - wall * 0.8f * 0.5f;
-        float topY = PlayAreaCenter.y + RoomHeight * 0.5f - wall * 0.5f;
-        float bottomY = PlayAreaCenter.y - RoomHeight * 0.5f + wall * 0.5f * 0.5f;
-        float leftX = PlayAreaCenter.x - sideOffset;
-        float rightX = PlayAreaCenter.x + sideOffset;
-
-        if (left)
-        {
-            CreateWallSegment(root, "Западная стена • верх",
-                new Vector2(leftX, PlayAreaCenter.y + verticalSegment * 0.5f + 1.3f),
-                new Vector2(verticalSegment, wall), -90f);
-            CreateWallSegment(root, "Западная стена • низ",
-                new Vector2(leftX, PlayAreaCenter.y - verticalSegment * 0.5f - 1.3f),
-                new Vector2(verticalSegment, wall), -90f);
-            CreateDoor(root, session, new Vector2(leftX, PlayAreaCenter.y),
-                PlayAreaCenter + new Vector2(7f, 0f), -1, 0, -90f);
-        }
-        else
-        {
-            CreateWallSegment(root, "Западная стена",
-                new Vector2(leftX, PlayAreaCenter.y), new Vector2(RoomHeight, wall), -90f);
-        }
-
-        if (right)
-        {
-            CreateWallSegment(root, "Восточная стена • верх",
-                new Vector2(rightX, PlayAreaCenter.y + verticalSegment * 0.5f + 1.3f),
-                new Vector2(verticalSegment, wall), 90f);
-            CreateWallSegment(root, "Восточная стена • низ",
-                new Vector2(rightX, PlayAreaCenter.y - verticalSegment * 0.5f - 1.3f),
-                new Vector2(verticalSegment, wall), 90f);
-            CreateDoor(root, session, new Vector2(rightX, PlayAreaCenter.y),
-                PlayAreaCenter + new Vector2(-7f, 0f), 1, 0, 90f);
-        }
-        else
-        {
-            CreateWallSegment(root, "Восточная стена",
-                new Vector2(rightX, PlayAreaCenter.y), new Vector2(RoomHeight, wall), 90f);
-        }
-
-        if (down)
-        {
-            CreateWallSegment(root, "Южная стена • левая",
-                new Vector2(PlayAreaCenter.x - horizontalSegment * 0.5f - 1.3f, bottomY),
-                new Vector2(horizontalSegment, wall), 180f);
-            CreateWallSegment(root, "Южная стена • правая",
-                new Vector2(PlayAreaCenter.x + horizontalSegment * 0.5f + 1.3f, bottomY),
-                new Vector2(horizontalSegment, wall), 180f);
-            CreateDoor(root, session, new Vector2(PlayAreaCenter.x, bottomY),
-                PlayAreaCenter + new Vector2(0f, RoomHeight * 0.5f - 1.5f), 0, -1, 180f);
-        }
-        else
-        {
-            CreateWallSegment(root, "Южная стена",
-                new Vector2(PlayAreaCenter.x, bottomY), new Vector2(RoomWidth, wall), 180f);
-        }
-
-        if (up)
-        {
-            CreateWallSegment(root, "Северная стена • левая",
-                new Vector2(PlayAreaCenter.x - horizontalSegment * 0.5f - 1.3f, topY),
-                new Vector2(horizontalSegment, wall), 0f);
-            CreateWallSegment(root, "Северная стена • правая",
-                new Vector2(PlayAreaCenter.x + horizontalSegment * 0.5f + 1.3f, topY),
-                new Vector2(horizontalSegment, wall), 0f);
-            CreateDoor(root, session, new Vector2(PlayAreaCenter.x, topY),
-                PlayAreaCenter + new Vector2(0f, -RoomHeight * 0.5f + 1.5f), 0, 1, 0f);
-        }
-        else
-        {
-            CreateWallSegment(root, "Северная стена",
-                new Vector2(PlayAreaCenter.x, topY), new Vector2(RoomWidth, wall), 0f);
-        }
+        session.SetEnemyCount(layout.Ghosts.Count);
+        return layout.Ghosts.Count;
     }
 
     private void CreateWallSegment(Transform root, string objectName, Vector2 position,
@@ -246,13 +152,13 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
-    private void SpawnExit(Transform root, RoguelikeSession session)
+    private void SpawnExit(Transform root, RoguelikeSession session, Vector2 position)
     {
-        GameObject exit = CreateRect(root, "Выход", PlayAreaCenter + new Vector2(0f, 1.5f),
+        GameObject exit = CreateRect(root, "Выход", position,
             new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
         CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
         trigger.isTrigger = true;
-        trigger.radius = 2f;
+        trigger.radius = 1.1f;
         exit.AddComponent<RoguelikeExit>().Initialize(session);
         ApplyPlaceholder(exit, exitSprite, "ВЫХОД", session);
     }
@@ -266,11 +172,11 @@ public class RoomGenerator : MonoBehaviour
         door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
-        blocker.size = new Vector2(2.6f, 0.68f);
+        blocker.size = new Vector2(2.1f, 0.68f);
         blocker.isTrigger = false;
 
         BoxCollider2D trigger = door.AddComponent<BoxCollider2D>();
-        trigger.size = new Vector2(2.8f, 1.05f);
+        trigger.size = new Vector2(2.35f, 1.05f);
         trigger.isTrigger = true;
         trigger.enabled = false;
 
@@ -282,7 +188,7 @@ public class RoomGenerator : MonoBehaviour
         fallback.enabled = false;
 
         SpriteRenderer[] parts = new SpriteRenderer[6];
-        const float tileWidth = 0.86f;
+        const float tileWidth = 0.68f;
         const float tileHeight = 0.9f;
         for (int i = 0; i < parts.Length; i++)
         {
@@ -312,63 +218,6 @@ public class RoomGenerator : MonoBehaviour
             parts, closedDoorSprites, openedDoorSprites, fallback, blocker, trigger);
     }
 
-    private void BuildObstaclePattern(Transform root, int roomIndex, int floorNumber)
-    {
-        // Shelf artwork is perspective-specific: place the authored prefabs as-is
-        // and never rotate them. Eight layouts keep the combat lane and doorways open.
-        int pattern = Mathf.Abs(roomIndex + floorNumber - 1) % 8;
-        float y = 2.65f;
-        switch (pattern)
-        {
-            case 0:
-                CreateShelf(root, "Стеллаж СЗ", new Vector2(-4.8f, y), false, 0.48f);
-                CreateShelf(root, "Стеллаж СВ", new Vector2(4.8f, y), false, 0.48f);
-                CreateShelf(root, "Стеллаж ЮЗ", new Vector2(-4.8f, -y), false, 0.48f);
-                CreateShelf(root, "Стеллаж ЮВ", new Vector2(4.8f, -y), false, 0.48f);
-                break;
-            case 1:
-                CreateShelf(root, "Стеллаж север", new Vector2(0f, 3.4f), true, 0.42f);
-                CreateShelf(root, "Стеллаж юг", new Vector2(0f, -3.4f), true, 0.42f);
-                CreateShelf(root, "Стеллаж запад", new Vector2(-5.8f, 0f), false, 0.34f);
-                CreateShelf(root, "Стеллаж восток", new Vector2(5.8f, 0f), false, 0.34f);
-                break;
-            case 2:
-                CreateShelf(root, "Стеллаж СЗ", new Vector2(-4.5f, 2.6f), true, 0.34f);
-                CreateShelf(root, "Стеллаж СВ", new Vector2(4.5f, 1.5f), true, 0.34f);
-                CreateShelf(root, "Стеллаж ЮЗ", new Vector2(-4.5f, -1.5f), true, 0.34f);
-                CreateShelf(root, "Стеллаж ЮВ", new Vector2(4.5f, -2.6f), true, 0.34f);
-                break;
-            case 3:
-                CreateShelf(root, "Стеллаж СЗ", new Vector2(-5.1f, 3.15f), false, 0.38f);
-                CreateShelf(root, "Стеллаж СВ", new Vector2(5.1f, 3.15f), false, 0.38f);
-                CreateShelf(root, "Стеллаж ЮЗ", new Vector2(-5.1f, -3.15f), false, 0.38f);
-                CreateShelf(root, "Стеллаж ЮВ", new Vector2(5.1f, -3.15f), false, 0.38f);
-                break;
-            case 4:
-                CreateShelf(root, "Архивная линия север", new Vector2(0f, 3.1f), true, 0.5f);
-                CreateShelf(root, "Архивная линия юг", new Vector2(0f, -3.1f), true, 0.5f);
-                break;
-            case 5:
-                CreateShelf(root, "Стеллаж запад север", new Vector2(-5.3f, 2.0f), false, 0.38f);
-                CreateShelf(root, "Стеллаж запад юг", new Vector2(-5.3f, -2.0f), false, 0.38f);
-                CreateShelf(root, "Стеллаж восток север", new Vector2(5.3f, 2.0f), false, 0.38f);
-                CreateShelf(root, "Стеллаж восток юг", new Vector2(5.3f, -2.0f), false, 0.38f);
-                break;
-            case 6:
-                CreateShelf(root, "Полка северо-запад", new Vector2(-3.7f, 3.0f), true, 0.3f);
-                CreateShelf(root, "Полка северо-восток", new Vector2(3.7f, 3.0f), true, 0.3f);
-                CreateShelf(root, "Полка юго-запад", new Vector2(-3.7f, -3.0f), true, 0.3f);
-                CreateShelf(root, "Полка юго-восток", new Vector2(3.7f, -3.0f), true, 0.3f);
-                break;
-            default:
-                CreateShelf(root, "Центральный архив слева", new Vector2(-4.7f, 0f), false, 0.44f);
-                CreateShelf(root, "Центральный архив справа", new Vector2(4.7f, 0f), false, 0.44f);
-                CreateShelf(root, "Полка севера", new Vector2(0f, 3.5f), true, 0.3f);
-                CreateShelf(root, "Полка юга", new Vector2(0f, -3.5f), true, 0.3f);
-                break;
-        }
-    }
-
     private void CreateShelf(Transform root, string objectName, Vector2 position,
         bool upper, float scale)
     {
@@ -382,8 +231,7 @@ public class RoomGenerator : MonoBehaviour
         {
             GameObject shelf = Instantiate(prefab, root);
             shelf.name = objectName;
-            Vector2 alignedPosition = position + PlayAreaCenter;
-            shelf.transform.localPosition = new Vector3(alignedPosition.x, alignedPosition.y, 0f);
+            shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
             shelf.transform.localRotation = Quaternion.identity;
             shelf.transform.localScale = Vector3.one * scale;
             foreach (Collider2D collider in shelf.GetComponents<Collider2D>())
@@ -391,46 +239,8 @@ public class RoomGenerator : MonoBehaviour
             return;
         }
 
-        // Safe fallback if the resource prefab has been moved from Resources.
-        CreateRect(root, objectName, position + PlayAreaCenter, new Vector2(2.6f, 0.85f),
+        CreateRect(root, objectName, position, new Vector2(2.6f, 0.85f),
             new Color(0.3f, 0.2f, 0.16f), 2, true);
-    }
-
-    private void SpawnGhost(Transform root, RoguelikeSession session, int floor,
-        Vector2 position, bool melee, bool miniBoss = false)
-    {
-        GameObject ghost = new GameObject(miniBoss ? "Мини-босс • Красный призрак" : melee
-            ? "Призрак-библиотекарь" : "Призрак-читатель");
-        ghost.transform.SetParent(root, false);
-        ghost.transform.localPosition = new Vector3(position.x, position.y, 0f);
-        ghost.tag = "Enemy";
-
-        // Keep physics on the root at unit scale. Only the visual child is resized,
-        // so the hitbox remains correctly sized in world units.
-        GameObject visual = new GameObject("Спрайт призрака");
-        visual.transform.SetParent(ghost.transform, false);
-        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
-        renderer.sprite = melee ? meleeGhostSprite : rangedGhostSprite;
-        if (renderer.sprite == null) renderer.sprite = CircleSprite;
-        renderer.color = miniBoss ? new Color(1f, 0.35f, 0.35f, 1f) : melee
-            ? Color.white : new Color(0.38f, 0.62f, 1f, 1f);
-        renderer.sortingOrder = miniBoss ? 8 : 4;
-
-        Vector2 desiredSize = miniBoss ? new Vector2(1.0f, 1.5f) : new Vector2(0.8f, 1.3f);
-        Vector2 spriteSize = renderer.sprite.bounds.size;
-        visual.transform.localScale = new Vector3(
-            desiredSize.x / Mathf.Max(0.001f, spriteSize.x),
-            desiredSize.y / Mathf.Max(0.001f, spriteSize.y), 1f);
-
-        CircleCollider2D collider = ghost.AddComponent<CircleCollider2D>();
-        collider.radius = miniBoss ? 0.72f : 0.56f;
-        Rigidbody2D body = ghost.AddComponent<Rigidbody2D>();
-        body.bodyType = RigidbodyType2D.Kinematic;
-        body.gravityScale = 0f;
-        body.freezeRotation = true;
-
-        GhostEnemy enemy = ghost.AddComponent<GhostEnemy>();
-        enemy.Initialize(session, floor, melee, miniBoss, ghostAttackSprites);
     }
 
     private void SpawnTrap(Transform root, Vector2 position)
