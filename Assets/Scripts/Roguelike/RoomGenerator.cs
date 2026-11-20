@@ -8,10 +8,8 @@ using UnityEngine;
 public class RoomGenerator : MonoBehaviour
 {
     // Room dimensions include the wall frame. The walkable wooden area sits inside it.
-    public const float RoomWidth = 21f;
-    public const float RoomHeight = 10.1f;
-    private const float FloorWidth = 23f;
-    private const float FloorHeight = 12f;
+    public const float RoomWidth = 17.5f;
+    public const float RoomHeight = 7.6f;
     private static readonly Vector2 PlayAreaCenter = Vector2.zero;
 
     private static Sprite whiteSprite;
@@ -28,8 +26,6 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite mushroomSprite;
     [SerializeField] private Sprite itemSprite;
 
-    [Header("Геометрия комнаты")]
-    [SerializeField] private Sprite roomWallSprite;
     [SerializeField] private Sprite[] closedDoorSprites = new Sprite[6];
     [SerializeField] private Sprite[] openedDoorSprites = new Sprite[6];
 
@@ -54,9 +50,8 @@ public class RoomGenerator : MonoBehaviour
     public int GenerateRoom(Transform root, RoguelikeRoomData room, int floorNumber,
         int floorSeed, RoguelikeSession session)
     {
-        CreateRect(root, "Floor", PlayAreaCenter, new Vector2(FloorWidth, FloorHeight),
-            new Color(0.16f, 0.17f, 0.22f), -10, false);
-
+        // The scene's existing Floor Tilemap already contains the wooden tiles.
+        // Do not create a coloured background panel over that tilemap.
         RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
             room, floorNumber, floorSeed, RoomWidth, RoomHeight, PlayAreaCenter);
 
@@ -120,38 +115,16 @@ public class RoomGenerator : MonoBehaviour
     private void CreateWallSegment(Transform root, string objectName, Vector2 position,
         Vector2 size, float rotation)
     {
-        // One and the same Top_Wall_Tile sprite is used on all four sides.
-        // Only its rotation changes: top 0, left -90, right 90, bottom 180.
+        // Boundary walls are deliberately invisible. Their only component is
+        // a solid BoxCollider2D, so no sprite or decorative stripe is rendered.
         GameObject wall = new GameObject(objectName);
         wall.transform.SetParent(root, false);
         wall.transform.localPosition = new Vector3(position.x, position.y, 0f);
         wall.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
-        float compression = Mathf.Abs(Mathf.Abs(rotation) - 90f) < 0.01f
-            ? 0.8f
-            : Mathf.Abs(Mathf.DeltaAngle(rotation, 180f)) < 0.01f ? 0.5f : 1f;
-        Vector2 visualSize = new Vector2(size.x, size.y * compression);
-
-        SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
-        renderer.sprite = roomWallSprite;
-        renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = 2;
-        renderer.color = Color.white;
-        renderer.drawMode = SpriteDrawMode.Tiled;
-        renderer.tileMode = SpriteTileMode.Continuous;
-        renderer.size = visualSize;
-
-        // Collision is a separate invisible object placed exactly at the wall base.
-        // It has no SpriteRenderer, so it never creates a visible stripe.
-        GameObject collision = new GameObject(objectName + " • невидимая стена");
-        collision.transform.SetParent(wall.transform, false);
-        collision.transform.localPosition = Vector3.zero;
-        collision.transform.localRotation = Quaternion.identity;
-        collision.transform.localScale = Vector3.one;
-
-        BoxCollider2D blocker = collision.AddComponent<BoxCollider2D>();
+        BoxCollider2D blocker = wall.AddComponent<BoxCollider2D>();
         blocker.isTrigger = false;
-        blocker.size = visualSize;
+        blocker.size = size;
     }
 
     private void SpawnExit(Transform root, RoguelikeSession session, Vector2 position)
@@ -171,30 +144,31 @@ public class RoomGenerator : MonoBehaviour
         GameObject door = new GameObject("Дверь библиотеки");
         door.transform.SetParent(root, false);
         door.transform.localPosition = new Vector3(position.x, position.y, -0.04f);
+        // Left: -90°, right: +90°, bottom: 180°, top: 0°.
         door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
-        float wallDepth = Mathf.Abs(rotation) > 179f ? 0.95f :
-            Mathf.Abs(rotation) > 89f ? 1.52f : 1.9f;
-
+        const float doorWidth = 2.1f;
+        const float wallThickness = 0.22f;
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
-        blocker.size = new Vector2(2.1f, wallDepth);
+        blocker.size = new Vector2(doorWidth, wallThickness);
         blocker.isTrigger = false;
 
         BoxCollider2D trigger = door.AddComponent<BoxCollider2D>();
-        trigger.size = new Vector2(2.35f, wallDepth + 0.45f);
+        trigger.size = new Vector2(doorWidth + 0.35f, 0.9f);
         trigger.isTrigger = true;
         trigger.enabled = false;
 
+        // Door art keeps its original proportions. Only the GameObject rotates.
         SpriteRenderer fallback = door.AddComponent<SpriteRenderer>();
         fallback.sprite = WhiteSprite;
         fallback.drawMode = SpriteDrawMode.Tiled;
-        fallback.size = new Vector2(2.04f, wallDepth);
+        fallback.size = new Vector2(2.04f, wallThickness);
         fallback.sortingOrder = 3;
         fallback.enabled = false;
 
         SpriteRenderer[] parts = new SpriteRenderer[6];
         const float tileWidth = 0.68f;
-        float tileHeight = wallDepth / 2f;
+        const float tileHeight = 0.95f;
         for (int i = 0; i < parts.Length; i++)
         {
             GameObject tile = new GameObject("Дверной тайл " + i);
