@@ -18653,6 +18653,68 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6298641d29be9ff4b87577a034aa27c6, type: 3}
+--- !u!114 &2100000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 602007401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f20b8dbf3f4c30a6a97d24a7bb0003, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoguelikeSession
+  lobbyEnvironmentName: Library Environment
+  lobbyPlayerPosition: {x: 0, y: -3}
+  itemPickupSound: {fileID: 8300000, guid: d798a253eb5a8f64a825c979d1cf93a5, type: 3}
+
+--- !u!114 &2100000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 602007401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20f20b8dbf3f4c30a6a97d24a7bb0002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoomGenerator
+  useOnGUIIfNoSprite: 0
+  meleeGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
+  rangedGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
+  ghostAttackSprites:
+  - {fileID: 21300000, guid: 6fa0fe79eccf54a4198ffcb91ddfac85, type: 3}
+  - {fileID: 21300000, guid: 19831b61d0e188847bf483102aa0f162, type: 3}
+  - {fileID: 21300000, guid: af80694c97e4a354d8910e19d705548b, type: 3}
+  chestSprite: {fileID: 4123257111082171673, guid: fe39a879b8b42a4459b113be884d7e7d, type: 3}
+  merchantSprite: {fileID: 0}
+  exitSprite: {fileID: 0}
+  trapSprite: {fileID: 0}
+  mushroomSprite: {fileID: 0}
+  itemSprite: {fileID: 0}
+  roomWallSprite: {fileID: -2672306381724259459, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  mossyWallSprites:
+  - {fileID: -1820933343298804998, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 3957419326524138300, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 2161171272659936262, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  closedDoorSprites:
+  - {fileID: -5225876556858284812, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -3094171731127790719, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -6558360575689610975, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 2365339308313440513, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -6085209271259904505, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -7743214850641337493, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  openedDoorSprites:
+  - {fileID: -3697355384244169913, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -5767162948771900228, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 7145941756167820797, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 457820117542733627, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -6975971501963557229, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -7265388314283571386, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  minimapFrameSprite: {fileID: 21300000, guid: 904b6e073fa111247b010f66b70ade39, type: 3}
+
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

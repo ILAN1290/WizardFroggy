@@ -30,6 +30,7 @@ public class RoomGenerator : MonoBehaviour
 
     [Header("Геометрия комнаты")]
     [SerializeField] private Sprite roomWallSprite;
+    [SerializeField] private Sprite[] mossyWallSprites = new Sprite[3];
     [SerializeField] private Sprite[] closedDoorSprites = new Sprite[6];
     [SerializeField] private Sprite[] openedDoorSprites = new Sprite[6];
 
@@ -139,6 +140,8 @@ public class RoomGenerator : MonoBehaviour
         BoxCollider2D blocker = wall.AddComponent<BoxCollider2D>();
         if (roomWallSprite != null)
         {
+            // Top_Wall_Tile from the dungeon atlas is the brick base. Tiling it
+            // keeps the brick pattern crisp instead of stretching one giant sprite.
             renderer.drawMode = SpriteDrawMode.Tiled;
             renderer.tileMode = SpriteTileMode.Continuous;
             renderer.size = compressedSize;
@@ -149,6 +152,64 @@ public class RoomGenerator : MonoBehaviour
         {
             wall.transform.localScale = new Vector3(compressedSize.x, compressedSize.y, 1f);
             renderer.color = new Color(0.25f, 0.19f, 0.16f);
+        }
+
+        AddWallVines(wall.transform, objectName, compressedSize, rotation);
+    }
+
+    private void AddWallVines(Transform wall, string wallName,
+        Vector2 wallSize, float wallRotation)
+    {
+        if (mossyWallSprites == null || mossyWallSprites.Length == 0)
+            return;
+
+        bool sideWall = Mathf.Abs(Mathf.Abs(wallRotation) - 90f) < 0.01f;
+        bool bottomWall = Mathf.Abs(Mathf.DeltaAngle(wallRotation, 180f)) < 0.01f;
+        float outsideNormal = sideWall ? -1f : 1f;
+
+        // The vine strip overlaps the outer brick edge, as in the reference:
+        // dense foliage along the upper wall, hanging growth on both sides,
+        // and only occasional tufts along the bottom edge.
+        float edgeOffset = wallSize.y * 0.5f + (sideWall ? 0.12f : 0.18f);
+        float start = -wallSize.x * 0.5f + 0.38f;
+        float end = wallSize.x * 0.5f - 0.38f;
+        if (end <= start) return;
+
+        int seed = Mathf.RoundToInt((wall.position.x * 317f + wall.position.y * 911f) * 1000f)
+            ^ wallName.Length * 7919;
+        System.Random random = new System.Random(seed);
+
+        float spacing = sideWall ? 0.92f : bottomWall ? 1.18f : 0.68f;
+        int patchIndex = 0;
+        for (float along = start; along <= end; )
+        {
+            bool placePatch = !bottomWall || random.NextDouble() < 0.38;
+            if (placePatch)
+            {
+                Sprite variant = mossyWallSprites[random.Next(mossyWallSprites.Length)];
+                if (variant != null)
+                {
+                    float scaleX = 0.82f + (float)random.NextDouble() * 0.58f;
+                    float scaleY = 0.88f + (float)random.NextDouble() * 0.55f;
+                    float jitter = ((float)random.NextDouble() - 0.5f) * 0.28f;
+
+                    GameObject vine = new GameObject("Лиана стены " + patchIndex++);
+                    vine.transform.SetParent(wall, false);
+                    vine.transform.localPosition = new Vector3(
+                        along, outsideNormal * (edgeOffset + jitter), -0.025f);
+                    vine.transform.localRotation = Quaternion.Euler(
+                        0f, 0f, ((float)random.NextDouble() - 0.5f) * 14f);
+                    vine.transform.localScale = new Vector3(scaleX, scaleY, 1f);
+
+                    SpriteRenderer vineRenderer = vine.AddComponent<SpriteRenderer>();
+                    vineRenderer.sprite = variant;
+                    vineRenderer.color = Color.white;
+                    vineRenderer.sortingLayerName = "Default";
+                    vineRenderer.sortingOrder = 3;
+                }
+            }
+
+            along += spacing * (0.78f + (float)random.NextDouble() * 0.48f);
         }
     }
 
