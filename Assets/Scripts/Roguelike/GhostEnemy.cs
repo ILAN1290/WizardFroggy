@@ -148,7 +148,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
         BoxCollider2D collider = bolt.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
-        collider.size = new Vector2(0.22f, 0.22f);
+        collider.size = Vector2.one;
 
         Rigidbody2D projectileBody = bolt.AddComponent<Rigidbody2D>();
         projectileBody.bodyType = RigidbodyType2D.Kinematic;
