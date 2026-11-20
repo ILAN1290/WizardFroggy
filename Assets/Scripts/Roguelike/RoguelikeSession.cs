@@ -32,6 +32,7 @@ public class RoguelikeSession : MonoBehaviour
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
     private GUIStyle minimapMarkerStyle;
     private GUIStyle mushroomCountStyle;
+    private static Texture2D mushroomHudTexture;
 
     private sealed class WorldPlaceholder
     {
@@ -537,17 +538,125 @@ public class RoguelikeSession : MonoBehaviour
             }
         }
 
-        // Currency is deliberately the only additional text outside the allowed HUD.
-        Rect mushroomRect = new Rect(frame.x, frame.yMax + 6f, size, 28f);
+        // Compact currency HUD: a small mushroom icon followed by the amount.
+        Rect mushroomRect = new Rect(frame.x + 2f, frame.yMax + 5f, 25f, 25f);
+        Texture2D icon = GetMushroomHudTexture();
+        if (icon != null)
+            GUI.DrawTexture(mushroomRect, icon, ScaleMode.ScaleToFit, true);
+
         if (mushroomCountStyle == null)
         {
             mushroomCountStyle = new GUIStyle(GUI.skin.label);
+            mushroomCountStyle.alignment = TextAnchor.MiddleLeft;
             mushroomCountStyle.fontSize = 18;
             mushroomCountStyle.fontStyle = FontStyle.Bold;
             mushroomCountStyle.normal.textColor = Color.white;
         }
-        GUI.Label(mushroomRect, "Грибочки: " + PlayerRunData.EnsureInstance().Mushrooms,
+
+        Rect countRect = new Rect(mushroomRect.xMax + 4f, mushroomRect.y,
+            64f, mushroomRect.height);
+        GUI.Label(countRect, PlayerRunData.EnsureInstance().Mushrooms.ToString(),
             mushroomCountStyle);
+    }
+
+    private static Texture2D GetMushroomHudTexture()
+    {
+        if (mushroomHudTexture != null) return mushroomHudTexture;
+
+        const int size = 32;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = "Roguelike Mushroom HUD Icon";
+        texture.filterMode = FilterMode.Point;
+        texture.wrapMode = TextureWrapMode.Clamp;
+
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        Color outline = new Color(0.20f, 0.055f, 0.035f, 1f);
+        Color cap = new Color(0.78f, 0.16f, 0.12f, 1f);
+        Color capLight = new Color(0.96f, 0.31f, 0.20f, 1f);
+        Color capShadow = new Color(0.48f, 0.075f, 0.065f, 1f);
+        Color stem = new Color(0.94f, 0.86f, 0.65f, 1f);
+        Color stemShadow = new Color(0.69f, 0.55f, 0.38f, 1f);
+        Color spots = new Color(1f, 0.94f, 0.78f, 1f);
+
+        Color[] pixels = new Color[size * size];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = clear;
+
+        // Draw the stem first so the cap overlaps it naturally.
+        for (int y = 3; y <= 17; y++)
+        {
+            int half = y < 6 ? 5 : y < 13 ? 4 : 3;
+            int left = 16 - half;
+            int right = 16 + half;
+            for (int x = left - 1; x <= right + 1; x++)
+            {
+                if (x < 0 || x >= size) continue;
+                bool edge = x == left - 1 || x == right + 1 ||
+                    y == 3 || y == 17;
+                pixels[y * size + x] = edge ? outline :
+                    x >= right - 1 ? stemShadow : stem;
+            }
+        }
+
+        // Red dotted woodland cap with dark pixel outline.
+        int[] halfWidths = new int[32];
+        halfWidths[15] = 5;
+        halfWidths[16] = 9;
+        halfWidths[17] = 12;
+        halfWidths[18] = 14;
+        halfWidths[19] = 15;
+        halfWidths[20] = 15;
+        halfWidths[21] = 15;
+        halfWidths[22] = 15;
+        halfWidths[23] = 14;
+        halfWidths[24] = 12;
+        halfWidths[25] = 9;
+        halfWidths[26] = 6;
+        halfWidths[27] = 3;
+
+        for (int y = 14; y <= 28; y++)
+        {
+            int half = y < 15 ? 3 : halfWidths[y];
+            if (half <= 0) continue;
+            int left = 16 - half;
+            int right = 16 + half;
+            for (int x = left - 1; x <= right + 1; x++)
+            {
+                if (x < 0 || x >= size) continue;
+                bool edge = x == left - 1 || x == right + 1 ||
+                    y == 14 || y == 28;
+                Color value;
+                if (edge) value = outline;
+                else if (y <= 17 || x <= 11) value = capLight;
+                else if (x >= 24 || y >= 25) value = capShadow;
+                else value = cap;
+                pixels[y * size + x] = value;
+            }
+        }
+
+        // A few pale cap spots make the tiny icon read as a mushroom, not a berry.
+        void Spot(int cx, int cy, int radius)
+        {
+            for (int y = -radius; y <= radius; y++)
+            {
+                for (int x = -radius; x <= radius; x++)
+                {
+                    if (x * x + y * y > radius * radius) continue;
+                    int px = cx + x;
+                    int py = cy + y;
+                    if (px >= 0 && px < size && py >= 0 && py < size)
+                        pixels[py * size + px] = spots;
+                }
+            }
+        }
+
+        Spot(10, 22, 2);
+        Spot(21, 24, 2);
+        Spot(17, 18, 1);
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, true);
+        mushroomHudTexture = texture;
+        return mushroomHudTexture;
     }
 
     private static void DrawMiniMapRect(Rect rect, Color colour)
