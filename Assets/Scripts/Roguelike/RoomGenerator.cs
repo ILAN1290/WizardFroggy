@@ -342,6 +342,17 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
+    private void SpawnExit(Transform root, RoguelikeSession session, Vector2 position)
+    {
+        GameObject exit = CreateRect(root, "Выход", position,
+            new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
+        CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
+        trigger.isTrigger = true;
+        trigger.radius = 1.1f;
+        exit.AddComponent<RoguelikeExit>().Initialize(session);
+        ApplyPlaceholder(exit, exitSprite, "ВЫХОД", session);
+    }
+
     private void CreateDoor(Transform root, RoguelikeSession session, Vector2 position,
         Vector2 spawn, int dx, int dy, float rotation)
     {
@@ -359,9 +370,9 @@ public class RoomGenerator : MonoBehaviour
             door.transform.localScale = new Vector3(1f, 0.5f, 1f);
         else if (dy > 0)
         {
-            Camera camera = Camera.main;
-            float pixelsPerWorldUnit = camera != null && camera.orthographic
-                ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
+            Camera topDoorCamera = Camera.main;
+            float pixelsPerWorldUnit = topDoorCamera != null && topDoorCamera.orthographic
+                ? topDoorCamera.pixelHeight / Mathf.Max(0.01f, topDoorCamera.orthographicSize * 2f)
                 : 100f;
             float extraWorldWidth = 20f / Mathf.Max(1f, pixelsPerWorldUnit);
             door.transform.localScale = new Vector3(1f + extraWorldWidth / 2.04f, 1f, 1f);
