@@ -172,7 +172,7 @@ public static class RoguelikeRoomLayoutGenerator
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(leftX, centreY),
                 new Vector2(rightX - spawnInset, centreY),
-                -1, 0, -90f));
+                -1, 0, 90f));
         }
 
         // Right door rotates 90 degrees to the right.
