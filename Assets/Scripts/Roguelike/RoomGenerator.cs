@@ -88,6 +88,10 @@ public class RoomGenerator : MonoBehaviour
             SpawnGhost(root, session, floorNumber, ghost.Position,
                 ghost.Melee, ghost.MiniBoss);
 
+        // The frog and all its animated child sprites must render above the
+        // perspective wall frame, not disappear behind the foreground masonry.
+        PutPlayerAboveWalls();
+
         if (layout.SpawnChest)
         {
             GameObject chest = CreateRect(root, "Сундук", layout.ChestPosition,
@@ -165,6 +169,24 @@ public class RoomGenerator : MonoBehaviour
         float top = centre.y + height * 0.5f;
         float bottom = centre.y - height * 0.5f;
 
+        // First lay a continuous backing of ordinary brick tiles over the whole
+        // wall footprint. The tapered rows and ivy are rendered above this pass.
+        // This closes any transparent seams between the ivy band and masonry.
+        CreateWallBackingBand(root, "Заполнение верхней стены",
+            new Vector2(centre.x, top + topDepth * 0.5f),
+            width + sideDepth * 2f, topDepth, 0f);
+        CreateWallBackingBand(root, "Заполнение нижней стены",
+            new Vector2(centre.x, bottom - bottomDepth * 0.5f),
+            width + sideDepth * 2f, bottomDepth, 180f);
+        CreateWallBackingBand(root, "Заполнение левой стены",
+            new Vector2(left - sideDepth * 0.5f,
+                centre.y + (topDepth - bottomDepth) * 0.5f),
+            height + topDepth + bottomDepth, sideDepth, 90f);
+        CreateWallBackingBand(root, "Заполнение правой стены",
+            new Vector2(right + sideDepth * 0.5f,
+                centre.y + (topDepth - bottomDepth) * 0.5f),
+            height + topDepth + bottomDepth, sideDepth, -90f);
+
         // The wall strips become wider/taller as they approach the outside edge.
         // Together they form four trapezoids with diagonal, mitered corners.
         CreateHorizontalWallBand(root, "Верхняя кирпичная стена",
@@ -187,6 +209,23 @@ public class RoomGenerator : MonoBehaviour
             new Vector2(left, bottom), new Vector2(left - sideDepth, bottom - bottomDepth));
         CreateDiagonalWallSeam(root, "Шов нижний правый",
             new Vector2(right, bottom), new Vector2(right + sideDepth, bottom - bottomDepth));
+    }
+
+    private void CreateWallBackingBand(Transform root, string name,
+        Vector2 position, float length, float depth, float rotation)
+    {
+        if (wallTileSprite == null || length <= 0f || depth <= 0f) return;
+
+        GameObject backing = new GameObject(name);
+        backing.transform.SetParent(root, false);
+        backing.transform.localPosition = new Vector3(position.x, position.y, -0.08f);
+        backing.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
+
+        SpriteRenderer renderer = backing.AddComponent<SpriteRenderer>();
+        renderer.sprite = wallTileSprite;
+        renderer.drawMode = SpriteDrawMode.Tiled;
+        renderer.size = new Vector2(length, depth);
+        renderer.sortingOrder = 2;
     }
 
     private void CreateHorizontalWallBand(Transform root, string name, float centreX,
@@ -255,7 +294,9 @@ public class RoomGenerator : MonoBehaviour
         SpriteRenderer renderer = row.AddComponent<SpriteRenderer>();
         renderer.sprite = wallTileSprite;
         renderer.drawMode = SpriteDrawMode.Tiled;
-        renderer.size = new Vector2(Mathf.Max(0.01f, length + 0.04f), Mathf.Max(0.01f, depth + 0.02f));
+        // Do not grow the depth toward the room: the inner edge must stay
+        // exactly on the walkable boundary. A tiny overlap is used only along the run.
+        renderer.size = new Vector2(Mathf.Max(0.01f, length + 0.01f), Mathf.Max(0.01f, depth));
         renderer.sortingOrder = sortingOrder;
     }
 
@@ -286,8 +327,25 @@ public class RoomGenerator : MonoBehaviour
             SpriteRenderer renderer = segment.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
             renderer.drawMode = SpriteDrawMode.Tiled;
-            renderer.size = new Vector2(actualSegmentLength + 0.03f, depth + 0.02f);
+            // Keep the leaf band outside the walkable area as well.
+            renderer.size = new Vector2(actualSegmentLength + 0.01f, depth);
             renderer.sortingOrder = 4;
+        }
+    }
+
+    private void PutPlayerAboveWalls()
+    {
+        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+        if (playerObject == null) return;
+
+        SpriteRenderer[] playerRenderers =
+            playerObject.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < playerRenderers.Length; i++)
+        {
+            SpriteRenderer renderer = playerRenderers[i];
+            if (renderer == null) continue;
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = 20;
         }
     }
 
@@ -298,7 +356,7 @@ public class RoomGenerator : MonoBehaviour
         float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
 
         GameObject seam = CreateRect(root, name, (inner + outer) * 0.5f,
-            new Vector2(length, 0.075f), new Color(0.055f, 0.035f, 0.03f, 0.95f), 6, false);
+            new Vector2(length, 0.075f), new Color(0.055f, 0.035f, 0.03f, 0.95f), 3, false);
         seam.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
@@ -443,7 +501,7 @@ public class RoomGenerator : MonoBehaviour
         renderer.color = miniBoss ? new Color(1f, 0.28f, 0.32f, 1f) : melee
             ? Color.white : new Color(0.38f, 0.62f, 1f, 1f);
         renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = miniBoss ? 8 : 4;
+        renderer.sortingOrder = miniBoss ? 21 : 20;
 
         float frogHeight = 1f;
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
