@@ -44,7 +44,6 @@ public class GhostAI : MonoBehaviour
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
-        bodyCollider = GetComponent<CircleCollider2D>();
     }
 
     private void Update()
