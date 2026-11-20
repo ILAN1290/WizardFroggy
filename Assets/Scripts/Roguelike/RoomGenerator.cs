@@ -172,18 +172,18 @@ public class RoomGenerator : MonoBehaviour
         door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
-        blocker.size = new Vector2(2.1f, 0.68f);
+        blocker.size = new Vector2(2.1f, 0.78f);
         blocker.isTrigger = false;
 
         BoxCollider2D trigger = door.AddComponent<BoxCollider2D>();
-        trigger.size = new Vector2(2.35f, 1.05f);
+        trigger.size = new Vector2(2.35f, 1.15f);
         trigger.isTrigger = true;
         trigger.enabled = false;
 
         SpriteRenderer fallback = door.AddComponent<SpriteRenderer>();
         fallback.sprite = WhiteSprite;
         fallback.drawMode = SpriteDrawMode.Tiled;
-        fallback.size = new Vector2(2.55f, 0.62f);
+        fallback.size = new Vector2(2.04f, 0.76f);
         fallback.sortingOrder = 3;
         fallback.enabled = false;
 
