@@ -32,7 +32,6 @@ public class RoomGenerator : MonoBehaviour
     // Set while the room's perspective wall bands are calculated, then reused
     // to align the side and bottom door artwork with those exact outer edges.
     private float currentSideWallDepth;
-    private float currentBottomWallDepth;
     [SerializeField] private Sprite topLeftWallCornerSprite;
     [SerializeField] private Sprite topRightWallCornerSprite;
     [SerializeField] private Sprite bottomLeftWallCornerSprite;
@@ -171,7 +170,6 @@ public class RoomGenerator : MonoBehaviour
         float bottomDepth = viewHeight * (130f / 1080f);
 
         currentSideWallDepth = sideDepth;
-        currentBottomWallDepth = bottomDepth;
 
         float left = centre.x - width * 0.5f;
         float right = centre.x + width * 0.5f;
