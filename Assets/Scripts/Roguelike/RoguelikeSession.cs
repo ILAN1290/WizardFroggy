@@ -495,7 +495,6 @@ public class RoguelikeSession : MonoBehaviour
             Color roomColour = room.Index == currentRoomIndex
                 ? new Color(0.9f, 0.9f, 0.82f, 1f)
                 : room.IsCleared ? new Color(0.46f, 0.46f, 0.46f, 1f)
-                : special ? new Color(0.5f, 0.42f, 0.3f, 1f)
                 : new Color(0.27f, 0.27f, 0.27f, 1f);
             DrawMiniMapRect(roomRect, roomColour);
 
