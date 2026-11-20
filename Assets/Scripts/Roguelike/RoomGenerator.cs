@@ -7,8 +7,12 @@ using UnityEngine;
 /// </summary>
 public class RoomGenerator : MonoBehaviour
 {
-    public const float RoomWidth = 18f;
-    public const float RoomHeight = 12f;
+    // Playable rectangle matches the red boundary shown in the boss-arena reference.
+    public const float RoomWidth = 16.67f;
+    public const float RoomHeight = 8.6263f;
+    private const float FloorWidth = 18f;
+    private const float FloorHeight = 12f;
+    private static readonly Vector2 PlayAreaCenter = new Vector2(-0.04f, -2.3277f);
 
     private static Sprite whiteSprite;
     private static Sprite circleSprite;
@@ -50,7 +54,7 @@ public class RoomGenerator : MonoBehaviour
     public int GenerateRoom(Transform root, RoguelikeRoomData room, int floorNumber,
         RoguelikeSession session)
     {
-        CreateRect(root, "Floor", Vector2.zero, new Vector2(RoomWidth, RoomHeight),
+        CreateRect(root, "Floor", Vector2.zero, new Vector2(FloorWidth, FloorHeight),
             new Color(0.16f, 0.17f, 0.22f), -10, false);
 
         bool left = room.Neighbours.Contains(room.Index - 1) && room.X > 0;
@@ -82,7 +86,7 @@ public class RoomGenerator : MonoBehaviour
 
         if (room.Type == RoguelikeRoomType.Stairs && !room.IsCleared)
         {
-            SpawnGhost(root, session, floorNumber, new Vector2(0f, -2f), true, true);
+            SpawnGhost(root, session, floorNumber, PlayAreaCenter + new Vector2(0f, -2f), true, true);
             session.SetEnemyCount(1);
             SpawnExit(root, session);
             return 1;
@@ -90,7 +94,7 @@ public class RoomGenerator : MonoBehaviour
 
         if (room.Type == RoguelikeRoomType.Chest && !room.IsCleared)
         {
-            GameObject chest = CreateRect(root, "Сундук", Vector2.zero,
+            GameObject chest = CreateRect(root, "Сундук", PlayAreaCenter,
                 new Vector2(1.5f, 1.1f), new Color(0.56f, 0.31f, 0.12f), 4, false);
             BoxCollider2D trigger = chest.AddComponent<BoxCollider2D>();
             trigger.isTrigger = true;
@@ -109,7 +113,7 @@ public class RoomGenerator : MonoBehaviour
         }
         else if (room.Type == RoguelikeRoomType.Merchant)
         {
-            GameObject merchant = CreateRect(root, "Торговец", Vector2.zero,
+            GameObject merchant = CreateRect(root, "Торговец", PlayAreaCenter,
                 new Vector2(1.1f, 1.5f), new Color(0.55f, 0.38f, 0.72f), 4, false);
             CircleCollider2D trigger = merchant.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
@@ -129,76 +133,81 @@ public class RoomGenerator : MonoBehaviour
         const float wall = 0.55f;
         float horizontalSegment = (RoomWidth - 2.6f) * 0.5f;
         float verticalSegment = (RoomHeight - 2.6f) * 0.5f;
-        float sideX = RoomWidth * 0.5f - wall * 0.8f * 0.5f;
-        float topY = RoomHeight * 0.5f - wall * 0.5f;
-        float bottomY = -RoomHeight * 0.5f + wall * 0.5f * 0.5f;
+
+        // Side walls are 20% thinner; the bottom wall is half-thickness.
+        // Their outer edges sit exactly on the playable rectangle.
+        float sideOffset = RoomWidth * 0.5f - wall * 0.8f * 0.5f;
+        float topY = PlayAreaCenter.y + RoomHeight * 0.5f - wall * 0.5f;
+        float bottomY = PlayAreaCenter.y - RoomHeight * 0.5f + wall * 0.5f * 0.5f;
+        float leftX = PlayAreaCenter.x - sideOffset;
+        float rightX = PlayAreaCenter.x + sideOffset;
 
         if (left)
         {
             CreateWallSegment(root, "Западная стена • верх",
-                new Vector2(-sideX, verticalSegment * 0.5f + 1.3f),
+                new Vector2(leftX, PlayAreaCenter.y + verticalSegment * 0.5f + 1.3f),
                 new Vector2(verticalSegment, wall), -90f);
             CreateWallSegment(root, "Западная стена • низ",
-                new Vector2(-sideX, -verticalSegment * 0.5f - 1.3f),
+                new Vector2(leftX, PlayAreaCenter.y - verticalSegment * 0.5f - 1.3f),
                 new Vector2(verticalSegment, wall), -90f);
-            CreateDoor(root, session, new Vector2(-sideX, 0f),
-                new Vector2(7f, 0f), -1, 0, -90f);
+            CreateDoor(root, session, new Vector2(leftX, PlayAreaCenter.y),
+                PlayAreaCenter + new Vector2(7f, 0f), -1, 0, -90f);
         }
         else
         {
             CreateWallSegment(root, "Западная стена",
-                new Vector2(-sideX, 0f), new Vector2(RoomHeight, wall), -90f);
+                new Vector2(leftX, PlayAreaCenter.y), new Vector2(RoomHeight, wall), -90f);
         }
 
         if (right)
         {
             CreateWallSegment(root, "Восточная стена • верх",
-                new Vector2(sideX, verticalSegment * 0.5f + 1.3f),
+                new Vector2(rightX, PlayAreaCenter.y + verticalSegment * 0.5f + 1.3f),
                 new Vector2(verticalSegment, wall), 90f);
             CreateWallSegment(root, "Восточная стена • низ",
-                new Vector2(sideX, -verticalSegment * 0.5f - 1.3f),
+                new Vector2(rightX, PlayAreaCenter.y - verticalSegment * 0.5f - 1.3f),
                 new Vector2(verticalSegment, wall), 90f);
-            CreateDoor(root, session, new Vector2(sideX, 0f),
-                new Vector2(-7f, 0f), 1, 0, 90f);
+            CreateDoor(root, session, new Vector2(rightX, PlayAreaCenter.y),
+                PlayAreaCenter + new Vector2(-7f, 0f), 1, 0, 90f);
         }
         else
         {
             CreateWallSegment(root, "Восточная стена",
-                new Vector2(sideX, 0f), new Vector2(RoomHeight, wall), 90f);
+                new Vector2(rightX, PlayAreaCenter.y), new Vector2(RoomHeight, wall), 90f);
         }
 
         if (down)
         {
             CreateWallSegment(root, "Южная стена • левая",
-                new Vector2(-horizontalSegment * 0.5f - 1.3f, bottomY),
+                new Vector2(PlayAreaCenter.x - horizontalSegment * 0.5f - 1.3f, bottomY),
                 new Vector2(horizontalSegment, wall), 180f);
             CreateWallSegment(root, "Южная стена • правая",
-                new Vector2(horizontalSegment * 0.5f + 1.3f, bottomY),
+                new Vector2(PlayAreaCenter.x + horizontalSegment * 0.5f + 1.3f, bottomY),
                 new Vector2(horizontalSegment, wall), 180f);
-            CreateDoor(root, session, new Vector2(0f, bottomY),
-                new Vector2(0f, 4.4f), 0, -1, 180f);
+            CreateDoor(root, session, new Vector2(PlayAreaCenter.x, bottomY),
+                PlayAreaCenter + new Vector2(0f, RoomHeight * 0.5f - 1.5f), 0, -1, 180f);
         }
         else
         {
             CreateWallSegment(root, "Южная стена",
-                new Vector2(0f, bottomY), new Vector2(RoomWidth, wall), 180f);
+                new Vector2(PlayAreaCenter.x, bottomY), new Vector2(RoomWidth, wall), 180f);
         }
 
         if (up)
         {
             CreateWallSegment(root, "Северная стена • левая",
-                new Vector2(-horizontalSegment * 0.5f - 1.3f, topY),
+                new Vector2(PlayAreaCenter.x - horizontalSegment * 0.5f - 1.3f, topY),
                 new Vector2(horizontalSegment, wall), 0f);
             CreateWallSegment(root, "Северная стена • правая",
-                new Vector2(horizontalSegment * 0.5f + 1.3f, topY),
+                new Vector2(PlayAreaCenter.x + horizontalSegment * 0.5f + 1.3f, topY),
                 new Vector2(horizontalSegment, wall), 0f);
-            CreateDoor(root, session, new Vector2(0f, topY),
-                new Vector2(0f, -4.4f), 0, 1, 0f);
+            CreateDoor(root, session, new Vector2(PlayAreaCenter.x, topY),
+                PlayAreaCenter + new Vector2(0f, -RoomHeight * 0.5f + 1.5f), 0, 1, 0f);
         }
         else
         {
             CreateWallSegment(root, "Северная стена",
-                new Vector2(0f, topY), new Vector2(RoomWidth, wall), 0f);
+                new Vector2(PlayAreaCenter.x, topY), new Vector2(RoomWidth, wall), 0f);
         }
     }
 
@@ -239,7 +248,7 @@ public class RoomGenerator : MonoBehaviour
 
     private void SpawnExit(Transform root, RoguelikeSession session)
     {
-        GameObject exit = CreateRect(root, "Выход", new Vector2(0f, 2.5f),
+        GameObject exit = CreateRect(root, "Выход", PlayAreaCenter + new Vector2(0f, 2.5f),
             new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
         CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
         trigger.isTrigger = true;
@@ -373,7 +382,8 @@ public class RoomGenerator : MonoBehaviour
         {
             GameObject shelf = Instantiate(prefab, root);
             shelf.name = objectName;
-            shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
+            Vector2 alignedPosition = position + PlayAreaCenter;
+            shelf.transform.localPosition = new Vector3(alignedPosition.x, alignedPosition.y, 0f);
             shelf.transform.localRotation = Quaternion.identity;
             shelf.transform.localScale = Vector3.one * scale;
             foreach (Collider2D collider in shelf.GetComponents<Collider2D>())
@@ -382,7 +392,7 @@ public class RoomGenerator : MonoBehaviour
         }
 
         // Safe fallback if the resource prefab has been moved from Resources.
-        CreateRect(root, objectName, position, new Vector2(2.6f, 0.85f),
+        CreateRect(root, objectName, position + PlayAreaCenter, new Vector2(2.6f, 0.85f),
             new Color(0.3f, 0.2f, 0.16f), 2, true);
     }
 
@@ -461,10 +471,10 @@ public class RoomGenerator : MonoBehaviour
     private Vector2 RandomPointAwayFromCentre()
     {
         Vector2 point = Random.insideUnitCircle;
-        point.x *= 6.2f;
-        point.y *= 3.8f;
-        if (point.magnitude < 3f) point = point.normalized * 3.5f;
-        return point;
+        point.x *= 6.0f;
+        point.y *= 2.65f;
+        if (point.magnitude < 2.8f) point = point.normalized * 3.0f;
+        return PlayAreaCenter + point;
     }
 
     private GameObject CreateSolid(Transform parent, string objectName, Vector2 position,
