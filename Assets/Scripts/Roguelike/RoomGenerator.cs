@@ -243,6 +243,55 @@ public class RoomGenerator : MonoBehaviour
             new Color(0.3f, 0.2f, 0.16f), 2, true);
     }
 
+    private void SpawnGhost(Transform root, RoguelikeSession session, int floor,
+        Vector2 position, bool melee, bool miniBoss = false)
+    {
+        GameObject ghost = new GameObject(miniBoss ? "Мини-босс • Красный призрак" : melee
+            ? "Призрак-библиотекарь" : "Призрак-читатель");
+        ghost.transform.SetParent(root, false);
+        ghost.transform.localPosition = new Vector3(position.x, position.y, 0f);
+        ghost.tag = "Enemy";
+
+        // Physics stays on the root. The visual child receives one uniform scale,
+        // preserving the source sprite aspect ratio and matching the frog's height.
+        GameObject visual = new GameObject("Спрайт призрака");
+        visual.transform.SetParent(ghost.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = melee ? meleeGhostSprite : rangedGhostSprite;
+        if (renderer.sprite == null) renderer.sprite = CircleSprite;
+        renderer.color = miniBoss ? new Color(1f, 0.28f, 0.32f, 1f) : melee
+            ? Color.white : new Color(0.38f, 0.62f, 1f, 1f);
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = miniBoss ? 8 : 4;
+
+        float frogHeight = 1f;
+        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+        if (playerObject != null)
+        {
+            SpriteRenderer frogRenderer = playerObject.GetComponent<SpriteRenderer>();
+            if (frogRenderer == null)
+                frogRenderer = playerObject.GetComponentInChildren<SpriteRenderer>();
+            if (frogRenderer != null && frogRenderer.bounds.size.y > 0.05f)
+                frogHeight = frogRenderer.bounds.size.y;
+        }
+
+        float targetHeight = Mathf.Clamp(frogHeight, 0.65f, 1.35f) *
+            (miniBoss ? 1.2f : 1f);
+        float sourceHeight = Mathf.Max(0.001f, renderer.sprite.bounds.size.y);
+        visual.transform.localScale = Vector3.one * (targetHeight / sourceHeight);
+
+        CircleCollider2D collider = ghost.AddComponent<CircleCollider2D>();
+        collider.radius = miniBoss ? 0.52f : 0.43f;
+
+        Rigidbody2D body = ghost.AddComponent<Rigidbody2D>();
+        body.bodyType = RigidbodyType2D.Kinematic;
+        body.gravityScale = 0f;
+        body.freezeRotation = true;
+
+        GhostEnemy enemy = ghost.AddComponent<GhostEnemy>();
+        enemy.Initialize(session, floor, melee, miniBoss, ghostAttackSprites);
+    }
+
     private void SpawnTrap(Transform root, Vector2 position)
     {
         GameObject trap = CreateRect(root, "Магическая ловушка", position,
