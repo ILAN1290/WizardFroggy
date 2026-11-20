@@ -287,7 +287,7 @@ public class RoomGenerator : MonoBehaviour
             renderer.sprite = sprite;
             renderer.drawMode = SpriteDrawMode.Tiled;
             renderer.size = new Vector2(actualSegmentLength + 0.03f, depth + 0.02f);
-            renderer.sortingOrder = 5;
+            renderer.sortingOrder = 4;
         }
     }
 
@@ -361,6 +361,8 @@ public class RoomGenerator : MonoBehaviour
         // the room edge while all physics/transition colliders stay on the boundary.
         GameObject doorArtwork = new GameObject("Текстура двери");
         doorArtwork.transform.SetParent(door.transform, false);
+        // Flip the entire right-hand door texture assembly, not each small tile in place.
+        doorArtwork.transform.localRotation = Quaternion.Euler(0f, 0f, dx > 0 ? 180f : 0f);
         Vector3 outward = new Vector3(dx, dy, 0f);
         Vector3 localOutward = Quaternion.Euler(0f, 0f, -rotation) * outward;
         float artworkHalfHeight = 0.95f * door.transform.localScale.y;
@@ -373,10 +375,6 @@ public class RoomGenerator : MonoBehaviour
         {
             GameObject tile = new GameObject("Дверной тайл " + i);
             tile.transform.SetParent(doorArtwork.transform, false);
-            // The right-hand door keeps its collider and frame position, but
-            // the artwork itself is flipped by a half-turn as requested.
-            if (dx > 0)
-                tile.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
             int column = i % 3;
             int row = i / 3;
             tile.transform.localPosition = new Vector3(
@@ -384,7 +382,7 @@ public class RoomGenerator : MonoBehaviour
                 (0.5f - row) * tileHeight, 0f);
 
             SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
-            renderer.sortingOrder = 4;
+            renderer.sortingOrder = 5;
             if (closedDoorSprites != null && i < closedDoorSprites.Length &&
                 closedDoorSprites[i] != null)
             {
