@@ -54,7 +54,7 @@ public class RoomGenerator : MonoBehaviour
     public int GenerateRoom(Transform root, RoguelikeRoomData room, int floorNumber,
         RoguelikeSession session)
     {
-        CreateRect(root, "Floor", Vector2.zero, new Vector2(FloorWidth, FloorHeight),
+        CreateRect(root, "Floor", PlayAreaCenter, new Vector2(FloorWidth, FloorHeight),
             new Color(0.16f, 0.17f, 0.22f), -10, false);
 
         bool left = room.Neighbours.Contains(room.Index - 1) && room.X > 0;
@@ -248,7 +248,7 @@ public class RoomGenerator : MonoBehaviour
 
     private void SpawnExit(Transform root, RoguelikeSession session)
     {
-        GameObject exit = CreateRect(root, "Выход", PlayAreaCenter + new Vector2(0f, 2.5f),
+        GameObject exit = CreateRect(root, "Выход", PlayAreaCenter + new Vector2(0f, 1.5f),
             new Vector2(1.8f, 2.1f), new Color(0.32f, 0.78f, 0.64f), 4, false);
         CircleCollider2D trigger = exit.AddComponent<CircleCollider2D>();
         trigger.isTrigger = true;
@@ -472,7 +472,7 @@ public class RoomGenerator : MonoBehaviour
     {
         Vector2 point = Random.insideUnitCircle;
         point.x *= 6.0f;
-        point.y *= 2.65f;
+        point.y *= 3.1f;
         if (point.magnitude < 2.8f) point = point.normalized * 3.0f;
         return PlayAreaCenter + point;
     }
