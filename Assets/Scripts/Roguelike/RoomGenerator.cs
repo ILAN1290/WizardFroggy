@@ -32,7 +32,8 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite bottomLeftWallCornerSprite;
     [SerializeField] private Sprite bottomRightWallCornerSprite;
 
-    private const float WallVisualThickness = 0.95f;
+    // The door frame is two 0.95-unit tile rows high. Walls use that full height.
+    private const float WallVisualThickness = 1.9f;
 
     [SerializeField] private Sprite[] closedDoorSprites = new Sprite[6];
     [SerializeField] private Sprite[] openedDoorSprites = new Sprite[6];
@@ -126,8 +127,8 @@ public class RoomGenerator : MonoBehaviour
     private void CreateWallSegment(Transform root, string objectName, Vector2 position,
         Vector2 size, float rotation)
     {
-        // Each side uses the same brick tile, rotated to follow the room edge.
-        // Positive Z is counter-clockwise in Unity's 2D plane.
+        // The texture face is the full two-tile height of the door masonry.
+        // Its inner edge sits exactly on the playable-area boundary.
         float wallRotation = rotation;
         if (objectName.Contains("Левая")) wallRotation = 90f;
         else if (objectName.Contains("Правая")) wallRotation = -90f;
@@ -141,16 +142,20 @@ public class RoomGenerator : MonoBehaviour
 
         if (wallTileSprite != null)
         {
-            SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
+            // Keep collision at the exact room edge, and move only the artwork
+            // outwards so the room retains its full walkable rectangle.
+            GameObject face = new GameObject("Полноразмерная кирпичная кладка");
+            face.transform.SetParent(wall.transform, false);
+            face.transform.localPosition = new Vector3(0f, WallVisualThickness * 0.5f, -0.01f);
+
+            SpriteRenderer renderer = face.AddComponent<SpriteRenderer>();
             renderer.sprite = wallTileSprite;
             renderer.drawMode = SpriteDrawMode.Tiled;
-            // Slightly overlap the door frame by 0.08 units on each end.
-            // The door art sorts above the wall, so this closes tiny seams safely.
+            // A small overlap closes the joints where the door frame meets the wall.
             renderer.size = new Vector2(Mathf.Max(0.01f, size.x + 0.16f), WallVisualThickness);
             renderer.sortingOrder = 3;
 
-            // Mossy variants from the same dungeon tileset break up long runs
-            // of brick without interrupting the collision boundary.
+            // Mossy tiles from the same dungeon atlas act as subtle vine-like accents.
             if (mossyWallSprites != null && mossyWallSprites.Length > 0 && size.x >= 5f)
             {
                 int accentCount = Mathf.Max(1, Mathf.FloorToInt(size.x / 5f));
@@ -160,7 +165,7 @@ public class RoomGenerator : MonoBehaviour
                     if (accentSprite == null) continue;
 
                     GameObject accent = new GameObject("Мох на кирпичной стене");
-                    accent.transform.SetParent(wall.transform, false);
+                    accent.transform.SetParent(face.transform, false);
                     float localX = -size.x * 0.5f + size.x * (i + 1f) / (accentCount + 1f);
                     accent.transform.localPosition = new Vector3(localX, 0f, -0.01f);
 
@@ -171,8 +176,7 @@ public class RoomGenerator : MonoBehaviour
             }
         }
 
-        // Keep the original solid boundary collision, even where the wall art
-        // is wider than the thin physics blocker.
+        // Physics remains a thin blocker exactly on the playable-area edge.
         BoxCollider2D blocker = wall.AddComponent<BoxCollider2D>();
         blocker.isTrigger = false;
         blocker.size = size;
@@ -184,11 +188,16 @@ public class RoomGenerator : MonoBehaviour
         float right = centre.x + width * 0.5f;
         float bottom = centre.y - height * 0.5f;
         float top = centre.y + height * 0.5f;
+        float halfWall = WallVisualThickness * 0.5f;
 
-        CreateWallCorner(root, "Верхний левый угол", new Vector2(left, top), topLeftWallCornerSprite);
-        CreateWallCorner(root, "Верхний правый угол", new Vector2(right, top), topRightWallCornerSprite);
-        CreateWallCorner(root, "Нижний левый угол", new Vector2(left, bottom), bottomLeftWallCornerSprite);
-        CreateWallCorner(root, "Нижний правый угол", new Vector2(right, bottom), bottomRightWallCornerSprite);
+        CreateWallCorner(root, "Верхний левый угол",
+            new Vector2(left - halfWall, top + halfWall), topLeftWallCornerSprite);
+        CreateWallCorner(root, "Верхний правый угол",
+            new Vector2(right + halfWall, top + halfWall), topRightWallCornerSprite);
+        CreateWallCorner(root, "Нижний левый угол",
+            new Vector2(left - halfWall, bottom - halfWall), bottomLeftWallCornerSprite);
+        CreateWallCorner(root, "Нижний правый угол",
+            new Vector2(right + halfWall, bottom - halfWall), bottomRightWallCornerSprite);
     }
 
     private static void CreateWallCorner(Transform root, string objectName,
@@ -199,6 +208,7 @@ public class RoomGenerator : MonoBehaviour
         GameObject corner = new GameObject(objectName);
         corner.transform.SetParent(root, false);
         corner.transform.localPosition = new Vector3(position.x, position.y, -0.07f);
+        corner.transform.localScale = new Vector3(WallVisualThickness, WallVisualThickness, 1f);
 
         SpriteRenderer renderer = corner.AddComponent<SpriteRenderer>();
         renderer.sprite = sprite;
@@ -260,13 +270,22 @@ public class RoomGenerator : MonoBehaviour
         fallback.sortingOrder = 3;
         fallback.enabled = false;
 
+        // Door graphics are a separate child so their masonry can sit outside
+        // the room edge while all physics/transition colliders stay on the boundary.
+        GameObject doorArtwork = new GameObject("Текстура двери");
+        doorArtwork.transform.SetParent(door.transform, false);
+        Vector3 outward = new Vector3(dx, dy, 0f);
+        Vector3 localOutward = Quaternion.Euler(0f, 0f, -rotation) * outward;
+        float artworkHalfHeight = 0.95f * door.transform.localScale.y;
+        doorArtwork.transform.localPosition = localOutward.normalized * artworkHalfHeight;
+
         SpriteRenderer[] parts = new SpriteRenderer[6];
         const float tileWidth = 0.68f;
         const float tileHeight = 0.95f;
         for (int i = 0; i < parts.Length; i++)
         {
             GameObject tile = new GameObject("Дверной тайл " + i);
-            tile.transform.SetParent(door.transform, false);
+            tile.transform.SetParent(doorArtwork.transform, false);
             // The right-hand door keeps its collider and frame position, but
             // the artwork itself is flipped by a half-turn as requested.
             if (dx > 0)
