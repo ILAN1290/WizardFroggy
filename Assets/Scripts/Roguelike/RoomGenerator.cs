@@ -26,7 +26,13 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite itemSprite;
     [Header("Кирпичные стены")]
     [SerializeField] private Sprite wallTileSprite;
+    [SerializeField] private Sprite wallFillTileSprite;
     [SerializeField] private Sprite[] mossyWallSprites = new Sprite[3];
+
+    // Set while the room's perspective wall bands are calculated, then reused
+    // to align the side and bottom door artwork with those exact outer edges.
+    private float currentSideWallDepth;
+    private float currentBottomWallDepth;
     [SerializeField] private Sprite topLeftWallCornerSprite;
     [SerializeField] private Sprite topRightWallCornerSprite;
     [SerializeField] private Sprite bottomLeftWallCornerSprite;
@@ -164,6 +170,9 @@ public class RoomGenerator : MonoBehaviour
         float topDepth = viewHeight * (260f / 1080f);
         float bottomDepth = viewHeight * (130f / 1080f);
 
+        currentSideWallDepth = sideDepth;
+        currentBottomWallDepth = bottomDepth;
+
         float left = centre.x - width * 0.5f;
         float right = centre.x + width * 0.5f;
         float top = centre.y + height * 0.5f;
@@ -214,7 +223,7 @@ public class RoomGenerator : MonoBehaviour
     private void CreateWallBackingBand(Transform root, string name,
         Vector2 position, float length, float depth, float rotation)
     {
-        if (wallTileSprite == null || length <= 0f || depth <= 0f) return;
+        if (wallFillTileSprite == null || length <= 0f || depth <= 0f) return;
 
         GameObject backing = new GameObject(name);
         backing.transform.SetParent(root, false);
@@ -222,7 +231,8 @@ public class RoomGenerator : MonoBehaviour
         backing.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
         SpriteRenderer renderer = backing.AddComponent<SpriteRenderer>();
-        renderer.sprite = wallTileSprite;
+        // Use the exact atlas tile requested for the plain masonry infill.
+        renderer.sprite = wallFillTileSprite;
         renderer.drawMode = SpriteDrawMode.Tiled;
         renderer.size = new Vector2(length, depth);
         renderer.sortingOrder = 2;
@@ -423,8 +433,27 @@ public class RoomGenerator : MonoBehaviour
         doorArtwork.transform.localRotation = Quaternion.Euler(0f, 0f, dx > 0 ? 180f : 0f);
         Vector3 outward = new Vector3(dx, dy, 0f);
         Vector3 localOutward = Quaternion.Euler(0f, 0f, -rotation) * outward;
-        float artworkHalfHeight = 0.95f * door.transform.localScale.y;
-        doorArtwork.transform.localPosition = localOutward.normalized * artworkHalfHeight;
+        const float artworkHalfHeightLocal = 0.95f;
+        float normalScale = Mathf.Max(0.01f, door.transform.localScale.y);
+        float artworkOffsetLocal = artworkHalfHeightLocal;
+
+        if (dx != 0)
+        {
+            // Side-door texture is shortened to 70%. Shift it outward until its
+            // outer edge exactly meets the outer edge of the side masonry.
+            float artworkHalfDepthWorld = artworkHalfHeightLocal * normalScale;
+            artworkOffsetLocal = Mathf.Max(0f,
+                (currentSideWallDepth - artworkHalfDepthWorld) / normalScale);
+        }
+        else if (dy < 0)
+        {
+            // The top edge of the bottom door must sit on the inner wall line.
+            // Use local units here; parent scaling is applied by Unity once.
+            artworkOffsetLocal = artworkHalfHeightLocal;
+        }
+
+        doorArtwork.transform.localPosition =
+            localOutward.normalized * artworkOffsetLocal;
 
         SpriteRenderer[] parts = new SpriteRenderer[6];
         const float tileWidth = 0.68f;
