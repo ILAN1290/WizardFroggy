@@ -171,25 +171,28 @@ public class RoomGenerator : MonoBehaviour
         door.transform.localPosition = new Vector3(position.x, position.y, -0.04f);
         door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
+        float wallDepth = Mathf.Abs(rotation) > 179f ? 0.95f :
+            Mathf.Abs(rotation) > 89f ? 1.52f : 1.9f;
+
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
-        blocker.size = new Vector2(2.1f, 0.78f);
+        blocker.size = new Vector2(2.1f, wallDepth);
         blocker.isTrigger = false;
 
         BoxCollider2D trigger = door.AddComponent<BoxCollider2D>();
-        trigger.size = new Vector2(2.35f, 1.15f);
+        trigger.size = new Vector2(2.35f, wallDepth + 0.45f);
         trigger.isTrigger = true;
         trigger.enabled = false;
 
         SpriteRenderer fallback = door.AddComponent<SpriteRenderer>();
         fallback.sprite = WhiteSprite;
         fallback.drawMode = SpriteDrawMode.Tiled;
-        fallback.size = new Vector2(2.04f, 0.76f);
+        fallback.size = new Vector2(2.04f, wallDepth);
         fallback.sortingOrder = 3;
         fallback.enabled = false;
 
         SpriteRenderer[] parts = new SpriteRenderer[6];
         const float tileWidth = 0.68f;
-        const float tileHeight = 0.9f;
+        float tileHeight = wallDepth / 2f;
         for (int i = 0; i < parts.Length; i++)
         {
             GameObject tile = new GameObject("Дверной тайл " + i);
