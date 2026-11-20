@@ -163,7 +163,7 @@ public static class RoguelikeRoomLayoutGenerator
                 verticalLength, wallThickness, -90f);
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(leftX, centre.y),
-                centre + new Vector2(width * 0.5f - 1.05f, 0f),
+                centre + new Vector2(width * 0.5f - sideThickness - 0.8f, 0f),
                 -1, 0, -90f));
         }
         else
@@ -178,7 +178,7 @@ public static class RoguelikeRoomLayoutGenerator
                 verticalLength, wallThickness, 90f);
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(rightX, centre.y),
-                centre + new Vector2(-width * 0.5f + 1.05f, 0f),
+                centre + new Vector2(-width * 0.5f + sideThickness + 0.8f, 0f),
                 1, 0, 90f));
         }
         else
@@ -193,7 +193,7 @@ public static class RoguelikeRoomLayoutGenerator
                 horizontalLength, wallThickness, 180f);
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(centre.x, bottomY),
-                centre + new Vector2(0f, height * 0.5f - 1.05f),
+                centre + new Vector2(0f, -height * 0.5f + bottomThickness + 0.8f),
                 0, -1, 180f));
         }
         else
@@ -208,7 +208,7 @@ public static class RoguelikeRoomLayoutGenerator
                 horizontalLength, wallThickness, 0f);
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(centre.x, topY),
-                centre + new Vector2(0f, -height * 0.5f + 1.05f),
+                centre + new Vector2(0f, height * 0.5f - wallThickness - 0.8f),
                 0, 1, 0f));
         }
         else
@@ -221,7 +221,7 @@ public static class RoguelikeRoomLayoutGenerator
     private static void AddVerticalWallPair(RoguelikeRoomLayout layout, string name,
         float x, float centreY, float length, float thickness, float rotation)
     {
-        float offset = 1f + length * 0.5f;
+        float offset = 1.1f + length * 0.5f;
         layout.Walls.Add(new RoguelikeWallSection(name + " • верх",
             new Vector2(x, centreY + offset), new Vector2(length, thickness), rotation));
         layout.Walls.Add(new RoguelikeWallSection(name + " • низ",
@@ -260,7 +260,7 @@ public static class RoguelikeRoomLayoutGenerator
         Vector2 position = Vector2.zero;
         for (int attempt = 0; attempt < 20; attempt++)
         {
-            float x = (float)(random.NextDouble() * 2.0 - 1.0) * (width * 0.5f - 2.1f);
+            float x = (float)(random.NextDouble() * 2.0 - 1.0) * (width * 0.5f - 2.6f);
             float y = (float)(random.NextDouble() * 2.0 - 1.0) * (height * 0.5f - 2.0f);
             position = new Vector2(x, y);
             if (position.magnitude >= minimumDistanceFromCentre) break;
