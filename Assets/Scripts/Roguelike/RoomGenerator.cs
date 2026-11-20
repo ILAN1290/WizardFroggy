@@ -144,7 +144,9 @@ public class RoomGenerator : MonoBehaviour
             SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
             renderer.sprite = wallTileSprite;
             renderer.drawMode = SpriteDrawMode.Tiled;
-            renderer.size = new Vector2(Mathf.Max(0.01f, size.x), WallVisualThickness);
+            // Slightly overlap the door frame by 0.08 units on each end.
+            // The door art sorts above the wall, so this closes tiny seams safely.
+            renderer.size = new Vector2(Mathf.Max(0.01f, size.x + 0.16f), WallVisualThickness);
             renderer.sortingOrder = 3;
 
             // Mossy variants from the same dungeon tileset break up long runs
