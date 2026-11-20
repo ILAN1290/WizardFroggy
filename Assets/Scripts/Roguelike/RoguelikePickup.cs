@@ -36,8 +36,8 @@ public class RoguelikePickup : MonoBehaviour
         {
             if (RoguelikeSession.Instance != null)
                 RoguelikeSession.Instance.ShowHint("Получен предмет: " + item.itemName);
-            if (pickupSound != null && AudioManager.instance != null)
-                AudioManager.instance.PlaySoundFXClip(pickupSound, transform, 0.55f);
+            if (pickupSound != null)
+                AudioSource.PlayClipAtPoint(pickupSound, transform.position, 0.55f);
             Destroy(gameObject);
         }
         else if (RoguelikeSession.Instance != null)
