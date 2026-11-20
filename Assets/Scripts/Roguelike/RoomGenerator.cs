@@ -147,6 +147,22 @@ public class RoomGenerator : MonoBehaviour
         // Left: -90°, right: +90°, bottom: 180°, top: 0°.
         door.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
+        // Side doors are 70% as wide; the bottom door is 50% as tall.
+        // The top door gains 20 screen pixels in width.
+        if (dx != 0)
+            door.transform.localScale = new Vector3(1f, 0.7f, 1f);
+        else if (dy < 0)
+            door.transform.localScale = new Vector3(1f, 0.5f, 1f);
+        else if (dy > 0)
+        {
+            Camera camera = Camera.main;
+            float pixelsPerWorldUnit = camera != null && camera.orthographic
+                ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
+                : 100f;
+            float extraWorldWidth = 20f / Mathf.Max(1f, pixelsPerWorldUnit);
+            door.transform.localScale = new Vector3(1f + extraWorldWidth / 2.04f, 1f, 1f);
+        }
+
         const float doorWidth = 2.1f;
         const float wallThickness = 0.22f;
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
