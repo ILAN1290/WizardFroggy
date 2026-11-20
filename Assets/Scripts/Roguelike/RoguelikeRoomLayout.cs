@@ -193,7 +193,7 @@ public static class RoguelikeRoomLayoutGenerator
                 horizontalLength, wallThickness, 180f);
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(centre.x, bottomY),
-                centre + new Vector2(0f, -height * 0.5f + bottomThickness + 0.8f),
+                centre + new Vector2(0f, height * 0.5f - wallThickness - 0.8f),
                 0, -1, 180f));
         }
         else
@@ -208,7 +208,7 @@ public static class RoguelikeRoomLayoutGenerator
                 horizontalLength, wallThickness, 0f);
             layout.Doors.Add(new RoguelikeDoorPlacement(
                 new Vector2(centre.x, topY),
-                centre + new Vector2(0f, height * 0.5f - wallThickness - 0.8f),
+                centre + new Vector2(0f, -height * 0.5f + bottomThickness + 0.8f),
                 0, 1, 0f));
         }
         else
