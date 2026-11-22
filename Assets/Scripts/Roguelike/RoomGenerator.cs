@@ -298,7 +298,7 @@ public class RoomGenerator : MonoBehaviour
         {
             for (int column = 0; column < fullColumns; column++)
             {
-                bool insideDoor = hasDoor &&
+                bool insideDoor = hasDoor && row < 2 &&
                     column >= firstDoorColumn && column <= lastDoorColumn;
                 if (insideDoor) continue;
 
@@ -430,7 +430,7 @@ public class RoomGenerator : MonoBehaviour
         {
             for (int column = 0; column < fullColumns; column++)
             {
-                bool insideDoor = hasDoor && row < 2 &&
+                bool insideDoor = hasDoor &&
                     column >= firstDoorColumn && column <= lastDoorColumn;
                 if (insideDoor) continue;
 
