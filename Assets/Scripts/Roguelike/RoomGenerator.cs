@@ -57,6 +57,8 @@ public class RoomGenerator : MonoBehaviour
         new List<OcclusionState>();
     private readonly List<OcclusionState> lowerWallOcclusionStates =
         new List<OcclusionState>();
+    private readonly List<Collider2D> ghostPassThroughColliders =
+        new List<Collider2D>();
 
     [Header("Миникарта")]
     [SerializeField] private Sprite minimapFrameSprite;
@@ -177,6 +179,7 @@ public class RoomGenerator : MonoBehaviour
         Transform root = environmentRoot;
         occlusionStates.Clear();
         lowerWallOcclusionStates.Clear();
+        ghostPassThroughColliders.Clear();
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
         cachedPlayerTransform = playerObject != null ? playerObject.transform : null;
         cachedPlayerRenderer = playerObject != null
@@ -367,7 +370,7 @@ public class RoomGenerator : MonoBehaviour
                 CreateWallTile(tilesRoot, "Верхняя стена • тайл",
                     new Vector2(left + (column + 0.5f) * tileWidth,
                         innerY + (row + 0.5f) * tileHeight),
-                    tile, Color.white, 3);
+                    tile, Color.white, -100);
             }
 
             // The source room width is not an integer number of 16x16 tiles.
@@ -382,10 +385,10 @@ public class RoomGenerator : MonoBehaviour
                 Sprite rightTile = ChooseUpperWallTile(room.Index, fullColumns, row);
                 CreateWallTile(tilesRoot, "Верхняя стена • край",
                     new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f, rowY),
-                    leftTile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
+                    leftTile, Color.white, -100, new Vector2(partialWidth / tileWidth, 1f));
                 CreateWallTile(tilesRoot, "Верхняя стена • край",
                     new Vector2(centre.x + width * 0.5f - partialWidth * 0.5f, rowY),
-                    rightTile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
+                    rightTile, Color.white, -100, new Vector2(partialWidth / tileWidth, 1f));
             }
         }
 
@@ -457,12 +460,14 @@ public class RoomGenerator : MonoBehaviour
         // Дверь находится непосредственно в плоскости боковой стены:
         // проём остаётся открытым, а блокирующий коллайдер принадлежит двери.
         float inwardDirection = dx < 0 ? 1f : -1f;
-        float inwardOffset = 15f /
+        // The previous update already moved the door inward by 15px.
+        // Add another 15px, for 30px total from the wall.
+        float inwardOffset = 30f /
             Mathf.Max(1f, GetScreenPixelsPerWorldUnitX());
         Vector2 doorPosition = new Vector2(
             wallX + inwardDirection * inwardOffset, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
-        Color openedTint = new Color(0.66f, 0.66f, 0.66f, 1f);
+        Color openedTint = Color.white;
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
             doorPosition, spawnPosition, new Vector2(tileWidth, doorHeight),
             new Vector2(1.0f, 1.2f),
@@ -564,8 +569,10 @@ public class RoomGenerator : MonoBehaviour
         }
 
         // The solid border sits on the outer row of the raised wall.
+        // This invisible barrier is aligned with the bottom edge of the
+        // lowest texture row, allowing the player to move behind the wall art.
         CreateHorizontalWallColliders(collidersRoot, "Нижняя стена",
-            centre.x, wallBaseY - tileHeight * 2.5f, width, tileHeight,
+            centre.x, wallBaseY - tileHeight * 3f, width, tileHeight,
             hasDoor, doorWidthTiles * tileWidth);
 
         if (hasDoor)
@@ -862,32 +869,71 @@ public class RoomGenerator : MonoBehaviour
             new Vector2(segmentWidth, thickness));
     }
 
+    private static Vector2[] CreateVerticalWallColliderPath(
+        float halfThickness, float bottom, float top)
+    {
+        return new[]
+        {
+            new Vector2(-halfThickness, bottom),
+            new Vector2(halfThickness, bottom),
+            new Vector2(halfThickness, top),
+            new Vector2(-halfThickness, top)
+        };
+    }
+
     private static void CreateVerticalWallCollidersBetween(Transform parent,
         string wallName, float x, float bottomY, float topY, float thickness,
         bool hasDoor, float doorCentreY, float doorHeight)
     {
-        if (topY <= bottomY) return;
+        if (topY <= bottomY || thickness <= 0.01f) return;
+
+        float centreY = (bottomY + topY) * 0.5f;
+        float halfThickness = thickness * 0.5f;
+
+        GameObject wall = new GameObject(wallName);
+        wall.tag = "Wall";
+        wall.transform.SetParent(parent, false);
+        wall.transform.localPosition = new Vector3(x, centreY, 0f);
+
+        PolygonCollider2D collider = wall.AddComponent<PolygonCollider2D>();
 
         if (!hasDoor || topY - bottomY <= doorHeight)
         {
-            CreateWallCollider(parent, wallName, new Vector2(x, (bottomY + topY) * 0.5f),
-                new Vector2(thickness, topY - bottomY));
+            collider.pathCount = 1;
+            collider.SetPath(0, CreateVerticalWallColliderPath(
+                halfThickness, bottomY - centreY, topY - centreY));
             return;
         }
 
-        float doorBottom = doorCentreY - doorHeight * 0.5f;
-        float doorTop = doorCentreY + doorHeight * 0.5f;
-        float lowerHeight = Mathf.Max(0f, doorBottom - bottomY);
-        float upperHeight = Mathf.Max(0f, topY - doorTop);
+        float doorBottom = Mathf.Clamp(
+            doorCentreY - doorHeight * 0.5f, bottomY, topY);
+        float doorTop = Mathf.Clamp(
+            doorCentreY + doorHeight * 0.5f, bottomY, topY);
+        bool hasLowerPart = doorBottom - bottomY > 0.01f;
+        bool hasUpperPart = topY - doorTop > 0.01f;
 
-        if (lowerHeight > 0.01f)
-            CreateWallCollider(parent, wallName + " • нижняя часть",
-                new Vector2(x, bottomY + lowerHeight * 0.5f),
-                new Vector2(thickness, lowerHeight));
-        if (upperHeight > 0.01f)
-            CreateWallCollider(parent, wallName + " • верхняя часть",
-                new Vector2(x, doorTop + upperHeight * 0.5f),
-                new Vector2(thickness, upperHeight));
+        if (!hasLowerPart && !hasUpperPart)
+        {
+            collider.pathCount = 1;
+            collider.SetPath(0, CreateVerticalWallColliderPath(
+                halfThickness, bottomY - centreY, topY - centreY));
+            return;
+        }
+
+        collider.pathCount = (hasLowerPart ? 1 : 0) + (hasUpperPart ? 1 : 0);
+        int pathIndex = 0;
+
+        if (hasLowerPart)
+        {
+            collider.SetPath(pathIndex++, CreateVerticalWallColliderPath(
+                halfThickness, bottomY - centreY, doorBottom - centreY));
+        }
+
+        if (hasUpperPart)
+        {
+            collider.SetPath(pathIndex, CreateVerticalWallColliderPath(
+                halfThickness, doorTop - centreY, topY - centreY));
+        }
     }
 
     private static void CreateWallCollider(Transform parent, string name,
@@ -968,6 +1014,11 @@ public class RoomGenerator : MonoBehaviour
                 ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
         }
 
+        // Ghosts can pass through the entire shelf, including the solid
+        // section that still blocks player movement.
+        if (shelf.GetComponent<RoguelikeGhostPassThrough>() == null)
+            shelf.AddComponent<RoguelikeGhostPassThrough>();
+
         BoxCollider2D solidHitbox = shelf.GetComponent<BoxCollider2D>();
         SpriteRenderer mainRenderer = shelf.GetComponent<SpriteRenderer>();
         if (mainRenderer == null)
@@ -981,6 +1032,8 @@ public class RoomGenerator : MonoBehaviour
         {
             if (collider != solidHitbox && collider != movableHitbox)
                 collider.enabled = false;
+            else if (collider != null && collider.enabled)
+                ghostPassThroughColliders.Add(collider);
         }
 
         SpriteRenderer[] renderers = shelf.GetComponentsInChildren<SpriteRenderer>(true);
@@ -1105,12 +1158,10 @@ public class RoomGenerator : MonoBehaviour
         for (int i = 0; i < overlaps.Length; i++)
         {
             Collider2D obstacle = overlaps[i];
-            if (obstacle == null) continue;
-
-            bool ghostOnlyObstacle =
-                obstacle.GetComponent<RoguelikeGhostObstacle>() != null;
-            if (obstacle.isTrigger && !ghostOnlyObstacle) continue;
-            if (obstacle.CompareTag("Wall") || ghostOnlyObstacle) return true;
+            if (obstacle == null || obstacle.isTrigger) continue;
+            if (obstacle.GetComponentInParent<RoguelikeGhostPassThrough>() != null)
+                continue;
+            if (obstacle.CompareTag("Wall")) return true;
         }
         return false;
     }
@@ -1154,6 +1205,16 @@ public class RoomGenerator : MonoBehaviour
 
         CircleCollider2D collider = ghost.AddComponent<CircleCollider2D>();
         collider.radius = miniBoss ? 0.52f : 0.43f;
+
+        // Disable physical collision pairs as well as steering checks, otherwise
+        // the kinematic Rigidbody2D can still be stopped by shelf contacts.
+        for (int i = 0; i < ghostPassThroughColliders.Count; i++)
+        {
+            Collider2D shelfCollider = ghostPassThroughColliders[i];
+            if (shelfCollider != null && shelfCollider.enabled)
+                Physics2D.IgnoreCollision(collider, shelfCollider, true);
+        }
+
         ghost.transform.position = FindFreeGhostPosition(
             ghost.transform.position, collider.radius);
 
