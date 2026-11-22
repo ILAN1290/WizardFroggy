@@ -731,17 +731,8 @@ public class RoomGenerator : MonoBehaviour
             lockedSprites[i] = tileSprite;
         }
 
+        // Collision and transition sensor follow the relocated visible door.
         SetSensorToDoorSpriteBounds(sensor, renderers);
-        if (directionX != 0)
-        {
-            // Keep collision and transition sensing on the original wall plane;
-            // only the visible door sprites protrude outward.
-            float doorPush = 10f / GetScreenPixelsPerWorldUnitX();
-            float outwardDirection = directionX < 0 ? -1f : 1f;
-            float localCorrection = -outwardDirection * doorPush;
-            blocker.offset = new Vector2(localCorrection, blocker.offset.y);
-            sensor.offset += new Vector2(localCorrection, 0f);
-        }
 
         // spawnPosition is deliberately on the wall opposite the entry door.
         // Recalculating it from this door's sensor would place the player beside
