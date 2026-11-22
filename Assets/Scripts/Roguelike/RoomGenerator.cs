@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Creates the contents and collision geometry of the currently active room:
-/// bookcase walls, shelves, traps, ghosts, chests and merchant.
+/// Creates tiled room boundaries, locked doors and the contents of the active room:
+/// shelves, traps, ghosts, chests and merchant.
 /// The room graph itself is generated in RoguelikeGenerator.cs.
 /// </summary>
 public class RoomGenerator : MonoBehaviour
