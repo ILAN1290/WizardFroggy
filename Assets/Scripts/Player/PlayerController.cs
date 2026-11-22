@@ -208,7 +208,11 @@ public class PlayerController : MonoBehaviour
             AudioManager.instance.PlaySoundFXClip(chargeSound, transform, 0.1f);
             cooldownTimer = 0;
             mana.SpendMana(spendingManaByProjectile);
-            GameObject projectileObject = Instantiate(projectilePrefab, rb.position + Vector2.up * 0.5f, Quaternion.identity);
+            Vector3 spawnPosition = rb.position + Vector2.up * 0.5f;
+            Transform projectileParent = RoguelikeSession.ProjectileRoot;
+            GameObject projectileObject = projectileParent != null
+                ? Instantiate(projectilePrefab, spawnPosition, Quaternion.identity, projectileParent)
+                : Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
             Projectile projectile = projectileObject.GetComponent<Projectile>();
             PlayerEffects effects = GetComponent<PlayerEffects>();
             float staffDamage = equippedStaff != null ? equippedStaff.damage : 7f;
