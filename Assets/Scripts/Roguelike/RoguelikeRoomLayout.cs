@@ -71,7 +71,10 @@ public static class RoguelikeRoomLayoutGenerator
         {
             case RoguelikeRoomType.Combat:
                 AddShelfPattern(layout, room.Index, floorNumber, centre);
-                AddCombatEncounter(layout, random, floorNumber, roomWidth, roomHeight, centre);
+                // Furniture remains in a cleared room, but its encounter is
+                // generated only once. Revisiting must not respawn ghosts or traps.
+                if (!room.IsCleared)
+                    AddCombatEncounter(layout, random, floorNumber, roomWidth, roomHeight, centre);
                 break;
 
             case RoguelikeRoomType.Chest:
