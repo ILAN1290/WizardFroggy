@@ -109,19 +109,21 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             ShootRadialBurst();
         }
 
+        // The dash cooldown is checked before the regular attack gate.
+        // Melee ghosts and the mini-boss can therefore dash while waiting
+        // for their next normal attack or while its cooldown is running.
+        if ((melee || miniBoss) && Time.time >= nextMeleeSuperTime)
+        {
+            Vector2 dashDirection = ai.DirectionToPlayer;
+            nextMeleeSuperTime = Time.time + 10f;
+            nextAttackTime = Mathf.Max(nextAttackTime, Time.time + 2.6f);
+            StartCoroutine(PerformMeleeDash(dashDirection));
+            return;
+        }
+
         if (!ai.CanAttack || Time.time < nextAttackTime) return;
 
         Vector2 direction = ai.DirectionToPlayer;
-
-        // Melee ghosts and the mini-boss dash on a 10-second cooldown,
-        // independently from the number of their regular attacks.
-        if ((melee || miniBoss) && Time.time >= nextMeleeSuperTime)
-        {
-            nextMeleeSuperTime = Time.time + 10f;
-            nextAttackTime = Time.time + 2.6f;
-            StartCoroutine(PerformMeleeDash(direction));
-            return;
-        }
 
         if (miniBoss)
         {
