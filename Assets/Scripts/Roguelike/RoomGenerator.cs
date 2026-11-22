@@ -298,7 +298,7 @@ public class RoomGenerator : MonoBehaviour
         {
             for (int column = 0; column < fullColumns; column++)
             {
-                bool insideDoor = hasDoor && row < 2 &&
+                bool insideDoor = hasDoor &&
                     column >= firstDoorColumn && column <= lastDoorColumn;
                 if (insideDoor) continue;
 
@@ -510,6 +510,10 @@ public class RoomGenerator : MonoBehaviour
             RegisterLowerWallOcclusion(renderer);
         }
 
+        SetSensorToDoorSpriteBounds(sensor, renderers);
+        spawnPosition = GetSafeDoorSpawnPosition(
+            sensor, 0, -1, spawnPosition);
+
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, 0, -1, spawnPosition, blocker, sensor, renderers,
             closedUpperDoorSprites, openedUpperDoorSprites, Color.white, false);
@@ -542,6 +546,10 @@ public class RoomGenerator : MonoBehaviour
                 Color.white);
             renderers[i] = renderer;
         }
+
+        SetSensorToDoorSpriteBounds(sensor, renderers);
+        spawnPosition = GetSafeDoorSpawnPosition(
+            sensor, 0, 1, spawnPosition);
 
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, 0, 1, spawnPosition, blocker, sensor, renderers,
@@ -581,10 +589,76 @@ public class RoomGenerator : MonoBehaviour
             lockedSprites[i] = tileSprite;
         }
 
+        SetSensorToDoorSpriteBounds(sensor, renderers);
+        spawnPosition = GetSafeDoorSpawnPosition(
+            sensor, directionX, directionY, spawnPosition);
+
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, directionX, directionY, spawnPosition,
             blocker, sensor, renderers, lockedSprites,
             new Sprite[0], lockedTint, false);
+    }
+
+    private static void SetSensorToDoorSpriteBounds(
+        BoxCollider2D sensor, SpriteRenderer[] renderers)
+    {
+        if (sensor == null || renderers == null || renderers.Length == 0) return;
+
+        bool foundBounds = false;
+        Bounds spriteBounds = new Bounds();
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer renderer = renderers[i];
+            if (renderer == null || renderer.sprite == null) continue;
+
+            if (!foundBounds)
+            {
+                spriteBounds = renderer.bounds;
+                foundBounds = true;
+            }
+            else
+            {
+                spriteBounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        if (!foundBounds) return;
+
+        Vector3 scale = sensor.transform.lossyScale;
+        Vector3 localCentre = sensor.transform.InverseTransformPoint(spriteBounds.center);
+        sensor.offset = new Vector2(localCentre.x, localCentre.y);
+        sensor.size = new Vector2(
+            spriteBounds.size.x / Mathf.Max(0.001f, Mathf.Abs(scale.x)),
+            spriteBounds.size.y / Mathf.Max(0.001f, Mathf.Abs(scale.y))) * 0.92f;
+        sensor.isTrigger = true;
+    }
+
+    private Vector2 GetSafeDoorSpawnPosition(
+        BoxCollider2D sensor, int directionX, int directionY, Vector2 fallback)
+    {
+        if (sensor == null) return fallback;
+
+        Bounds sensorBounds = sensor.bounds;
+        Vector2 playerExtents = cachedPlayerCollider != null
+            ? cachedPlayerCollider.bounds.extents
+            : new Vector2(0.4f, 0.3f);
+        const float separation = 0.3f;
+
+        if (directionX != 0)
+        {
+            float distance = sensorBounds.extents.x + playerExtents.x + separation;
+            return new Vector2(sensorBounds.center.x - directionX * distance,
+                sensorBounds.center.y);
+        }
+
+        if (directionY != 0)
+        {
+            float distance = sensorBounds.extents.y + playerExtents.y + separation;
+            return new Vector2(sensorBounds.center.x,
+                sensorBounds.center.y - directionY * distance);
+        }
+
+        return fallback;
     }
 
     private static GameObject CreateDoorRoot(Transform parent, string name, Vector2 position)
@@ -918,8 +992,8 @@ public class RoomGenerator : MonoBehaviour
         const float referenceWidth = 1920f;
         const float referenceHeight = 1080f;
         const float topMargin = 260f;
-        const float leftMargin = 170f;
-        const float rightMargin = 170f;
+        const float leftMargin = 90f;
+        const float rightMargin = 90f;
         const float bottomMargin = 130f;
 
         Camera camera = Camera.main;
