@@ -15,9 +15,13 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private float nextRadialShotTime;
     private bool defeated;
     private Sprite[] attackSprites;
+    private Transform effectsRoot;
+    private Transform projectilesRoot;
 
     public void Initialize(RoguelikeSession owner, int floor, bool isMelee,
-        bool isMiniBoss = false, Sprite[] attackAnimationSprites = null)
+        bool isMiniBoss = false, Sprite[] attackAnimationSprites = null,
+        Transform playerTarget = null, Transform effectsParent = null,
+        Transform projectilesParent = null)
     {
         session = owner;
         melee = isMelee;
@@ -28,8 +32,14 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             ? (Sprite[])attackAnimationSprites.Clone()
             : new Sprite[0];
 
-        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-        player = playerObject != null ? playerObject.transform : null;
+        player = playerTarget;
+        effectsRoot = effectsParent;
+        projectilesRoot = projectilesParent;
+        if (player == null)
+        {
+            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+            player = playerObject != null ? playerObject.transform : null;
+        }
 
         ai = GetComponent<GhostAI>();
         if (ai == null) ai = gameObject.AddComponent<GhostAI>();
@@ -82,7 +92,8 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         if (attackSprites == null || attackSprites.Length == 0) yield break;
 
         GameObject effect = new GameObject("Анимация атаки призрака");
-        effect.transform.SetParent(transform.parent, true);
+        Transform parent = effectsRoot != null ? effectsRoot : transform.parent;
+        if (parent != null) effect.transform.SetParent(parent, true);
         effect.transform.position = transform.position + (Vector3)(direction * 0.78f);
         effect.transform.rotation = Quaternion.Euler(0f, 0f,
             Vector2.SignedAngle(Vector2.right, direction));
@@ -163,7 +174,8 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         Color tint, float size)
     {
         GameObject projectile = new GameObject(objectName);
-        projectile.transform.SetParent(transform.parent, true);
+        Transform parent = projectilesRoot != null ? projectilesRoot : transform.parent;
+        if (parent != null) projectile.transform.SetParent(parent, true);
         projectile.transform.position = position;
         projectile.transform.localScale = Vector3.one * size;
 
