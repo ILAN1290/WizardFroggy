@@ -1158,10 +1158,14 @@ public class RoomGenerator : MonoBehaviour
         for (int i = 0; i < overlaps.Length; i++)
         {
             Collider2D obstacle = overlaps[i];
-            if (obstacle == null || obstacle.isTrigger) continue;
+            if (obstacle == null) continue;
             if (obstacle.GetComponentInParent<RoguelikeGhostPassThrough>() != null)
                 continue;
-            if (obstacle.CompareTag("Wall")) return true;
+
+            bool ghostOnlyObstacle =
+                obstacle.GetComponent<RoguelikeGhostObstacle>() != null;
+            if (obstacle.isTrigger && !ghostOnlyObstacle) continue;
+            if (obstacle.CompareTag("Wall") || ghostOnlyObstacle) return true;
         }
         return false;
     }
