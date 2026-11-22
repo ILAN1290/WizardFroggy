@@ -19,11 +19,15 @@ public class RoguelikeMerchant : MonoBehaviour
     private GUIStyle vendorStyle;
     private GUIStyle normalStyle;
     private GUIStyle smallStyle;
+    private Sprite currencyIcon;
 
-    public void Initialize(RoguelikeSession owner, RoguelikeMerchantTextures uiTextures)
+    public void Initialize(RoguelikeSession owner,
+        RoguelikeMerchantTextures uiTextures, Sprite fallbackCurrencyIcon = null)
     {
         session = owner;
         textures = uiTextures;
+        currencyIcon = uiTextures != null && uiTextures.currencyIcon != null
+            ? uiTextures.currencyIcon : fallbackCurrencyIcon;
         GenerateOffers();
     }
 
@@ -106,8 +110,7 @@ public class RoguelikeMerchant : MonoBehaviour
         Rect currencyIconRect = new Rect(currencyX,
             panel.y + (headerHeight - currencyIconSide) * 0.5f,
             currencyIconSide, currencyIconSide);
-        if (textures != null)
-            DrawSpriteFit(textures.currencyIcon, currencyIconRect);
+        DrawSpriteFit(currencyIcon, currencyIconRect);
 
         GUI.Label(new Rect(currencyIconRect.xMax + 7f,
             panel.y + 6f, 92f, headerHeight - 8f),
