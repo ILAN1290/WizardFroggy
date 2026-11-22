@@ -356,6 +356,8 @@ public class RoguelikeSession : MonoBehaviour
 
     private void SpawnMushroomPickup(Vector2 position, int amount)
     {
+        // All sources (regular enemies, chests and miniboss rewards) now yield 3x mushrooms.
+        amount = Mathf.Max(0, amount * 3);
         GameObject pickup = new GameObject("Грибочки x" + amount);
         if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
