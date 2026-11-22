@@ -16,6 +16,13 @@ public class PlayerController : MonoBehaviour
     private Vector2 lookDirection = new Vector2(0, 1);  
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
+    private BoxCollider2D movementCollider;
+
+    /// <summary>
+    /// Thin collider at the bottom of the sprite, used for movement and
+    /// world-object occlusion. The original Player collider remains for hits.
+    /// </summary>
+    public Collider2D MovementCollider => movementCollider;
 
 
     [Header("Invincibility Settings")]
@@ -69,7 +76,70 @@ public class PlayerController : MonoBehaviour
         cooldownTimer = projectileCooldown;
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
+        InitializeMovementHitbox();
         ApplyEquippedStaff();
+    }
+
+    private void InitializeMovementHitbox()
+    {
+        // The original Player-tagged collider remains enabled for projectiles,
+        // attacks and doorway triggers, but no longer blocks physical movement.
+        Collider2D hitReactionCollider = GetComponent<Collider2D>();
+        if (hitReactionCollider != null)
+            hitReactionCollider.isTrigger = true;
+
+        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            SpriteRenderer[] childRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+            float largestArea = 0f;
+            for (int i = 0; i < childRenderers.Length; i++)
+            {
+                SpriteRenderer candidate = childRenderers[i];
+                if (candidate == null || candidate.sprite == null || !candidate.enabled)
+                    continue;
+
+                float area = candidate.bounds.size.x * candidate.bounds.size.y;
+                if (area > largestArea)
+                {
+                    largestArea = area;
+                    spriteRenderer = candidate;
+                }
+            }
+        }
+
+        if (spriteRenderer == null || spriteRenderer.sprite == null)
+            return;
+
+        Bounds spriteBounds = spriteRenderer.bounds;
+        Camera camera = Camera.main;
+        float pixelsPerWorldUnitY = camera != null && camera.orthographic
+            ? (camera.pixelHeight > 0 ? camera.pixelHeight : Mathf.Max(1, Screen.height)) /
+                Mathf.Max(0.01f, camera.orthographicSize * 2f)
+            : Mathf.Max(1, Screen.height) / 12f;
+
+        const float movementHitboxHeightPixels = 15f;
+        float movementHitboxHeight = movementHitboxHeightPixels /
+            Mathf.Max(1f, pixelsPerWorldUnitY);
+
+        Vector3 worldCentre = new Vector3(
+            spriteBounds.center.x,
+            spriteBounds.min.y + movementHitboxHeight * 0.5f,
+            transform.position.z);
+        Vector3 localCentre = transform.InverseTransformPoint(worldCentre);
+        Vector3 parentScale = transform.lossyScale;
+
+        GameObject movementHitboxObject = new GameObject("Movement Hitbox • 15px");
+        movementHitboxObject.layer = gameObject.layer;
+        movementHitboxObject.transform.SetParent(transform, false);
+        movementHitboxObject.transform.localPosition = localCentre;
+        movementHitboxObject.transform.localRotation = Quaternion.identity;
+
+        movementCollider = movementHitboxObject.AddComponent<BoxCollider2D>();
+        movementCollider.size = new Vector2(
+            spriteBounds.size.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
+            movementHitboxHeight / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)));
+        movementCollider.isTrigger = false;
     }
 
     private void ApplyEquippedStaff()
