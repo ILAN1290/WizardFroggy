@@ -4226,7 +4226,6 @@ MonoBehaviour:
   canParry: 1
   parry: {fileID: 0}
   mana: {fileID: 602007409}
-  spendingManaByProjectile: 28
   spendingManaByInvincibilityBySecond: 30
   spendingManaByParry: 12
   ballLightningSound: {fileID: 8300000, guid: 0714a10f2d126e3498ec6aaed8d51b35, type: 3}
