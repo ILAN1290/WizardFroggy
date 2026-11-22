@@ -96,8 +96,12 @@ public class RoomGenerator : MonoBehaviour
                 continue;
             }
 
-            bool overlapsPlayer = playerBounds.Intersects(renderer.bounds);
-            bool playerBehind = playerBounds.center.y > renderer.bounds.center.y;
+            Bounds objectBounds = renderer.bounds;
+            bool overlapsPlayer = playerBounds.min.x <= objectBounds.max.x &&
+                playerBounds.max.x >= objectBounds.min.x &&
+                playerBounds.min.y <= objectBounds.max.y &&
+                playerBounds.max.y >= objectBounds.min.y;
+            bool playerBehind = playerBounds.center.y > objectBounds.center.y;
             Color color = state.OriginalColor;
 
             if (overlapsPlayer)
@@ -711,6 +715,41 @@ public class RoomGenerator : MonoBehaviour
             originalBottom + collisionDepth * 0.5f);
     }
 
+    private static Vector2 FindFreeGhostPosition(Vector2 preferredPosition, float radius)
+    {
+        if (!OverlapsSolidWall(preferredPosition, radius))
+            return preferredPosition;
+
+        const int directions = 16;
+        const int rings = 8;
+        for (int ring = 1; ring <= rings; ring++)
+        {
+            float distance = radius + ring * 0.45f;
+            for (int i = 0; i < directions; i++)
+            {
+                float angle = i * (Mathf.PI * 2f / directions);
+                Vector2 candidate = preferredPosition +
+                    new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                if (!OverlapsSolidWall(candidate, radius))
+                    return candidate;
+            }
+        }
+
+        return preferredPosition;
+    }
+
+    private static bool OverlapsSolidWall(Vector2 position, float radius)
+    {
+        Collider2D[] overlaps = Physics2D.OverlapCircleAll(position, radius + 0.03f);
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider2D obstacle = overlaps[i];
+            if (obstacle == null || obstacle.isTrigger) continue;
+            if (obstacle.CompareTag("Wall")) return true;
+        }
+        return false;
+    }
+
     private void SpawnGhost(Transform root, Transform effectsRoot,
         Transform projectilesRoot, RoguelikeSession session, int floor,
         Vector2 position, bool melee, bool miniBoss = false)
@@ -750,6 +789,8 @@ public class RoomGenerator : MonoBehaviour
 
         CircleCollider2D collider = ghost.AddComponent<CircleCollider2D>();
         collider.radius = miniBoss ? 0.52f : 0.43f;
+        ghost.transform.position = FindFreeGhostPosition(
+            ghost.transform.position, collider.radius);
 
         Rigidbody2D body = ghost.AddComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
