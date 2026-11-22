@@ -40,6 +40,11 @@ public class RoguelikeSession : MonoBehaviour
     private GUIStyle mushroomCountStyle;
     private Item[] lootItems;
 
+    private static readonly float[] FrameSourceX = new float[4];
+    private static readonly float[] FrameSourceY = new float[4];
+    private static readonly float[] FrameDestinationX = new float[4];
+    private static readonly float[] FrameDestinationY = new float[4];
+
     private sealed class WorldPlaceholder
     {
         public Transform Target;
@@ -506,6 +511,13 @@ public class RoguelikeSession : MonoBehaviour
         }
     }
 
+    private static Vector2 GetMiniMapRoomCentre(RoguelikeRoomData room,
+        int floorHeight, float left, float top, float pitchX, float pitchY)
+    {
+        return new Vector2(left + room.X * pitchX,
+            top + (floorHeight - 1 - room.Y) * pitchY);
+    }
+
     private void DrawMiniMap()
     {
         if (currentFloor == null || currentRoom == null) return;
@@ -536,23 +548,17 @@ public class RoguelikeSession : MonoBehaviour
         const float roomHeight = 24f;
         const float corridorThickness = 4f;
 
-        Vector2 RoomCentre(RoguelikeRoomData room)
-        {
-            return new Vector2(left + room.X * pitchX,
-                top + (currentFloor.Height - 1 - room.Y) * pitchY);
-        }
-
         // Corridors are visible once their source room has been explored.
         for (int i = 0; i < currentFloor.Rooms.Count; i++)
         {
             RoguelikeRoomData room = currentFloor.Rooms[i];
             if (room == null || !room.IsVisited) continue;
-            Vector2 from = RoomCentre(room);
+            Vector2 from = GetMiniMapRoomCentre(room, currentFloor.Height, left, top, pitchX, pitchY);
             for (int n = 0; n < room.Neighbours.Count; n++)
             {
                 RoguelikeRoomData neighbour = currentFloor.GetRoom(room.Neighbours[n]);
                 if (neighbour == null || (neighbour.IsVisited && room.Index > neighbour.Index)) continue;
-                Vector2 to = RoomCentre(neighbour);
+                Vector2 to = GetMiniMapRoomCentre(neighbour, currentFloor.Height, left, top, pitchX, pitchY);
                 if (!neighbour.IsVisited)
                 {
                     Vector2 direction = new Vector2(neighbour.X - room.X,
@@ -651,25 +657,33 @@ public class RoguelikeSession : MonoBehaviour
         float destinationBorderX = Mathf.Min(12f, destination.width * 0.12f);
         float destinationBorderY = Mathf.Min(12f, destination.height * 0.12f);
 
-        float[] sx = { source.x, source.x + sourceBorderX,
-            source.xMax - sourceBorderX, source.xMax };
-        float[] sy = { source.y, source.y + sourceBorderY,
-            source.yMax - sourceBorderY, source.yMax };
-        float[] dx = { destination.x, destination.x + destinationBorderX,
-            destination.xMax - destinationBorderX, destination.xMax };
-        float[] dy = { destination.y, destination.y + destinationBorderY,
-            destination.yMax - destinationBorderY, destination.yMax };
+        FrameSourceX[0] = source.x;
+        FrameSourceX[1] = source.x + sourceBorderX;
+        FrameSourceX[2] = source.xMax - sourceBorderX;
+        FrameSourceX[3] = source.xMax;
+        FrameSourceY[0] = source.y;
+        FrameSourceY[1] = source.y + sourceBorderY;
+        FrameSourceY[2] = source.yMax - sourceBorderY;
+        FrameSourceY[3] = source.yMax;
+        FrameDestinationX[0] = destination.x;
+        FrameDestinationX[1] = destination.x + destinationBorderX;
+        FrameDestinationX[2] = destination.xMax - destinationBorderX;
+        FrameDestinationX[3] = destination.xMax;
+        FrameDestinationY[0] = destination.y;
+        FrameDestinationY[1] = destination.y + destinationBorderY;
+        FrameDestinationY[2] = destination.yMax - destinationBorderY;
+        FrameDestinationY[3] = destination.yMax;
 
         for (int row = 0; row < 3; row++)
         {
             for (int column = 0; column < 3; column++)
             {
-                Rect target = Rect.MinMaxRect(dx[column], dy[row],
-                    dx[column + 1], dy[row + 1]);
-                Rect uv = new Rect(sx[column] / texture.width,
-                    sy[row] / texture.height,
-                    (sx[column + 1] - sx[column]) / texture.width,
-                    (sy[row + 1] - sy[row]) / texture.height);
+                Rect target = Rect.MinMaxRect(FrameDestinationX[column], FrameDestinationY[row],
+                    FrameDestinationX[column + 1], FrameDestinationY[row + 1]);
+                Rect uv = new Rect(FrameSourceX[column] / texture.width,
+                    FrameSourceY[row] / texture.height,
+                    (FrameSourceX[column + 1] - FrameSourceX[column]) / texture.width,
+                    (FrameSourceY[row + 1] - FrameSourceY[row]) / texture.height);
                 GUI.DrawTextureWithTexCoords(target, texture, uv, true);
             }
         }
