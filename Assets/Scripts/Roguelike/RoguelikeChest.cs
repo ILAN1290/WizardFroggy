@@ -10,18 +10,26 @@ public class RoguelikeChest : MonoBehaviour
         session = owner;
     }
 
-    private void OnTriggerStay2D(Collider2D other)
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        if (opened || !other.CompareTag("Player") || !InteractionPressed()) return;
-        opened = true;
-        if (session != null) session.OpenChest(transform.position);
-        Destroy(gameObject);
+        TryOpen(other);
     }
 
-    private bool InteractionPressed()
+    private void OnTriggerStay2D(Collider2D other)
     {
-        return InputManager.instance != null
-            ? InputManager.instance.InteractionInput
-            : UnityEngine.Input.GetKeyDown(KeyCode.E);
+        // Stay is a fallback for cases where the player was already overlapping
+        // the chest sensor when the room finished generating.
+        TryOpen(other);
+    }
+
+    private void TryOpen(Collider2D other)
+    {
+        if (opened || other == null || !other.CompareTag("Player")) return;
+
+        opened = true;
+        if (session != null)
+            session.OpenChest(transform.position);
+
+        Destroy(gameObject);
     }
 }
