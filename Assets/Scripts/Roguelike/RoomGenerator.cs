@@ -129,7 +129,7 @@ public class RoomGenerator : MonoBehaviour
         float bottom = centre.y - height * 0.5f;
         float top = centre.y + height * 0.5f;
         const float edgeInset = 0.25f;
-        const float sideSpawnInset = 5.3f;
+        const float sideSpawnInset = 5.8f;
         const float verticalSpawnInset = 4.1f;
         const float sensorDepth = 0.8f;
         const float sensorSpan = 2.8f;
