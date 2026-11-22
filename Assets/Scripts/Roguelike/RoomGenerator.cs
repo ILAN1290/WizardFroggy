@@ -162,9 +162,10 @@ public class RoomGenerator : MonoBehaviour
 
         // Convert the same 1920x1080 safe margins used by GetPlayableMetrics
         // into world units. This makes the masonry finish at the screen frame.
-        float sideDepth = viewWidth * (170f / 1920f);
+        // Match the side and lower wall depth to the scaled doorway artwork.
+        float sideDepth = viewWidth * (170f / 1920f) * 0.7f;
         float topDepth = viewHeight * (260f / 1080f);
-        float bottomDepth = viewHeight * (130f / 1080f);
+        float bottomDepth = viewHeight * (130f / 1080f) * 0.5f;
 
         float left = centre.x - width * 0.5f;
         float right = centre.x + width * 0.5f;
@@ -191,8 +192,10 @@ public class RoomGenerator : MonoBehaviour
 
         // The wall strips become wider/taller as they approach the outside edge.
         // Together they form four trapezoids with diagonal, mitered corners.
+        // The upper wall uses its continuous tiled backing and ivy edge.
+        // Do not add the extra per-row brick sprites here.
         CreateHorizontalWallBand(root, "Верхняя кирпичная стена",
-            centre.x, top, width, topDepth, sideDepth, 1f, 0f);
+            centre.x, top, width, topDepth, sideDepth, 1f, 0f, false);
         CreateHorizontalWallBand(root, "Нижняя кирпичная стена",
             centre.x, bottom, width, bottomDepth, sideDepth, -1f, 180f);
 
@@ -223,17 +226,20 @@ public class RoomGenerator : MonoBehaviour
 
     private void CreateHorizontalWallBand(Transform root, string name, float centreX,
         float innerY, float innerWidth, float depth, float sideExpansion,
-        float outwardSign, float rotation)
+        float outwardSign, float rotation, bool createTileRows = true)
     {
-        for (float distance = 0f; distance < depth - 0.001f; distance += WallTileWorldSize)
+        if (createTileRows)
         {
-            float rowDepth = Mathf.Min(WallTileWorldSize, depth - distance);
-            float progress = (distance + rowDepth * 0.5f) / depth;
-            float rowWidth = innerWidth + 2f * sideExpansion * progress;
-            float rowY = innerY + outwardSign * (distance + rowDepth * 0.5f);
+            for (float distance = 0f; distance < depth - 0.001f; distance += WallTileWorldSize)
+            {
+                float rowDepth = Mathf.Min(WallTileWorldSize, depth - distance);
+                float progress = (distance + rowDepth * 0.5f) / depth;
+                float rowWidth = innerWidth + 2f * sideExpansion * progress;
+                float rowY = innerY + outwardSign * (distance + rowDepth * 0.5f);
 
-            CreateWallTileRow(root, name + " • ряд", new Vector2(centreX, rowY),
-                rowWidth, rowDepth, rotation, 3);
+                CreateWallTileRow(root, name + " • ряд", new Vector2(centreX, rowY),
+                    rowWidth, rowDepth, rotation, 3);
+            }
         }
 
         float ivyDepth = Mathf.Min(IvyBandDepth, depth);
@@ -500,7 +506,8 @@ public class RoomGenerator : MonoBehaviour
             shelf.name = objectName;
             shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
             shelf.transform.localRotation = Quaternion.identity;
-            shelf.transform.localScale = Vector3.one * scale;
+            // Enlarge room furniture uniformly so the source sprite proportions stay intact.
+            shelf.transform.localScale = Vector3.one * (scale * 2f);
             foreach (Collider2D collider in shelf.GetComponents<Collider2D>())
                 collider.enabled = true;
             return;
