@@ -371,8 +371,12 @@ public class GhostAI : MonoBehaviour
     {
         if (obstacle == null) return false;
 
-        // The pass-through shelf hitbox is a trigger for the player, but a solid
-        // navigation obstacle for ghosts. Other trigger volumes remain ignored.
+        // Shelves block the player but are completely pass-through for ghosts.
+        if (obstacle.GetComponentInParent<RoguelikeGhostPassThrough>() != null)
+            return false;
+
+        // Door and other marked pass-through regions can still be navigation
+        // obstacles for ghosts. Unmarked trigger volumes remain ignored.
         bool ghostShelfTrigger =
             obstacle.GetComponent<RoguelikeGhostObstacle>() != null;
         if (obstacle.isTrigger && !ghostShelfTrigger) return false;
@@ -415,5 +419,12 @@ public class GhostAI : MonoBehaviour
 /// Marker for the upper shelf hitbox: pass-through for the player, solid for ghosts.
 /// </summary>
 public sealed class RoguelikeGhostObstacle : MonoBehaviour
+{
+}
+
+/// <summary>
+/// Marks furniture whose collision shapes should be ignored by ghost navigation.
+/// </summary>
+public sealed class RoguelikeGhostPassThrough : MonoBehaviour
 {
 }
