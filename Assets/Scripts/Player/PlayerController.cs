@@ -17,7 +17,8 @@ public class PlayerController : MonoBehaviour
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
     private BoxCollider2D movementCollider;
-    private PlayerEffects playerEffects;
+    private float speedPotionMultiplier = 1f;
+    private Coroutine speedPotionRoutine;
 
     /// <summary>
     /// Thin collider at the bottom of the sprite, used for movement and
@@ -72,7 +73,6 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        playerEffects = GetComponent<PlayerEffects>();
         parry = GetComponentInChildren<Parry>();
         animator = GetComponent<Animator>();
         cooldownTimer = projectileCooldown;
@@ -161,6 +161,33 @@ public class PlayerController : MonoBehaviour
         {
             Launch();
         }
+    }
+
+    public void ApplySpeedPotion(float multiplier, float duration)
+    {
+        if (speedPotionRoutine != null)
+            StopCoroutine(speedPotionRoutine);
+
+        speedPotionRoutine = StartCoroutine(
+            SpeedPotionRoutine(multiplier, duration));
+    }
+
+    private IEnumerator SpeedPotionRoutine(float multiplier, float duration)
+    {
+        speedPotionMultiplier = Mathf.Max(1f, multiplier);
+        yield return new WaitForSeconds(Mathf.Max(0.01f, duration));
+        speedPotionMultiplier = 1f;
+        speedPotionRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (speedPotionRoutine != null)
+        {
+            StopCoroutine(speedPotionRoutine);
+            speedPotionRoutine = null;
+        }
+        speedPotionMultiplier = 1f;
     }
 
     // Adds physics forces without letting the movement controller erase them
@@ -268,10 +295,8 @@ public class PlayerController : MonoBehaviour
         windVelocity *= Mathf.Exp(-3.5f * Time.fixedDeltaTime);
         windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0f, moveSpeed * 0.75f));
 
-        float potionSpeedMultiplier = playerEffects != null
-            ? playerEffects.SpeedMultiplier : 1f;
         Vector2 controlledVelocity = movement.normalized *
-            moveSpeed * potionSpeedMultiplier;
+            moveSpeed * speedPotionMultiplier;
         if (isInvincible)
         {
             controlledVelocity *= speedMultiplier;
