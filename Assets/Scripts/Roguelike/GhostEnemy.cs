@@ -51,7 +51,8 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         ai.Initialize(player, melee, miniBoss);
 
         nextRadialShotTime = Time.time + 2.5f;
-        nextMeleeSuperTime = Time.time + 10f;
+        // Independent initial delay prevents groups of melee ghosts from dashing together.
+        nextMeleeSuperTime = Time.time + Random.Range(8f, 12f);
     }
 
     private IEnumerator Start()
@@ -115,7 +116,8 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         if ((melee || miniBoss) && Time.time >= nextMeleeSuperTime)
         {
             Vector2 dashDirection = ai.DirectionToPlayer;
-            nextMeleeSuperTime = Time.time + 10f;
+            // Each ghost keeps its own timer; average interval remains ten seconds.
+            nextMeleeSuperTime = Time.time + Random.Range(8f, 12f);
             nextAttackTime = Mathf.Max(nextAttackTime, Time.time + 2.6f);
             StartCoroutine(PerformMeleeDash(dashDirection));
             return;
@@ -229,11 +231,31 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     {
         superAttackInProgress = true;
         ai.SetMovementSuspended(true);
-        StartCoroutine(PlayDashVisual(direction));
         yield return new WaitForSeconds(0.08f);
 
         if (body == null)
             body = GetComponent<Rigidbody2D>();
+
+        Vector2 dashOrigin = body != null
+            ? body.position : (Vector2)transform.position;
+
+        // Re-aim at the player's current position immediately before the dash.
+        if (player != null)
+        {
+            Vector2 toPlayer = (Vector2)player.position - dashOrigin;
+            if (toPlayer.sqrMagnitude > 0.0001f)
+                direction = toPlayer.normalized;
+        }
+        else if (direction.sqrMagnitude > 0.0001f)
+        {
+            direction.Normalize();
+        }
+        else
+        {
+            direction = Vector2.up;
+        }
+
+        StartCoroutine(PlayDashVisual(direction));
 
         float pixelsPerUnit = Camera.main != null && Camera.main.orthographic
             ? Camera.main.pixelHeight /
@@ -246,8 +268,20 @@ public class GhostEnemy : MonoBehaviour, IDamageable
                 Mathf.Abs(transform.lossyScale.x),
                 Mathf.Abs(transform.lossyScale.y))
             : 0.4f;
+
+        // A dash is also a gap-closer: stop near the player instead of blindly
+        // travelling the full distance and overshooting a nearby target.
+        float distanceToPlayer = player != null
+            ? Vector2.Distance(dashOrigin, player.position)
+            : requestedDistance;
+        float desiredStopGap = radius + 0.30f;
+        float approachDistance = player != null
+            ? Mathf.Max(0.25f, distanceToPlayer - desiredStopGap)
+            : requestedDistance;
+        float plannedDistance = Mathf.Min(requestedDistance, approachDistance);
         float dashDistance = GetDashClearDistance(
-            direction, requestedDistance, radius);
+            direction, plannedDistance, radius);
+
         const float dashDuration = 0.24f;
         float speed = dashDistance / dashDuration;
         float travelled = 0f;
