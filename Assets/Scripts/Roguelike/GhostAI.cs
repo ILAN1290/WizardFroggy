@@ -299,18 +299,15 @@ public class GhostAI : MonoBehaviour
                 Collider2D obstacle = nearbyGhostBuffer[i];
                 if (!IsRelevantObstacle(obstacle)) continue;
 
-                // ComputePenetration returns the minimum direction and distance
-                // required to move this ghost collider out of the obstacle.
-                if (!Physics2D.ComputePenetration(
-                    bodyCollider, body.position, body.rotation,
-                    obstacle, obstacle.transform.position,
-                    obstacle.transform.eulerAngles.z,
-                    out Vector2 separationDirection, out float penetration))
+                // Collider2D.Distance is the supported Physics2D API.
+                // Its signed distance is negative while overlapping, and
+                // normal * distance moves this (ghost) collider out of the obstacle.
+                ColliderDistance2D separation = bodyCollider.Distance(obstacle);
+                if (!separation.isValid || !separation.isOverlapped)
                     continue;
 
-                float correction = Mathf.Max(0.01f, penetration) +
-                    separationPadding;
-                body.position += separationDirection * correction;
+                body.position += separation.normal *
+                    (separation.distance - separationPadding);
                 passResolved = true;
                 anyResolved = true;
             }
