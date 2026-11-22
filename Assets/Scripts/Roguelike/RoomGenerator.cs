@@ -229,7 +229,7 @@ public class RoomGenerator : MonoBehaviour
             Vector2 doorPosition = new Vector2(centre.x, colliderY);
             Vector2 spawn = new Vector2(centre.x, innerY - 4.1f);
             CreateUpperDoor(doorsRoot, session, doorPosition, spawn,
-                doorWidthTiles * tileWidth, tileHeight);
+                doorWidthTiles * tileWidth, tileWidth, tileHeight);
         }
     }
 
@@ -289,7 +289,7 @@ public class RoomGenerator : MonoBehaviour
             doorPosition, spawnPosition, new Vector2(tileWidth, 2f * tileHeight),
             new Vector2(tileWidth + 0.55f, 2.5f * tileHeight),
             dx < 0 ? new Vector2(0.65f, 0f) : new Vector2(-0.65f, 0f),
-            tileSprite, 1, 2, lockedTint);
+            dx, dy, tileSprite, 1, 2, lockedTint);
     }
 
     private void CreateBottomWall(Transform tilesRoot, Transform collidersRoot,
@@ -346,12 +346,13 @@ public class RoomGenerator : MonoBehaviour
                 new Vector2(doorWidthTiles * tileWidth, tileHeight),
                 new Vector2(doorWidthTiles * tileWidth + 0.5f, tileHeight + 0.8f),
                 new Vector2(0f, 0.65f),
-                tile, doorWidthTiles, 2, lockedTint, true);
+                0, -1, tile, doorWidthTiles, 2, lockedTint);
         }
     }
 
     private void CreateUpperDoor(Transform doorsRoot, RoguelikeSession session,
-        Vector2 position, Vector2 spawnPosition, float width, float tileHeight)
+        Vector2 position, Vector2 spawnPosition, float width,
+        float tileWidth, float tileHeight)
     {
         GameObject door = CreateDoorRoot(doorsRoot, "Верхняя дверь", position);
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
@@ -369,7 +370,7 @@ public class RoomGenerator : MonoBehaviour
             int row = i / 3;
             SpriteRenderer renderer = CreateDoorTile(door.transform,
                 "Верхняя дверь • тайл " + i,
-                new Vector2((column - 1) * tileHeight,
+                new Vector2((column - 1) * tileWidth,
                     0.5f + (0.5f - row) * tileHeight),
                 closedUpperDoorSprites != null && i < closedUpperDoorSprites.Length
                     ? closedUpperDoorSprites[i] : null,
@@ -385,8 +386,8 @@ public class RoomGenerator : MonoBehaviour
     private void CreateWallTileDoor(Transform doorsRoot, RoguelikeSession session,
         string doorName, Vector2 position, Vector2 spawnPosition,
         Vector2 blockerSize, Vector2 sensorSize, Vector2 sensorOffset,
-        Sprite tileSprite, int columns, int rows, Color lockedTint,
-        bool extendDown = false)
+        int directionX, int directionY, Sprite tileSprite,
+        int columns, int rows, Color lockedTint)
     {
         GameObject door = CreateDoorRoot(doorsRoot, doorName, position);
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
@@ -404,19 +405,19 @@ public class RoomGenerator : MonoBehaviour
         {
             int column = i % columns;
             int row = i / columns;
-            float y = extendDown
-                ? -0.5f - row
-                : 0.5f - row;
+            float tileWidth = Mathf.Max(0.001f, tileSprite.bounds.size.x);
+            float tileHeight = Mathf.Max(0.001f, tileSprite.bounds.size.y);
+            float y = (0.5f - row) * tileHeight;
             SpriteRenderer renderer = CreateDoorTile(door.transform,
                 doorName + " • тайл " + i,
-                new Vector2(column - (columns - 1) * 0.5f, y),
+                new Vector2((column - (columns - 1) * 0.5f) * tileWidth, y),
                 tileSprite, lockedTint);
             renderers[i] = renderer;
             lockedSprites[i] = tileSprite;
         }
 
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
-            session, 0, extendDown ? -1 : 0, spawnPosition,
+            session, directionX, directionY, spawnPosition,
             blocker, sensor, renderers, lockedSprites,
             new Sprite[0], lockedTint, true);
     }
