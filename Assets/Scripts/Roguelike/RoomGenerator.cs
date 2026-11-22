@@ -227,7 +227,7 @@ public class RoomGenerator : MonoBehaviour
             rightWallTileSprite, hasRight, 1, 0,
             new Vector2(left + 5.8f, centre.y));
         CreateBottomWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
-            session, centre, width, bottom, hasDown);
+            session, room.Index, centre, width, bottom, hasDown);
     }
 
     private static Transform CreateFolder(Transform parent, string folderName)
@@ -363,7 +363,7 @@ public class RoomGenerator : MonoBehaviour
     }
 
     private void CreateBottomWall(Transform tilesRoot, Transform collidersRoot,
-        Transform doorsRoot, RoguelikeSession session, Vector2 centre,
+        Transform doorsRoot, RoguelikeSession session, int roomIndex, Vector2 centre,
         float width, float innerY, bool hasDoor)
     {
         // Нижняя стена повторяет верхнюю: три ряда каменной кладки,
@@ -391,7 +391,7 @@ public class RoomGenerator : MonoBehaviour
                     column >= firstDoorColumn && column <= lastDoorColumn;
                 if (insideDoor) continue;
 
-                Sprite tile = ChooseUpperWallTile(0, column, row);
+                Sprite tile = ChooseUpperWallTile(roomIndex, column, row);
                 SpriteRenderer renderer = CreateWallTile(tilesRoot,
                     "Нижняя стена • тайл",
                     new Vector2(left + (column + 0.5f) * tileWidth,
@@ -405,8 +405,8 @@ public class RoomGenerator : MonoBehaviour
             {
                 float partialWidth = remainder * 0.5f;
                 float rowY = innerY - (row + 0.5f) * tileHeight;
-                Sprite leftTile = ChooseUpperWallTile(0, -1, row);
-                Sprite rightTile = ChooseUpperWallTile(0, fullColumns, row);
+                Sprite leftTile = ChooseUpperWallTile(roomIndex, -1, row);
+                Sprite rightTile = ChooseUpperWallTile(roomIndex, fullColumns, row);
                 SpriteRenderer leftRenderer = CreateWallTile(tilesRoot,
                     "Нижняя стена • край",
                     new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f, rowY),
