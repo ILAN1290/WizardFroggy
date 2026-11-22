@@ -39,6 +39,10 @@ public class InventoryUI : MonoBehaviour
     private CanvasGroup hotbarCanvasGroup;
     private float hotbarBaseAlpha = 1f;
     private SpriteRenderer playerRenderer;
+    private Camera cachedWorldCamera;
+    private readonly Vector3[] playerWorldCorners = new Vector3[4];
+    private readonly Vector3[] inventoryWorldCorners = new Vector3[4];
+    private readonly Vector3[] hotbarWorldCorners = new Vector3[4];
 
     private void Awake()
     {
@@ -56,6 +60,7 @@ public class InventoryUI : MonoBehaviour
 
     private void Start()
     {
+        cachedWorldCamera = Camera.main;
         EnsureCanvasOnTop();
         Inventory.Instance.Init(hotbarSlotCount + inventorySlotCount);
 
@@ -280,16 +285,12 @@ public class InventoryUI : MonoBehaviour
             inventoryVisibilityGroup.blocksRaycasts &&
             inventoryVisibilityGroup.interactable;
 
-        if (inventoryOcclusionGroup != null)
-            inventoryOcclusionGroup.alpha = 1f;
-        if (hotbarCanvasGroup != null)
-            hotbarCanvasGroup.alpha = hotbarBaseAlpha;
-
         if (player == null ||
             (inventoryOcclusionGroup == null && hotbarCanvasGroup == null))
             return;
 
-        Camera worldCamera = Camera.main;
+        if (cachedWorldCamera == null) cachedWorldCamera = Camera.main;
+        Camera worldCamera = cachedWorldCamera;
         if (worldCamera == null) return;
 
         Bounds worldBounds = playerRenderer != null
@@ -298,19 +299,16 @@ public class InventoryUI : MonoBehaviour
 
         Vector3 min = worldBounds.min;
         Vector3 max = worldBounds.max;
-        Vector3[] worldCorners =
-        {
-            new Vector3(min.x, min.y, worldBounds.center.z),
-            new Vector3(min.x, max.y, worldBounds.center.z),
-            new Vector3(max.x, min.y, worldBounds.center.z),
-            new Vector3(max.x, max.y, worldBounds.center.z)
-        };
+        playerWorldCorners[0] = new Vector3(min.x, min.y, worldBounds.center.z);
+        playerWorldCorners[1] = new Vector3(min.x, max.y, worldBounds.center.z);
+        playerWorldCorners[2] = new Vector3(max.x, min.y, worldBounds.center.z);
+        playerWorldCorners[3] = new Vector3(max.x, max.y, worldBounds.center.z);
 
         Vector2 screenMin = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
         Vector2 screenMax = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
-        for (int i = 0; i < worldCorners.Length; i++)
+        for (int i = 0; i < playerWorldCorners.Length; i++)
         {
-            Vector3 screen = worldCamera.WorldToScreenPoint(worldCorners[i]);
+            Vector3 screen = worldCamera.WorldToScreenPoint(playerWorldCorners[i]);
             screenMin = Vector2.Min(screenMin, screen);
             screenMax = Vector2.Max(screenMax, screen);
         }
@@ -322,28 +320,28 @@ public class InventoryUI : MonoBehaviour
             mainCanvas.renderMode != RenderMode.ScreenSpaceOverlay
                 ? mainCanvas.worldCamera : null;
         bool overlapsInventory = OverlapsUiRect(
-            inventoryRoot, playerScreenBounds, uiCamera);
+            inventoryRoot, playerScreenBounds, uiCamera, inventoryWorldCorners);
         bool overlapsHotbar = OverlapsUiRect(
-            hotbarRoot, playerScreenBounds, uiCamera);
+            hotbarRoot, playerScreenBounds, uiCamera, hotbarWorldCorners);
 
-        if (inventoryOcclusionGroup != null)
-            inventoryOcclusionGroup.alpha =
-                inventoryOpen && overlapsInventory ? overlapAlpha : 1f;
+        float inventoryAlpha = inventoryOpen && overlapsInventory ? overlapAlpha : 1f;
+        if (inventoryOcclusionGroup != null &&
+            Mathf.Abs(inventoryOcclusionGroup.alpha - inventoryAlpha) > 0.001f)
+            inventoryOcclusionGroup.alpha = inventoryAlpha;
 
-        // The hotbar fades independently whenever the player crosses it.
-        if (hotbarCanvasGroup != null)
-            hotbarCanvasGroup.alpha = hotbarBaseAlpha *
-                (overlapsHotbar ? overlapAlpha : 1f);
+        float hotbarAlpha = hotbarBaseAlpha * (overlapsHotbar ? overlapAlpha : 1f);
+        if (hotbarCanvasGroup != null &&
+            Mathf.Abs(hotbarCanvasGroup.alpha - hotbarAlpha) > 0.001f)
+            hotbarCanvasGroup.alpha = hotbarAlpha;
     }
 
     private static bool OverlapsUiRect(
-        Transform root, Rect screenBounds, Camera uiCamera)
+        Transform root, Rect screenBounds, Camera uiCamera, Vector3[] corners)
     {
         RectTransform rectTransform = root as RectTransform;
         if (rectTransform == null || !root.gameObject.activeInHierarchy)
             return false;
 
-        Vector3[] corners = new Vector3[4];
         rectTransform.GetWorldCorners(corners);
 
         Vector2 minimum = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
