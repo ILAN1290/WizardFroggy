@@ -6,13 +6,15 @@ using UnityEngine.SceneManagement;
 public class RoguelikeMerchantTextures
 {
     public Texture2D panelBackground;
+    public Texture2D vendorPanelBackground;
+    public Sprite merchantPortrait;
     public Texture2D closeButton;
     public Texture2D itemSlotBackground;
     public Texture2D itemSlotSelectedBackground;
     public Texture2D itemSlotSoldBackground;
     public Texture2D itemDescriptionBackground;
     public Texture2D itemBuyButton;
-    public Texture2D currencyIcon;
+    public Sprite currencyIcon;
     public Texture2D upgradeRowBackground;
     public Texture2D upgradePlusButton;
     public Texture2D upgradeMinusButton;
