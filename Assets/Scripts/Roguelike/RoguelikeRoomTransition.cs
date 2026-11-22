@@ -12,6 +12,7 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
     private int directionX;
     private int directionY;
     private Vector2 spawnPosition;
+    private bool transitionRequested;
 
     public void Initialize(RoguelikeSession owner, int dx, int dy, Vector2 spawn)
     {
@@ -27,16 +28,27 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (!IsPlayer(other) || session == null) return;
-        session.TryMoveByDirection(directionX, directionY, spawnPosition);
+        if (session.IsCurrentRoomCleared)
+            RequestTransition();
+        else
+            session.TryMoveByDirection(directionX, directionY, spawnPosition);
     }
 
     private void OnTriggerStay2D(Collider2D other)
     {
         // If the player reached the edge before clearing the room, allow the
-        // transition as soon as the last enemy is defeated.
+        // transition as soon as the last enemy is defeated. The flag prevents
+        // multiple player colliders from requesting several transitions.
         if (!IsPlayer(other) || session == null || !session.IsCurrentRoomCleared)
             return;
 
+        RequestTransition();
+    }
+
+    private void RequestTransition()
+    {
+        if (transitionRequested) return;
+        transitionRequested = true;
         session.TryMoveByDirection(directionX, directionY, spawnPosition);
     }
 
