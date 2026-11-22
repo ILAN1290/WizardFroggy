@@ -4232,6 +4232,9 @@ MonoBehaviour:
   chargeSound: {fileID: 8300000, guid: 7ce378debf80fb34fbe9ae1ff831625e, type: 3}
   animator: {fileID: 0}
   hasABC: 0
+  TEST_hp: 0
+  TEST_dmg: 0
+  TEST_mana: 0
 --- !u!212 &602007403
 SpriteRenderer:
   serializedVersion: 3
