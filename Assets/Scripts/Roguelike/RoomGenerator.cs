@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -59,6 +60,11 @@ public class RoomGenerator : MonoBehaviour
         new List<OcclusionState>();
     private readonly List<Collider2D> ghostPassThroughColliders =
         new List<Collider2D>();
+
+    [Header("Атака минибосса")]
+    [SerializeField] private TileBase groundSlamWarningTile;
+    [SerializeField] private TileBase groundSlamFireTile;
+    private Coroutine groundSlamRoutine;
 
     [Header("Миникарта")]
     [SerializeField] private Sprite minimapFrameSprite;
@@ -1347,6 +1353,144 @@ public class RoomGenerator : MonoBehaviour
         {
             session.RegisterWorldPlaceholder(target.transform, label);
         }
+    }
+
+    public void StartGroundSlamWave(
+        Vector2 centre, Transform effectsParent, Transform player, float damage)
+    {
+        if (groundSlamRoutine != null)
+            StopCoroutine(groundSlamRoutine);
+
+        groundSlamRoutine = StartCoroutine(
+            GroundSlamWaveRoutine(centre, effectsParent, player, damage));
+    }
+
+    private IEnumerator GroundSlamWaveRoutine(
+        Vector2 centre, Transform effectsParent, Transform player, float damage)
+    {
+        if (groundSlamWarningTile == null || groundSlamFireTile == null)
+        {
+            Debug.LogWarning(
+                "RoomGenerator: назначьте Ground Slam Warning Tile и Fire Tile.");
+            groundSlamRoutine = null;
+            yield break;
+        }
+
+        GameObject floorObject = GameObject.Find("WoodenFloorTiles");
+        Tilemap floor = floorObject != null
+            ? floorObject.GetComponent<Tilemap>() : null;
+        Grid sourceGrid = floor != null
+            ? floor.GetComponentInParent<Grid>() : null;
+        if (floor == null || sourceGrid == null)
+        {
+            Debug.LogWarning("RoomGenerator: не найдена Tilemap WoodenFloorTiles или Grid.");
+            groundSlamRoutine = null;
+            yield break;
+        }
+
+        GameObject overlayRoot = new GameObject("Mini Boss Ground Slam Wave");
+        if (effectsParent != null)
+            overlayRoot.transform.SetParent(effectsParent, true);
+
+        overlayRoot.transform.SetPositionAndRotation(
+            sourceGrid.transform.position, sourceGrid.transform.rotation);
+        Vector3 desiredWorldScale = sourceGrid.transform.lossyScale;
+        if (overlayRoot.transform.parent != null)
+        {
+            Vector3 parentScale = overlayRoot.transform.parent.lossyScale;
+            overlayRoot.transform.localScale = new Vector3(
+                desiredWorldScale.x / Mathf.Max(0.0001f, Mathf.Abs(parentScale.x)),
+                desiredWorldScale.y / Mathf.Max(0.0001f, Mathf.Abs(parentScale.y)),
+                desiredWorldScale.z / Mathf.Max(0.0001f, Mathf.Abs(parentScale.z)));
+        }
+        else
+        {
+            overlayRoot.transform.localScale = desiredWorldScale;
+        }
+
+        Grid overlayGrid = overlayRoot.AddComponent<Grid>();
+        overlayGrid.cellSize = sourceGrid.cellSize;
+        overlayGrid.cellGap = sourceGrid.cellGap;
+        overlayGrid.cellLayout = sourceGrid.cellLayout;
+        overlayGrid.cellSwizzle = sourceGrid.cellSwizzle;
+
+        GameObject tileObject = new GameObject("Telegraph and Fire Tiles");
+        tileObject.transform.SetParent(overlayRoot.transform, false);
+        Tilemap overlayMap = tileObject.AddComponent<Tilemap>();
+        TilemapRenderer overlayRenderer = tileObject.AddComponent<TilemapRenderer>();
+
+        TilemapRenderer floorRenderer = floor.GetComponent<TilemapRenderer>();
+        if (floorRenderer != null)
+        {
+            overlayRenderer.sortingLayerID = floorRenderer.sortingLayerID;
+            overlayRenderer.sortingOrder = floorRenderer.sortingOrder + 1;
+        }
+        else
+        {
+            overlayRenderer.sortingOrder = -100;
+        }
+
+        Vector3Int centreCell = overlayMap.WorldToCell(centre);
+        List<Vector3Int>[] rings = new List<Vector3Int>[5];
+        for (int i = 0; i < rings.Length; i++)
+            rings[i] = new List<Vector3Int>();
+        HashSet<Vector3Int> burningCells = new HashSet<Vector3Int>();
+
+        const int radiusInTiles = 4;
+        for (int y = -radiusInTiles; y <= radiusInTiles; y++)
+        {
+            for (int x = -radiusInTiles; x <= radiusInTiles; x++)
+            {
+                int squaredDistance = x * x + y * y;
+                if (squaredDistance > radiusInTiles * radiusInTiles)
+                    continue;
+
+                int ring = Mathf.Clamp(
+                    Mathf.CeilToInt(Mathf.Sqrt(squaredDistance)), 0, radiusInTiles);
+                Vector3Int cell = centreCell + new Vector3Int(x, y, 0);
+                rings[ring].Add(cell);
+                burningCells.Add(cell);
+                overlayMap.SetTile(cell, groundSlamWarningTile);
+            }
+        }
+
+        yield return new WaitForSeconds(0.55f);
+        if (overlayRoot == null)
+        {
+            groundSlamRoutine = null;
+            yield break;
+        }
+
+        for (int ring = 0; ring < rings.Length; ring++)
+        {
+            for (int i = 0; i < rings[ring].Count; i++)
+                overlayMap.SetTile(rings[ring][i], groundSlamFireTile);
+
+            yield return new WaitForSeconds(0.09f);
+        }
+
+        PlayerHealth health = player != null
+            ? player.GetComponent<PlayerHealth>() : null;
+        float fireUntil = Time.time + 3f;
+        float damageTimer = 0f;
+        while (Time.time < fireUntil && overlayRoot != null)
+        {
+            damageTimer -= Time.deltaTime;
+            if (health != null && player != null && damageTimer <= 0f)
+            {
+                Vector3Int playerCell = overlayMap.WorldToCell(player.position);
+                if (burningCells.Contains(playerCell))
+                {
+                    health.TakeDamage(damage);
+                    damageTimer = 0.7f;
+                }
+            }
+            yield return null;
+        }
+
+        if (overlayRoot != null)
+            Destroy(overlayRoot);
+        groundSlamRoutine = null;
     }
 
     private static void FillWoodenFloorMap()
