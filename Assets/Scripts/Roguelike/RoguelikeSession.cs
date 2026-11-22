@@ -589,6 +589,17 @@ public class RoguelikeSession : MonoBehaviour
         if (playerController != null)
             playerController.enabled = false;
 
+        // Store a clean retry state before the scene unloads the player objects.
+        if (playerMana != null)
+            playerMana.RestoreMana(playerMana.MaxMana);
+        if (PlayerRunData.Instance != null)
+        {
+            PlayerRunData.Instance.SaveHealth(
+                playerHealth != null ? playerHealth.MaxHealth : PlayerRunData.Instance.MaximumHealth);
+            PlayerRunData.Instance.SaveMana(playerMana != null ? playerMana.CurrentMana : 100f);
+            PlayerPrefs.Save();
+        }
+
         // Roguelike.unity already contains the configured DeathMenu canvas object.
         if (playerHealth != null)
             playerHealth.ShowDeathScreen();
