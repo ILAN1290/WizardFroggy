@@ -132,7 +132,11 @@ public class RoguelikeSession : MonoBehaviour
     {
         if (parent == null) return;
         for (int i = parent.childCount - 1; i >= 0; i--)
-            Destroy(parent.GetChild(i).gameObject);
+        {
+            GameObject child = parent.GetChild(i).gameObject;
+            child.SetActive(false);
+            Destroy(child);
+        }
     }
 
     private void ClearRoomFolders()
