@@ -145,7 +145,7 @@ public class GhostAI : MonoBehaviour
         float bestScore = ScoreDirection(desired, desired, directClearance, true);
 
         // Only fan out when the direct path is blocked. Most frames and most
-        // ghosts therefore need one cast instead of nine allocating CircleCastAll calls.
+        // Most frames therefore need only one non-allocating cast.
         for (int i = 0; i < SteeringAngles.Length; i++)
         {
             Vector2 candidate = Rotate(desired, SteeringAngles[i]);
