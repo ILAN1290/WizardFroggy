@@ -74,7 +74,7 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         if (cachedPlayerTransform == null)
         {
@@ -300,6 +300,10 @@ public class RoomGenerator : MonoBehaviour
         float tileWidth = Mathf.Max(0.001f, baseTile.bounds.size.x);
         float tileHeight = Mathf.Max(0.001f, baseTile.bounds.size.y);
         int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
+        // With an odd number of tiles the centre column is exactly aligned
+        // with the door sprites; an even count shifts the opening by half a tile.
+        if (hasDoor && fullColumns > doorWidthTiles && fullColumns % 2 == 0)
+            fullColumns--;
         float coveredWidth = fullColumns * tileWidth;
         float left = centre.x - coveredWidth * 0.5f;
         int centreColumn = fullColumns / 2;
@@ -406,12 +410,13 @@ public class RoomGenerator : MonoBehaviour
         if (!hasDoor) return;
 
         Vector2 doorPosition = new Vector2(wallX, centreY);
-        Color lockedTint = new Color(0.58f, 0.58f, 0.58f, 1f);
+        Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
+        Color openedTint = new Color(0.78f, 0.78f, 0.78f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
             doorPosition, spawnPosition, new Vector2(tileWidth, doorHeight),
             new Vector2(1.0f, 1.2f),
             dx < 0 ? new Vector2(0.65f, 0f) : new Vector2(-0.65f, 0f),
-            dx, dy, tileSprite, 1, 2, lockedTint);
+            dx, dy, tileSprite, 1, 2, lockedTint, openedTint);
     }
 
     private static void CreateVerticalWallTilesSegment(Transform parent,
@@ -544,12 +549,11 @@ public class RoomGenerator : MonoBehaviour
         }
 
         SetSensorToDoorSpriteBounds(sensor, renderers);
-        spawnPosition = GetSafeDoorSpawnPosition(
-            sensor, 0, -1, spawnPosition);
 
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, 0, -1, spawnPosition, blocker, sensor, renderers,
-            closedUpperDoorSprites, openedUpperDoorSprites, Color.white, false);
+            closedUpperDoorSprites, openedUpperDoorSprites,
+            Color.white, Color.white, false);
     }
 
     private void CreateUpperDoor(Transform doorsRoot, RoguelikeSession session,
@@ -581,19 +585,18 @@ public class RoomGenerator : MonoBehaviour
         }
 
         SetSensorToDoorSpriteBounds(sensor, renderers);
-        spawnPosition = GetSafeDoorSpawnPosition(
-            sensor, 0, 1, spawnPosition);
 
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, 0, 1, spawnPosition, blocker, sensor, renderers,
-            closedUpperDoorSprites, openedUpperDoorSprites, Color.white, false);
+            closedUpperDoorSprites, openedUpperDoorSprites,
+            Color.white, Color.white, false);
     }
 
     private void CreateWallTileDoor(Transform doorsRoot, RoguelikeSession session,
         string doorName, Vector2 position, Vector2 spawnPosition,
         Vector2 blockerSize, Vector2 sensorSize, Vector2 sensorOffset,
         int directionX, int directionY, Sprite tileSprite,
-        int columns, int rows, Color lockedTint)
+        int columns, int rows, Color lockedTint, Color openedTint)
     {
         GameObject door = CreateDoorRoot(doorsRoot, doorName, position);
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
@@ -623,13 +626,14 @@ public class RoomGenerator : MonoBehaviour
         }
 
         SetSensorToDoorSpriteBounds(sensor, renderers);
-        spawnPosition = GetSafeDoorSpawnPosition(
-            sensor, directionX, directionY, spawnPosition);
 
+        // spawnPosition is deliberately on the wall opposite the entry door.
+        // Recalculating it from this door's sensor would place the player beside
+        // the door they just crossed instead of at the opposite doorway.
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, directionX, directionY, spawnPosition,
             blocker, sensor, renderers, lockedSprites,
-            new Sprite[0], lockedTint, false);
+            new Sprite[0], lockedTint, openedTint, false);
     }
 
     private static void SetSensorToDoorSpriteBounds(
@@ -667,35 +671,9 @@ public class RoomGenerator : MonoBehaviour
         Physics2D.SyncTransforms();
     }
 
-    private Vector2 GetSafeDoorSpawnPosition(
-        BoxCollider2D sensor, int directionX, int directionY, Vector2 fallback)
-    {
-        if (sensor == null) return fallback;
 
-        Bounds sensorBounds = sensor.bounds;
-        Vector2 playerExtents = cachedPlayerCollider != null
-            ? cachedPlayerCollider.bounds.extents
-            : new Vector2(0.4f, 0.3f);
-        const float separation = 0.3f;
 
-        if (directionX != 0)
-        {
-            float distance = sensorBounds.extents.x + playerExtents.x + separation;
-            return new Vector2(sensorBounds.center.x - directionX * distance,
-                sensorBounds.center.y);
-        }
-
-        if (directionY != 0)
-        {
-            float distance = sensorBounds.extents.y + playerExtents.y + separation;
-            return new Vector2(sensorBounds.center.x,
-                sensorBounds.center.y - directionY * distance);
-        }
-
-        return fallback;
-    }
-
-    private static GameObject CreateDoorRoot(Transform parent, string name, Vector2 position)
+        private static GameObject CreateDoorRoot(Transform parent, string name, Vector2 position)
     {
         GameObject door = new GameObject(name);
         door.tag = "Wall";
@@ -876,52 +854,58 @@ public class RoomGenerator : MonoBehaviour
 
         box.enabled = true;
         box.usedByComposite = false;
+        box.isTrigger = false;
 
         SpriteRenderer spriteRenderer = box.GetComponent<SpriteRenderer>();
         Bounds spriteBounds = spriteRenderer != null && spriteRenderer.sprite != null
             ? spriteRenderer.sprite.bounds
             : new Bounds(box.offset, box.size);
 
-        // The trigger matches the complete shelf sprite. It can be used for
-        // interaction/overlap checks, but does not prevent the player walking
-        // behind the furniture.
-        box.size = spriteBounds.size;
-        box.offset = spriteBounds.center;
-        box.isTrigger = true;
+        // The collider spans the complete rendered shelf width. Its depth is
+        // measured upward from the bottom edge: 70 screen pixels for horizontal
+        // shelves and 280 screen pixels for vertical shelves.
+        float pixelsPerWorldUnitY = GetScreenPixelsPerWorldUnitY();
+        Vector3 lossyScale = box.transform.lossyScale;
+        float localVerticalScale = upper
+            ? Mathf.Abs(lossyScale.y)
+            : Mathf.Abs(lossyScale.x);
+        float requestedPixels = upper ? 70f : 280f;
+        float spriteLocalDepth = upper ? spriteBounds.size.y : spriteBounds.size.x;
+        float hitboxDepth = requestedPixels /
+            (pixelsPerWorldUnitY * Mathf.Max(0.001f, localVerticalScale));
+        hitboxDepth = Mathf.Clamp(hitboxDepth, 0.001f, spriteLocalDepth);
 
-        // Only the narrow foot/base remains solid. This keeps the shelf
-        // physically grounded while leaving its full visual depth traversable.
-        Transform existingBlocker = box.transform.Find("Shelf Base Blocker");
-        if (existingBlocker != null) return;
-
-        GameObject blockerObject = new GameObject("Shelf Base Blocker");
-        blockerObject.tag = "Wall";
-        blockerObject.layer = box.gameObject.layer;
-        blockerObject.transform.SetParent(box.transform, false);
-
-        BoxCollider2D blocker = blockerObject.AddComponent<BoxCollider2D>();
-        blocker.isTrigger = false;
-        blocker.usedByComposite = false;
-
-        float baseDepth = Mathf.Min(0.32f,
-            upper ? spriteBounds.size.y : spriteBounds.size.x);
         if (upper)
         {
-            blocker.size = new Vector2(spriteBounds.size.x, baseDepth);
-            blocker.offset = new Vector2(spriteBounds.center.x,
-                spriteBounds.min.y + baseDepth * 0.5f);
+            // Horizontal shelf: local Y is world vertical.
+            box.size = new Vector2(spriteBounds.size.x, hitboxDepth);
+            box.offset = new Vector2(spriteBounds.center.x,
+                spriteBounds.min.y + hitboxDepth * 0.5f);
         }
         else
         {
-            // The lateral shelf is rotated by 90 degrees: local -X is its
-            // lower edge in world space.
-            blocker.size = new Vector2(baseDepth, spriteBounds.size.y);
-            blocker.offset = new Vector2(
-                spriteBounds.min.x + baseDepth * 0.5f, spriteBounds.center.y);
+            // Vertical shelf is rotated by 90 degrees: local X points upward
+            // in world space, while local Y defines its full world-space width.
+            box.size = new Vector2(hitboxDepth, spriteBounds.size.y);
+            box.offset = new Vector2(
+                spriteBounds.min.x + hitboxDepth * 0.5f, spriteBounds.center.y);
         }
     }
 
-    private static Vector2 FindFreeGhostPosition(Vector2 preferredPosition, float radius)
+    private static float GetScreenPixelsPerWorldUnitY()
+    {
+        Camera camera = Camera.main;
+        if (camera != null && camera.orthographic)
+        {
+            float pixelHeight = camera.pixelHeight > 0
+                ? camera.pixelHeight : Mathf.Max(1, Screen.height);
+            return pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f);
+        }
+
+        return Mathf.Max(1, Screen.height) / 12f;
+    }
+
+        private static Vector2 FindFreeGhostPosition(Vector2 preferredPosition, float radius)
     {
         Physics2D.SyncTransforms();
         if (!OverlapsSolidWall(preferredPosition, radius))
@@ -1066,10 +1050,21 @@ public class RoomGenerator : MonoBehaviour
         BoundsInt originalBounds = floor.cellBounds;
         if (originalBounds.size.x <= 0 || originalBounds.size.y <= 0) return;
 
-        Vector3Int minCell = floor.WorldToCell(
-            new Vector3(left + 0.001f, bottom + 0.001f, 0f));
-        Vector3Int maxCell = floor.WorldToCell(
-            new Vector3(right - 0.001f, top - 0.001f, 0f));
+        Vector3Int minCell = floor.WorldToCell(new Vector3(left + 0.001f, bottom + 0.001f, 0f));
+        Vector3Int maxCell = floor.WorldToCell(new Vector3(right - 0.001f, top - 0.001f, 0f));
+
+        Vector3 cellOrigin = floor.CellToWorld(minCell);
+        float cellWidth = Mathf.Abs(
+            floor.CellToWorld(minCell + Vector3Int.right).x - cellOrigin.x);
+        float cellHeight = Mathf.Abs(
+            floor.CellToWorld(minCell + Vector3Int.up).y - cellOrigin.y);
+        if (cellWidth <= 0.001f || cellHeight <= 0.001f) return;
+
+        // Keep only whole tile cells that fit inside the walkable rectangle.
+        while (floor.CellToWorld(minCell).x < left - 0.001f) minCell.x++;
+        while (floor.CellToWorld(minCell).y < bottom - 0.001f) minCell.y++;
+        while (floor.CellToWorld(maxCell).x + cellWidth > right + 0.001f) maxCell.x--;
+        while (floor.CellToWorld(maxCell).y + cellHeight > top + 0.001f) maxCell.y--;
 
         int minX = minCell.x;
         int maxX = maxCell.x;
@@ -1088,34 +1083,30 @@ public class RoomGenerator : MonoBehaviour
         }
         if (fallbackTile == null) return;
 
-        for (int y = minY; y <= maxY; y++)
+        // Remove every existing tile outside the walkable rectangle, including
+        // rows above the upper wall and below the lower wall.
+        for (int y = originalBounds.yMin; y < originalBounds.yMax; y++)
         {
-            TileBase rowTile = null;
             for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
             {
-                rowTile = floor.GetTile(new Vector3Int(x, y, 0));
-                if (rowTile != null) break;
-            }
-            if (rowTile == null) rowTile = fallbackTile;
-
-            // Remove tiles beyond the room's side-wall inner faces.
-            for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
-            {
-                if (x < minX || x > maxX)
+                if (x < minX || x > maxX || y < minY || y > maxY)
                     floor.SetTile(new Vector3Int(x, y, 0), null);
             }
+        }
 
-            // Fill gaps and extend the wooden floor exactly from wall to wall.
+        // Fill any gaps and extend the floor only through cells fully inside the walls.
+        for (int y = minY; y <= maxY; y++)
+        {
             for (int x = minX; x <= maxX; x++)
             {
                 Vector3Int cell = new Vector3Int(x, y, 0);
                 if (floor.GetTile(cell) == null)
-                    floor.SetTile(cell, rowTile);
+                    floor.SetTile(cell, fallbackTile);
             }
         }
     }
 
-    private static void GetPlayableMetrics(out Vector2 centre, out float width, out float height)
+        private static void GetPlayableMetrics(out Vector2 centre, out float width, out float height)
     {
         const float referenceWidth = 1920f;
         const float referenceHeight = 1080f;
