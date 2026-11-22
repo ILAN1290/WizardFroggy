@@ -631,6 +631,7 @@ public class RoomGenerator : MonoBehaviour
             spriteBounds.size.x / Mathf.Max(0.001f, Mathf.Abs(scale.x)),
             spriteBounds.size.y / Mathf.Max(0.001f, Mathf.Abs(scale.y))) * 0.92f;
         sensor.isTrigger = true;
+        Physics2D.SyncTransforms();
     }
 
     private Vector2 GetSafeDoorSpawnPosition(
