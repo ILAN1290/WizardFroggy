@@ -18216,6 +18216,20 @@ MonoBehaviour:
   lobbyEnvironmentName: Library Environment
   lobbyPlayerPosition: {x: 0, y: -3}
   itemPickupSound: {fileID: 8300000, guid: d798a253eb5a8f64a825c979d1cf93a5, type: 3}
+  merchantTextures:
+    panelBackground: {fileID: 0}
+    closeButton: {fileID: 0}
+    itemSlotBackground: {fileID: 0}
+    itemSlotSelectedBackground: {fileID: 0}
+    itemSlotSoldBackground: {fileID: 0}
+    itemDescriptionBackground: {fileID: 0}
+    itemBuyButton: {fileID: 0}
+    currencyIcon: {fileID: 0}
+    upgradeRowBackground: {fileID: 0}
+    upgradePlusButton: {fileID: 0}
+    upgradeMinusButton: {fileID: 0}
+    upgradeLevelFilled: {fileID: 0}
+    upgradeLevelEmpty: {fileID: 0}
 --- !u!114 &2100000002
 MonoBehaviour:
   m_ObjectHideFlags: 0
