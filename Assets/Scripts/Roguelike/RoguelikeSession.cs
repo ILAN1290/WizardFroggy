@@ -556,7 +556,8 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         // Compact currency HUD: a small mushroom icon followed by the amount.
-        Rect mushroomRect = new Rect(frame.x + 2f, frame.yMax + 5f, 25f, 25f);
+        // Three times the original 25x25 HUD icon, without distorting it.
+        Rect mushroomRect = new Rect(frame.x + 2f, frame.yMax + 5f, 75f, 75f);
         Texture2D icon = GetMushroomHudTexture();
         if (icon != null)
             GUI.DrawTexture(mushroomRect, icon, ScaleMode.ScaleToFit, true);
@@ -570,8 +571,8 @@ public class RoguelikeSession : MonoBehaviour
             mushroomCountStyle.normal.textColor = Color.white;
         }
 
-        Rect countRect = new Rect(mushroomRect.xMax + 4f, mushroomRect.y - 10f,
-            150f, 45f);
+        Rect countRect = new Rect(mushroomRect.xMax + 4f, mushroomRect.y + 15f,
+            150f, 55f);
         GUI.Label(countRect, PlayerRunData.EnsureInstance().Mushrooms.ToString(),
             mushroomCountStyle);
     }
