@@ -29,72 +29,143 @@ public class RoguelikeMerchant : MonoBehaviour
         PlayerRunData data = PlayerRunData.EnsureInstance();
         Inventory inventory = Inventory.Instance;
 
-        Rect panel = new Rect(Screen.width * 0.5f - 300f,
-            Screen.height * 0.5f - 235f, 600f, 470f);
+        Rect panel = new Rect(Screen.width * 0.5f - 330f,
+            Screen.height * 0.5f - 285f, 660f, 570f);
         GUI.Box(panel, "ЛАВКА СТАРОГО БИБЛИОТЕКАРЯ");
-        GUI.Label(new Rect(panel.x + 24, panel.y + 34, 540, 28),
+        GUI.Label(new Rect(panel.x + 24, panel.y + 34, 600, 28),
             "Грибочки: " + data.Mushrooms);
 
-        Item[] items = Resources.LoadAll<Item>("RoguelikeLoot");
-        float y = panel.y + 72f;
-        GUI.Label(new Rect(panel.x + 24, y, 260, 28), "Предметы");
-        GUI.Label(new Rect(panel.x + 315, y, 260, 28), "Посохи");
-        y += 32f;
+        GUI.Label(new Rect(panel.x + 24, panel.y + 72, 290, 28), "Предметы");
+        GUI.Label(new Rect(panel.x + 350, panel.y + 72, 285, 28),
+            "Улучшения посоха и персонажа");
 
+        Item[] items = Resources.LoadAll<Item>("RoguelikeLoot");
+        float itemY = panel.y + 104f;
         for (int i = 0; i < items.Length && i < 6; i++)
         {
             Item item = items[i];
             int price = GetItemPrice(item);
-            if (GUI.Button(new Rect(panel.x + 24, y, 270, 34),
+            if (GUI.Button(new Rect(panel.x + 24, itemY, 290, 34),
                 item.itemName + " • " + price + " гриб."))
                 BuyItem(item, price);
-            y += 38f;
+            itemY += 38f;
         }
 
-        StaffData[] staves = Resources.LoadAll<StaffData>("RoguelikeStaves");
-        float staffY = panel.y + 104f;
-        for (int i = 0; i < staves.Length && i < 6; i++)
-        {
-            StaffData staff = staves[i];
-            int price = GetStaffPrice(staff);
-            string equipped = data.EquippedStaff == staff ? " ✓" : "";
-            string label = staff.displayName + equipped + " | ур." +
-                staff.damage.ToString("0") + " | " +
-                staff.shotsPerSecond.ToString("0.0") + "/с | мана " +
-                staff.manaCost.ToString("0");
-            if (GUI.Button(new Rect(panel.x + 315, staffY, 260, 44),
-                label + " • " + price))
-                BuyStaff(staff, price);
-            staffY += 48f;
-        }
+        DrawUpgradeButton(data, panel, RoguelikeUpgradeType.StaffDamage,
+            "Урон посоха", panel.y + 104f);
+        DrawUpgradeButton(data, panel, RoguelikeUpgradeType.ManaConsumption,
+            "Расход маны", panel.y + 148f);
+        DrawUpgradeButton(data, panel, RoguelikeUpgradeType.ManaRegeneration,
+            "Восстановление маны", panel.y + 192f);
+        DrawUpgradeButton(data, panel, RoguelikeUpgradeType.MaximumHealth,
+            "Максимальное здоровье", panel.y + 236f);
+        DrawUpgradeButton(data, panel, RoguelikeUpgradeType.Defense,
+            "Защита", panel.y + 280f);
 
-        float sellY = panel.y + 310f;
-        GUI.Label(new Rect(panel.x + 24, sellY, 540, 26),
+        GUI.Label(new Rect(panel.x + 24, panel.y + 350f, 600, 26),
             "Продажа предметов из инвентаря");
-        sellY += 28f;
+        float sellY = panel.y + 380f;
 
         if (inventory != null)
         {
             int shown = 0;
-            for (int i = 0; i < inventory.Size && shown < 6; i++)
+            for (int i = 0; i < inventory.Size && shown < 4; i++)
             {
                 ItemStack stack = inventory.GetSlot(i);
                 if (stack == null || stack.IsEmpty) continue;
 
                 int sellPrice = Mathf.Max(1, GetItemPrice(stack.item) / 2);
-                if (GUI.Button(new Rect(panel.x + 24, sellY, 330, 30),
+                if (GUI.Button(new Rect(panel.x + 24, sellY, 400, 28),
                     "Продать 1 × " + stack.item.itemName + "  (+" + sellPrice + ")"))
                     SellOne(i, sellPrice);
 
-                sellY += 32f;
+                sellY += 31f;
                 shown++;
-                if (sellY > panel.y + 420f) break;
             }
         }
 
-        if (GUI.Button(new Rect(panel.x + 390, panel.y + 420, 185, 34),
+        if (GUI.Button(new Rect(panel.x + 475, panel.y + 520f, 160, 32),
             "Закрыть"))
             owner.CloseShop();
+    }
+
+    private void DrawUpgradeButton(
+        PlayerRunData data, Rect panel, RoguelikeUpgradeType type,
+        string title, float y)
+    {
+        int level = data.GetUpgradeLevel(type);
+        bool maxed = !data.CanUpgrade(type);
+        int price = data.GetUpgradePrice(type);
+
+        string label = maxed
+            ? title + " • ур. " + level + " • МАКС."
+            : title + " " + GetUpgradeValue(data, type, false) +
+              " → " + GetUpgradeValue(data, type, true) +
+              " • " + price + " гриб.";
+
+        bool previousGuiEnabled = GUI.enabled;
+        GUI.enabled = previousGuiEnabled && !maxed && data.Mushrooms >= price;
+        if (GUI.Button(new Rect(panel.x + 350, y, 285, 38), label))
+            BuyUpgrade(type);
+        GUI.enabled = previousGuiEnabled;
+    }
+
+    private static string GetUpgradeValue(
+        PlayerRunData data, RoguelikeUpgradeType type, bool next)
+    {
+        int level = data.GetUpgradeLevel(type) + (next ? 1 : 0);
+        switch (type)
+        {
+            case RoguelikeUpgradeType.StaffDamage:
+                return (7.5f + level * 2.5f).ToString("0.0");
+            case RoguelikeUpgradeType.ManaConsumption:
+                return Mathf.Max(5f, 20f - level * 1.5f).ToString("0.0");
+            case RoguelikeUpgradeType.ManaRegeneration:
+                return (15f + level * 2.5f).ToString("0.0") + "/с";
+            case RoguelikeUpgradeType.MaximumHealth:
+                return (100f + level * 20f).ToString("0");
+            case RoguelikeUpgradeType.Defense:
+                return (level * 4).ToString("0") + "%";
+            default:
+                return "—";
+        }
+    }
+
+    private void BuyUpgrade(RoguelikeUpgradeType type)
+    {
+        PlayerRunData data = PlayerRunData.EnsureInstance();
+        int price = data.GetUpgradePrice(type);
+        if (!data.CanUpgrade(type))
+        {
+            RoguelikeSession.Instance.ShowHint("Это улучшение уже максимального уровня.");
+            return;
+        }
+        if (!data.TryUpgrade(type))
+        {
+            RoguelikeSession.Instance.ShowHint("Не хватает грибочков.");
+            return;
+        }
+
+        if (type == RoguelikeUpgradeType.MaximumHealth)
+        {
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            PlayerHealth playerHealth = player != null
+                ? player.GetComponent<PlayerHealth>() : null;
+            if (playerHealth != null)
+                playerHealth.ApplyMaximumHealthUpgrade();
+        }
+
+        string upgradeName = type == RoguelikeUpgradeType.StaffDamage
+            ? "Урон посоха"
+            : type == RoguelikeUpgradeType.ManaConsumption
+                ? "Расход маны"
+                : type == RoguelikeUpgradeType.ManaRegeneration
+                    ? "Восстановление маны"
+                    : type == RoguelikeUpgradeType.MaximumHealth
+                        ? "Максимальное здоровье" : "Защита";
+        RoguelikeSession.Instance.ShowHint(
+            upgradeName + " улучшено до " + data.GetUpgradeLevel(type) +
+            " уровня. Потрачено " + price + " грибочков.");
     }
 
     private void BuyItem(Item item, int price)
@@ -116,26 +187,6 @@ public class RoguelikeMerchant : MonoBehaviour
 
         Inventory.Instance.Add(item, 1);
         RoguelikeSession.Instance.ShowHint("Куплено: " + item.itemName);
-    }
-
-    private void BuyStaff(StaffData staff, int price)
-    {
-        if (staff == null) return;
-        PlayerRunData data = PlayerRunData.EnsureInstance();
-
-        if (data.EquippedStaff == staff)
-        {
-            RoguelikeSession.Instance.ShowHint("Этот посох уже экипирован.");
-            return;
-        }
-        if (!data.SpendMushrooms(price))
-        {
-            RoguelikeSession.Instance.ShowHint("Не хватает грибочков.");
-            return;
-        }
-
-        data.EquipStaff(staff);
-        RoguelikeSession.Instance.ShowHint("Экипирован посох: " + staff.displayName);
     }
 
     private void SellOne(int slotIndex, int price)
@@ -161,11 +212,4 @@ public class RoguelikeMerchant : MonoBehaviour
         return 10;
     }
 
-    private int GetStaffPrice(StaffData staff)
-    {
-        if (staff == null) return 0;
-        if (staff.staffId == "oak") return 55;
-        if (staff.staffId == "crystal") return 90;
-        return 0;
-    }
 }
