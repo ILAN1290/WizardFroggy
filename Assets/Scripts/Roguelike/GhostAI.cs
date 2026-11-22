@@ -22,6 +22,9 @@ public class GhostAI : MonoBehaviour
     private readonly RaycastHit2D[] hitBuffer = new RaycastHit2D[16];
     private readonly Collider2D[] nearbyGhostBuffer = new Collider2D[16];
 
+    private static int nextGhostId;
+    private int ghostId;
+
     private Rigidbody2D body;
     private CircleCollider2D bodyCollider;
     private Transform player;
@@ -59,6 +62,7 @@ public class GhostAI : MonoBehaviour
 
     private void Awake()
     {
+        ghostId = ++nextGhostId;
         body = GetComponent<Rigidbody2D>();
         bodyCollider = GetComponent<CircleCollider2D>();
         if (body != null)
@@ -236,8 +240,8 @@ public class GhostAI : MonoBehaviour
             {
                 // A deterministic pair-specific direction prevents three or
                 // more coincident ghosts from cancelling each other's separation.
-                int ownId = GetInstanceID();
-                int otherId = other.GetInstanceID();
+                int ownId = ghostId;
+                int otherId = other.ghostId;
                 int firstId = Mathf.Min(ownId, otherId);
                 int secondId = Mathf.Max(ownId, otherId);
                 uint pairHash;
