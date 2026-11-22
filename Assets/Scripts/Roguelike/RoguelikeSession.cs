@@ -581,7 +581,7 @@ public class RoguelikeSession : MonoBehaviour
             // Special-room icons are only revealed after the player enters the room.
             if (!room.IsVisited) continue;
 
-            Vector2 centre = RoomCentre(room);
+            Vector2 centre = GetMiniMapRoomCentre(room, currentFloor.Height, left, top, pitchX, pitchY);
             Rect roomRect = new Rect(centre.x - roomWidth * 0.5f,
                 centre.y - roomHeight * 0.5f, roomWidth, roomHeight);
             Color roomColour = room.Index == currentRoomIndex
