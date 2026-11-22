@@ -274,8 +274,7 @@ public class InventoryUI : MonoBehaviour
 
     private void UpdateInventoryOcclusion()
     {
-        // InventoryToggle owns the inner CanvasGroup. Only fade the outer wrapper
-        // while the inventory is genuinely open.
+        // Inventory and hotbar are faded independently.
         bool inventoryOpen = inventoryVisibilityGroup != null &&
             inventoryVisibilityGroup.alpha > 0.01f &&
             inventoryVisibilityGroup.blocksRaycasts &&
@@ -286,7 +285,7 @@ public class InventoryUI : MonoBehaviour
         if (hotbarCanvasGroup != null)
             hotbarCanvasGroup.alpha = hotbarBaseAlpha;
 
-        if (!inventoryOpen || player == null ||
+        if (player == null ||
             (inventoryOcclusionGroup == null && hotbarCanvasGroup == null))
             return;
 
@@ -328,10 +327,10 @@ public class InventoryUI : MonoBehaviour
             hotbarRoot, playerScreenBounds, uiCamera);
 
         if (inventoryOcclusionGroup != null)
-            inventoryOcclusionGroup.alpha = overlapsInventory ? overlapAlpha : 1f;
+            inventoryOcclusionGroup.alpha =
+                inventoryOpen && overlapsInventory ? overlapAlpha : 1f;
 
-        // The hotbar fades only when the inventory panel is open and the player
-        // actually overlaps the hotbar. A closed inventory never dims the hotbar.
+        // The hotbar fades independently whenever the player crosses it.
         if (hotbarCanvasGroup != null)
             hotbarCanvasGroup.alpha = hotbarBaseAlpha *
                 (overlapsHotbar ? overlapAlpha : 1f);
