@@ -49,7 +49,6 @@ public class PlayerController : MonoBehaviour
     //Mana
     [Header("Mana")]
     [SerializeField] private PlayerMana mana;
-    [SerializeField] private float spendingManaByProjectile = 30f;
     [SerializeField] private float spendingManaByInvincibilityBySecond = 10f;
     [SerializeField] private float spendingManaByParry = 10f;
 
@@ -67,7 +66,6 @@ public class PlayerController : MonoBehaviour
 
     //Health
     private PlayerHealth playerHealth;
-    private StaffData equippedStaff;
 
 
     void Start()
@@ -79,7 +77,6 @@ public class PlayerController : MonoBehaviour
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
         InitializeMovementHitbox();
-        ApplyEquippedStaff();
     }
 
     private void InitializeMovementHitbox()
@@ -144,20 +141,11 @@ public class PlayerController : MonoBehaviour
         movementCollider.isTrigger = false;
     }
 
-    private void ApplyEquippedStaff()
-    {
-        StaffData selected = PlayerRunData.EnsureInstance().EquippedStaff;
-        if (selected == null || selected == equippedStaff) return;
-        equippedStaff = selected;
-        projectileCooldown = equippedStaff.ShotCooldown;
-        spendingManaByProjectile = equippedStaff.manaCost;
-        cooldownTimer = Mathf.Clamp(cooldownTimer, 0f, projectileCooldown);
-    }
-
     private void Shoot()
     {
-        ApplyEquippedStaff();
-        if(canShoot && !isInvincible && mana.CurrentMana >= spendingManaByProjectile && InputManager.instance.ShootInput)
+        float manaCost = PlayerRunData.EnsureInstance().ProjectileManaCost;
+        if (canShoot && !isInvincible && mana.CurrentMana >= manaCost &&
+            InputManager.instance.ShootInput)
         {
             Launch();
         }
@@ -311,7 +299,8 @@ public class PlayerController : MonoBehaviour
         {
             AudioManager.instance.PlaySoundFXClip(chargeSound, transform, 0.1f);
             cooldownTimer = 0;
-            mana.SpendMana(spendingManaByProjectile);
+            PlayerRunData runData = PlayerRunData.EnsureInstance();
+            mana.SpendMana(runData.ProjectileManaCost);
             Vector3 spawnPosition = rb.position + Vector2.up * 0.5f;
             Transform projectileParent = RoguelikeSession.ProjectileRoot;
             GameObject projectileObject = projectileParent != null
@@ -319,9 +308,8 @@ public class PlayerController : MonoBehaviour
                 : Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
             Projectile projectile = projectileObject.GetComponent<Projectile>();
             PlayerEffects effects = GetComponent<PlayerEffects>();
-            float staffDamage = equippedStaff != null ? equippedStaff.damage : 7f;
             float damageMultiplier = effects != null ? effects.DamageMultiplier : 1f;
-            projectile.SetDamage(staffDamage * damageMultiplier);
+            projectile.SetDamage(runData.StaffDamage * damageMultiplier);
             projectile.Launch(FacingDirection, projectileForce);
         }
     }
