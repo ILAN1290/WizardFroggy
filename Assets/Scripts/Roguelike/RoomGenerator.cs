@@ -25,6 +25,15 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite mushroomSprite;
     [SerializeField] private Sprite itemSprite;
 
+    [Header("Стены и двери")]
+    [SerializeField] private Sprite upperWallTileSprite;
+    [SerializeField] private Sprite leftWallTileSprite;
+    [SerializeField] private Sprite rightWallTileSprite;
+    [SerializeField] private Sprite bottomWallTileSprite;
+    [SerializeField] private Sprite[] mossyWallTiles = new Sprite[3];
+    [SerializeField] private Sprite[] closedUpperDoorSprites = new Sprite[6];
+    [SerializeField] private Sprite[] openedUpperDoorSprites = new Sprite[6];
+
     private Transform cachedPlayerTransform;
     private GameObject upperShelfPrefab;
     private GameObject lateralShelfPrefab;
@@ -52,12 +61,11 @@ public class RoomGenerator : MonoBehaviour
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
         cachedPlayerTransform = playerObject != null ? playerObject.transform : null;
 
-        // Room boundaries are intentionally open while the wall set is being redesigned.
         GetPlayableMetrics(out Vector2 roomCentre, out float roomWidth, out float roomHeight);
         RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
             room, floorNumber, floorSeed, roomWidth, roomHeight, roomCentre);
 
-        CreateRoomTransitions(root, session, room, roomCentre, roomWidth, roomHeight);
+        CreateRoomBoundaries(root, session, room, roomCentre, roomWidth, roomHeight);
 
         foreach (RoguelikeShelfPlacement shelf in layout.Shelves)
             CreateShelf(root, shelf.Name, shelf.Position, shelf.Upper, shelf.Scale);
@@ -119,68 +127,392 @@ public class RoomGenerator : MonoBehaviour
         ApplyPlaceholder(exit, exitSprite, "ВЫХОД", session);
     }
 
-    private void CreateRoomTransitions(Transform root, RoguelikeSession session,
+    private void CreateRoomBoundaries(Transform root, RoguelikeSession session,
         RoguelikeRoomData room, Vector2 centre, float width, float height)
     {
         if (room == null || session == null) return;
+
+        Transform wallTilesRoot = CreateFolder(root, "Wall Tiles");
+        Transform wallCollidersRoot = CreateFolder(root, "Wall Colliders");
+        Transform doorsRoot = CreateFolder(root, "Doors");
+
+        bool hasLeft = room.X > 0 && room.Neighbours.Contains(room.Index - 1);
+        bool hasRight = room.X < 3 && room.Neighbours.Contains(room.Index + 1);
+        bool hasDown = room.Y > 0 && room.Neighbours.Contains(room.Index - 4);
+        bool hasUp = room.Y < 3 && room.Neighbours.Contains(room.Index + 4);
 
         float left = centre.x - width * 0.5f;
         float right = centre.x + width * 0.5f;
         float bottom = centre.y - height * 0.5f;
         float top = centre.y + height * 0.5f;
-        const float edgeInset = 0.25f;
-        const float sideSpawnInset = 5.8f;
-        const float verticalSpawnInset = 4.1f;
-        const float sensorDepth = 0.8f;
-        const float sensorSpan = 2.8f;
 
-        if (room.X > 0 && room.Neighbours.Contains(room.Index - 1))
+        CreateUpperWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
+            session, room, centre, width, top, hasUp);
+        CreateVerticalWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
+            session, "Left", left - 0.5f, centre.y, height,
+            leftWallTileSprite, hasLeft, -1, 0,
+            new Vector2(right - 5.8f, centre.y));
+        CreateVerticalWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
+            session, "Right", right + 0.5f, centre.y, height,
+            rightWallTileSprite, hasRight, 1, 0,
+            new Vector2(left + 5.8f, centre.y));
+        CreateBottomWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
+            session, centre, width, bottom, hasDown);
+    }
+
+    private static Transform CreateFolder(Transform parent, string folderName)
+    {
+        GameObject folder = new GameObject(folderName);
+        folder.transform.SetParent(parent, false);
+        return folder.transform;
+    }
+
+    private void CreateUpperWall(Transform tilesRoot, Transform collidersRoot,
+        Transform doorsRoot, RoguelikeSession session, RoguelikeRoomData room,
+        Vector2 centre, float width, float innerY, bool hasDoor)
+    {
+        Sprite baseTile = upperWallTileSprite;
+        if (baseTile == null) return;
+
+        const int rows = 3;
+        const int doorWidthTiles = 3;
+        float tileWidth = Mathf.Max(0.001f, baseTile.bounds.size.x);
+        float tileHeight = Mathf.Max(0.001f, baseTile.bounds.size.y);
+        int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
+        float coveredWidth = fullColumns * tileWidth;
+        float left = centre.x - coveredWidth * 0.5f;
+        int centreColumn = fullColumns / 2;
+        int firstDoorColumn = centreColumn - doorWidthTiles / 2;
+        int lastDoorColumn = firstDoorColumn + doorWidthTiles - 1;
+
+        for (int row = 0; row < rows; row++)
         {
-            CreateRoomTransition(root, "Переход через левый край",
-                new Vector2(left + edgeInset, centre.y),
-                new Vector2(sensorDepth, sensorSpan), session, -1, 0,
-                new Vector2(right - sideSpawnInset, centre.y));
+            for (int column = 0; column < fullColumns; column++)
+            {
+                bool insideDoor = hasDoor && row < 2 &&
+                    column >= firstDoorColumn && column <= lastDoorColumn;
+                if (insideDoor) continue;
+
+                Sprite tile = ChooseUpperWallTile(room.Index, column, row);
+                CreateWallTile(tilesRoot, "Верхняя стена • тайл",
+                    new Vector2(left + (column + 0.5f) * tileWidth,
+                        innerY + (row + 0.5f) * tileHeight),
+                    tile, Color.white, 3);
+            }
+
+            // The source room width is not an integer number of 16x16 tiles.
+            // Two narrow edge pieces close the remaining half-tile without
+            // stretching the complete wall texture.
+            float remainder = width - coveredWidth;
+            if (remainder > 0.001f)
+            {
+                float partialWidth = remainder * 0.5f;
+                float rowY = innerY + (row + 0.5f) * tileHeight;
+                Sprite leftTile = ChooseUpperWallTile(room.Index, -1, row);
+                Sprite rightTile = ChooseUpperWallTile(room.Index, fullColumns, row);
+                CreateWallTile(tilesRoot, "Верхняя стена • край",
+                    new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f, rowY),
+                    leftTile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
+                CreateWallTile(tilesRoot, "Верхняя стена • край",
+                    new Vector2(centre.x + width * 0.5f - partialWidth * 0.5f, rowY),
+                    rightTile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
+            }
         }
 
-        if (room.X < 3 && room.Neighbours.Contains(room.Index + 1))
-        {
-            CreateRoomTransition(root, "Переход через правый край",
-                new Vector2(right - edgeInset, centre.y),
-                new Vector2(sensorDepth, sensorSpan), session, 1, 0,
-                new Vector2(left + sideSpawnInset, centre.y));
-        }
+        float colliderY = innerY + tileHeight * 0.5f;
+        CreateHorizontalWallColliders(collidersRoot, "Верхняя стена",
+            centre.x, colliderY, width, tileHeight,
+            hasDoor, doorWidthTiles * tileWidth);
 
-        if (room.Y > 0 && room.Neighbours.Contains(room.Index - 4))
+        if (hasDoor)
         {
-            CreateRoomTransition(root, "Переход через нижний край",
-                new Vector2(centre.x, bottom + edgeInset),
-                new Vector2(sensorSpan, sensorDepth), session, 0, -1,
-                new Vector2(centre.x, top - verticalSpawnInset));
-        }
-
-        if (room.Y < 3 && room.Neighbours.Contains(room.Index + 4))
-        {
-            CreateRoomTransition(root, "Переход через верхний край",
-                new Vector2(centre.x, top - edgeInset),
-                new Vector2(sensorSpan, sensorDepth), session, 0, 1,
-                new Vector2(centre.x, bottom + verticalSpawnInset));
+            Vector2 doorPosition = new Vector2(centre.x, colliderY);
+            Vector2 spawn = new Vector2(centre.x, innerY - 4.1f);
+            CreateUpperDoor(doorsRoot, session, doorPosition, spawn,
+                doorWidthTiles * tileWidth, tileHeight);
         }
     }
 
-    private static void CreateRoomTransition(Transform root, string objectName,
-        Vector2 position, Vector2 size, RoguelikeSession session,
-        int dx, int dy, Vector2 spawnPosition)
+    private Sprite ChooseUpperWallTile(int roomIndex, int column, int row)
     {
-        GameObject transition = new GameObject(objectName);
-        transition.transform.SetParent(root, false);
-        transition.transform.localPosition = new Vector3(position.x, position.y, 0f);
+        if (mossyWallTiles == null || mossyWallTiles.Length == 0)
+            return upperWallTileSprite;
 
-        BoxCollider2D sensor = transition.AddComponent<BoxCollider2D>();
+        // Deterministic pattern: the vines are mixed into the stonework but
+        // retain the exact 16x16 source tile proportions.
+        int pattern = Mathf.Abs(roomIndex * 7 + column * 5 + row * 3) % 9;
+        bool useVine = row > 0
+            ? pattern == 0 || (row == 2 && pattern == 4)
+            : pattern == 0;
+        if (!useVine) return upperWallTileSprite;
+
+        int vineIndex = Mathf.Abs(roomIndex + column + row) % mossyWallTiles.Length;
+        return mossyWallTiles[vineIndex] != null
+            ? mossyWallTiles[vineIndex] : upperWallTileSprite;
+    }
+
+    private void CreateVerticalWall(Transform tilesRoot, Transform collidersRoot,
+        Transform doorsRoot, RoguelikeSession session, string sideName,
+        float wallX, float centreY, float height, Sprite tileSprite,
+        bool hasDoor, int dx, int dy, Vector2 spawnPosition)
+    {
+        if (tileSprite == null) return;
+
+        float tileWidth = Mathf.Max(0.001f, tileSprite.bounds.size.x);
+        float tileHeight = Mathf.Max(0.001f, tileSprite.bounds.size.y);
+        int rows = Mathf.Max(2, Mathf.CeilToInt(height / tileHeight));
+        if (rows % 2 != 0) rows++;
+        int firstDoorRow = rows / 2 - 1;
+        int lastDoorRow = firstDoorRow + 1;
+        float coveredHeight = rows * tileHeight;
+        float bottom = centreY - coveredHeight * 0.5f;
+
+        for (int row = 0; row < rows; row++)
+        {
+            if (hasDoor && row >= firstDoorRow && row <= lastDoorRow)
+                continue;
+
+            CreateWallTile(tilesRoot, sideName + " wall • tile",
+                new Vector2(wallX, bottom + (row + 0.5f) * tileHeight),
+                tileSprite, Color.white, 3);
+        }
+
+        CreateVerticalWallColliders(collidersRoot, sideName + " wall",
+            wallX, centreY, height, tileWidth,
+            hasDoor, 2f * tileHeight);
+
+        if (!hasDoor) return;
+
+        Vector2 doorPosition = new Vector2(wallX, centreY);
+        Color lockedTint = new Color(0.58f, 0.58f, 0.58f, 1f);
+        CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
+            doorPosition, spawnPosition, new Vector2(tileWidth, 2f * tileHeight),
+            new Vector2(tileWidth + 0.55f, 2.5f * tileHeight),
+            dx < 0 ? new Vector2(0.65f, 0f) : new Vector2(-0.65f, 0f),
+            tileSprite, 1, 2, lockedTint);
+    }
+
+    private void CreateBottomWall(Transform tilesRoot, Transform collidersRoot,
+        Transform doorsRoot, RoguelikeSession session, Vector2 centre,
+        float width, float innerY, bool hasDoor)
+    {
+        Sprite tile = bottomWallTileSprite;
+        if (tile == null) return;
+
+        float tileWidth = Mathf.Max(0.001f, tile.bounds.size.x);
+        float tileHeight = Mathf.Max(0.001f, tile.bounds.size.y);
+        int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
+        float coveredWidth = fullColumns * tileWidth;
+        float left = centre.x - coveredWidth * 0.5f;
+        const int doorWidthTiles = 3;
+        int centreColumn = fullColumns / 2;
+        int firstDoorColumn = centreColumn - doorWidthTiles / 2;
+        int lastDoorColumn = firstDoorColumn + doorWidthTiles - 1;
+
+        for (int column = 0; column < fullColumns; column++)
+        {
+            if (hasDoor && column >= firstDoorColumn && column <= lastDoorColumn)
+                continue;
+
+            CreateWallTile(tilesRoot, "Нижняя стена • тайл",
+                new Vector2(left + (column + 0.5f) * tileWidth, innerY - tileHeight * 0.5f),
+                tile, Color.white, 3);
+        }
+
+        float remainder = width - coveredWidth;
+        if (remainder > 0.001f)
+        {
+            float partialWidth = remainder * 0.5f;
+            CreateWallTile(tilesRoot, "Нижняя стена • край",
+                new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f,
+                    innerY - tileHeight * 0.5f),
+                tile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
+            CreateWallTile(tilesRoot, "Нижняя стена • край",
+                new Vector2(centre.x + width * 0.5f - partialWidth * 0.5f,
+                    innerY - tileHeight * 0.5f),
+                tile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
+        }
+
+        CreateHorizontalWallColliders(collidersRoot, "Нижняя стена",
+            centre.x, innerY - tileHeight * 0.5f, width, tileHeight,
+            hasDoor, doorWidthTiles * tileWidth);
+
+        if (hasDoor)
+        {
+            Color lockedTint = new Color(0.58f, 0.58f, 0.58f, 1f);
+            CreateWallTileDoor(doorsRoot, session, "Нижняя дверь",
+                new Vector2(centre.x, innerY - tileHeight * 0.5f),
+                new Vector2(centre.x, innerY + 4.1f),
+                new Vector2(doorWidthTiles * tileWidth, tileHeight),
+                new Vector2(doorWidthTiles * tileWidth + 0.5f, tileHeight + 0.8f),
+                new Vector2(0f, 0.65f),
+                tile, doorWidthTiles, 2, lockedTint, true);
+        }
+    }
+
+    private void CreateUpperDoor(Transform doorsRoot, RoguelikeSession session,
+        Vector2 position, Vector2 spawnPosition, float width, float tileHeight)
+    {
+        GameObject door = CreateDoorRoot(doorsRoot, "Верхняя дверь", position);
+        BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
+        blocker.size = new Vector2(width, tileHeight);
+
+        BoxCollider2D sensor = door.AddComponent<BoxCollider2D>();
         sensor.isTrigger = true;
-        sensor.size = size;
+        sensor.size = new Vector2(width, tileHeight + 0.8f);
+        sensor.offset = new Vector2(0f, -0.65f);
 
-        transition.AddComponent<RoguelikeRoomTransition>().Initialize(
-            session, dx, dy, spawnPosition);
+        SpriteRenderer[] renderers = new SpriteRenderer[6];
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            int column = i % 3;
+            int row = i / 3;
+            SpriteRenderer renderer = CreateDoorTile(door.transform,
+                "Верхняя дверь • тайл " + i,
+                new Vector2((column - 1) * tileHeight,
+                    0.5f + (0.5f - row) * tileHeight),
+                closedUpperDoorSprites != null && i < closedUpperDoorSprites.Length
+                    ? closedUpperDoorSprites[i] : null,
+                Color.white);
+            renderers[i] = renderer;
+        }
+
+        door.AddComponent<RoguelikeRoomTransition>().Initialize(
+            session, 0, 1, spawnPosition, blocker, sensor, renderers,
+            closedUpperDoorSprites, openedUpperDoorSprites, Color.white, false);
+    }
+
+    private void CreateWallTileDoor(Transform doorsRoot, RoguelikeSession session,
+        string doorName, Vector2 position, Vector2 spawnPosition,
+        Vector2 blockerSize, Vector2 sensorSize, Vector2 sensorOffset,
+        Sprite tileSprite, int columns, int rows, Color lockedTint,
+        bool extendDown = false)
+    {
+        GameObject door = CreateDoorRoot(doorsRoot, doorName, position);
+        BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
+        blocker.size = blockerSize;
+
+        BoxCollider2D sensor = door.AddComponent<BoxCollider2D>();
+        sensor.isTrigger = true;
+        sensor.size = sensorSize;
+        sensor.offset = sensorOffset;
+
+        SpriteRenderer[] renderers = new SpriteRenderer[columns * rows];
+        Sprite[] lockedSprites = new Sprite[renderers.Length];
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            int column = i % columns;
+            int row = i / columns;
+            float y = extendDown
+                ? -0.5f - row
+                : 0.5f - row;
+            SpriteRenderer renderer = CreateDoorTile(door.transform,
+                doorName + " • тайл " + i,
+                new Vector2(column - (columns - 1) * 0.5f, y),
+                tileSprite, lockedTint);
+            renderers[i] = renderer;
+            lockedSprites[i] = tileSprite;
+        }
+
+        door.AddComponent<RoguelikeRoomTransition>().Initialize(
+            session, 0, extendDown ? -1 : 0, spawnPosition,
+            blocker, sensor, renderers, lockedSprites,
+            new Sprite[0], lockedTint, true);
+    }
+
+    private static GameObject CreateDoorRoot(Transform parent, string name, Vector2 position)
+    {
+        GameObject door = new GameObject(name);
+        door.tag = "Wall";
+        door.transform.SetParent(parent, false);
+        door.transform.localPosition = new Vector3(position.x, position.y, 0f);
+        return door;
+    }
+
+    private static SpriteRenderer CreateDoorTile(Transform parent, string name,
+        Vector2 localPosition, Sprite sprite, Color tint)
+    {
+        GameObject tile = new GameObject(name);
+        tile.transform.SetParent(parent, false);
+        tile.transform.localPosition = new Vector3(localPosition.x, localPosition.y, -0.02f);
+
+        SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.color = tint;
+        renderer.sortingOrder = 5;
+        return renderer;
+    }
+
+    private static void CreateWallTile(Transform parent, string name,
+        Vector2 position, Sprite sprite, Color tint, int sortingOrder,
+        Vector2 scale = default)
+    {
+        if (sprite == null) return;
+        if (scale == default) scale = Vector2.one;
+
+        GameObject tile = new GameObject(name);
+        tile.transform.SetParent(parent, false);
+        tile.transform.localPosition = new Vector3(position.x, position.y, 0f);
+        tile.transform.localScale = new Vector3(scale.x, scale.y, 1f);
+
+        SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.color = tint;
+        renderer.sortingOrder = sortingOrder;
+    }
+
+    private static void CreateHorizontalWallColliders(Transform parent,
+        string wallName, float centreX, float y, float totalWidth, float thickness,
+        bool hasDoor, float doorWidth)
+    {
+        if (!hasDoor || totalWidth <= doorWidth)
+        {
+            CreateWallCollider(parent, wallName, new Vector2(centreX, y),
+                new Vector2(totalWidth, thickness));
+            return;
+        }
+
+        float segmentWidth = (totalWidth - doorWidth) * 0.5f;
+        CreateWallCollider(parent, wallName + " • левая часть",
+            new Vector2(centreX - doorWidth * 0.5f - segmentWidth * 0.5f, y),
+            new Vector2(segmentWidth, thickness));
+        CreateWallCollider(parent, wallName + " • правая часть",
+            new Vector2(centreX + doorWidth * 0.5f + segmentWidth * 0.5f, y),
+            new Vector2(segmentWidth, thickness));
+    }
+
+    private static void CreateVerticalWallColliders(Transform parent,
+        string wallName, float x, float centreY, float totalHeight, float thickness,
+        bool hasDoor, float doorHeight)
+    {
+        if (!hasDoor || totalHeight <= doorHeight)
+        {
+            CreateWallCollider(parent, wallName, new Vector2(x, centreY),
+                new Vector2(thickness, totalHeight));
+            return;
+        }
+
+        float segmentHeight = (totalHeight - doorHeight) * 0.5f;
+        CreateWallCollider(parent, wallName + " • нижняя часть",
+            new Vector2(x, centreY - doorHeight * 0.5f - segmentHeight * 0.5f),
+            new Vector2(thickness, segmentHeight));
+        CreateWallCollider(parent, wallName + " • верхняя часть",
+            new Vector2(x, centreY + doorHeight * 0.5f + segmentHeight * 0.5f),
+            new Vector2(thickness, segmentHeight));
+    }
+
+    private static void CreateWallCollider(Transform parent, string name,
+        Vector2 position, Vector2 size)
+    {
+        if (size.x <= 0.01f || size.y <= 0.01f) return;
+
+        GameObject wall = new GameObject(name);
+        wall.tag = "Wall";
+        wall.transform.SetParent(parent, false);
+        wall.transform.localPosition = new Vector3(position.x, position.y, 0f);
+        BoxCollider2D collider = wall.AddComponent<BoxCollider2D>();
+        collider.size = size;
     }
 
     private void CreateShelf(Transform root, string objectName, Vector2 position,
