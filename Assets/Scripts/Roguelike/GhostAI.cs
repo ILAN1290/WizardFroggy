@@ -37,6 +37,7 @@ public class GhostAI : MonoBehaviour
     private float nextPlayerSearch;
     private int flankSide = 1;
     private bool canSeePlayer;
+    private bool movementSuspended;
     private Vector2 cachedSteering;
 
     public bool CanAttack { get; private set; }
@@ -69,9 +70,25 @@ public class GhostAI : MonoBehaviour
             body.useFullKinematicContacts = true;
     }
 
+    public void SetMovementSuspended(bool suspended)
+    {
+        movementSuspended = suspended;
+        if (suspended)
+        {
+            cachedSteering = Vector2.zero;
+            CanAttack = false;
+        }
+    }
+
     private void FixedUpdate()
     {
         if (body == null) return;
+        if (movementSuspended)
+        {
+            CanAttack = false;
+            cachedSteering = Vector2.zero;
+            return;
+        }
 
         // A ghost can be spawned or pushed partly inside a shelf/wall.
         // Resolve the penetration before steering so it can escape instead
