@@ -267,18 +267,26 @@ public class RoguelikeSession : MonoBehaviour
         return lootItems;
     }
 
-    public void OnEnemyDefeated(Vector2 position)
+    public void OnEnemyDefeated(Vector2 position, bool isMiniBoss = false)
     {
         enemiesRemaining = Mathf.Max(0, enemiesRemaining - 1);
         PlayerRunData.EnsureInstance();
 
-        SpawnMushroomPickup(position, Random.Range(1, 4));
-
-        Item[] loot = GetLootItems();
-        if (loot.Length > 0 && Random.value < 0.38f)
+        if (isMiniBoss)
         {
-            Item item = loot[Random.Range(0, loot.Length)];
-            SpawnItemPickup(item, 1, position + Random.insideUnitCircle * 0.55f);
+            SpawnChestLoot(position);
+            ShowHint("Минибосс повержен! Заберите добычу.");
+        }
+        else
+        {
+            SpawnMushroomPickup(position, Random.Range(1, 4));
+
+            Item[] loot = GetLootItems();
+            if (loot.Length > 0 && Random.value < 0.38f)
+            {
+                Item item = loot[Random.Range(0, loot.Length)];
+                SpawnItemPickup(item, 1, position + Random.insideUnitCircle * 0.55f);
+            }
         }
 
         if (enemiesRemaining == 0 && currentRoom != null)
@@ -292,6 +300,13 @@ public class RoguelikeSession : MonoBehaviour
 
     public void OpenChest(Vector2 position)
     {
+        SpawnChestLoot(position);
+        if (currentRoom != null) currentRoom.IsCleared = true;
+        ShowHint("Сундук открыт! Заберите добычу.");
+    }
+
+    private void SpawnChestLoot(Vector2 position)
+    {
         Item[] loot = GetLootItems();
         if (loot.Length > 0)
         {
@@ -302,8 +317,6 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         SpawnMushroomPickup(position + new Vector2(0.6f, 0f), Random.Range(6, 13));
-        if (currentRoom != null) currentRoom.IsCleared = true;
-        ShowHint("Сундук открыт! Заберите добычу.");
     }
 
     private void SpawnMushroomPickup(Vector2 position, int amount)
