@@ -569,10 +569,11 @@ public class RoomGenerator : MonoBehaviour
         }
 
         // The solid border sits on the outer row of the raised wall.
-        // This invisible barrier is aligned with the bottom edge of the
-        // lowest texture row, allowing the player to move behind the wall art.
+        // The TOP face of this invisible barrier is aligned with the bottom
+        // edge of the lowest texture row, so the player can move behind all
+        // three visible rows before reaching the room boundary.
         CreateHorizontalWallColliders(collidersRoot, "Нижняя стена",
-            centre.x, wallBaseY - tileHeight * 3f, width, tileHeight,
+            centre.x, wallBaseY - tileHeight * 3.5f, width, tileHeight,
             hasDoor, doorWidthTiles * tileWidth);
 
         if (hasDoor)
