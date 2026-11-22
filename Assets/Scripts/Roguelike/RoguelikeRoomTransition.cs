@@ -84,9 +84,8 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Transition only on a fresh contact with the actual door-sprite trigger.
-        // There is intentionally no OnTriggerStay: after arriving, the player
-        // must leave the doorway and touch it again to travel back.
+        // The trigger is fitted to the visible door sprite, so only doorway contact
+        // can begin a transition.
         if (!IsPlayer(other) || session == null) return;
 
         if (!session.IsCurrentRoomCleared)
@@ -94,6 +93,18 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
             session.TryMoveByDirection(directionX, directionY, spawnPosition);
             return;
         }
+
+        RequestTransition();
+    }
+
+    private void OnTriggerStay2D(Collider2D other)
+    {
+        // Waiting at a locked doorway is allowed: once the room is cleared,
+        // staying inside the door's sprite-sized trigger completes the transition.
+        // The arrival point is calculated outside this trigger, so this cannot
+        // bounce the player back and forth between rooms.
+        if (!IsPlayer(other) || session == null || !session.IsCurrentRoomCleared)
+            return;
 
         RequestTransition();
     }
