@@ -234,10 +234,23 @@ public class GhostAI : MonoBehaviour
 
             if (distance < 0.001f)
             {
-                // Deterministic opposite directions for ghosts that spawned
-                // at exactly the same position.
-                away = GetInstanceID() < other.GetInstanceID()
-                    ? Vector2.left : Vector2.right;
+                // A deterministic pair-specific direction prevents three or
+                // more coincident ghosts from cancelling each other's separation.
+                int ownId = GetInstanceID();
+                int otherId = other.GetInstanceID();
+                int firstId = Mathf.Min(ownId, otherId);
+                int secondId = Mathf.Max(ownId, otherId);
+                uint pairHash;
+                unchecked
+                {
+                    pairHash = (uint)(firstId * 73856093) ^
+                        (uint)(secondId * 19349663);
+                }
+
+                float angle = (pairHash % 360u) * Mathf.Deg2Rad;
+                Vector2 pairDirection = new Vector2(
+                    Mathf.Cos(angle), Mathf.Sin(angle));
+                away = ownId < otherId ? pairDirection : -pairDirection;
                 distance = 0.001f;
             }
             else
