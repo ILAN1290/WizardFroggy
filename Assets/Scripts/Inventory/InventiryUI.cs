@@ -32,6 +32,14 @@ public class InventoryUI : MonoBehaviour
     private RectTransform cursorRectTransform;
     private bool hotbarVisible = true;
 
+    [Header("Прозрачность инвентаря при перекрытии игроком")]
+    [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.38f;
+    private CanvasGroup inventoryCanvasGroup;
+    private CanvasGroup hotbarCanvasGroup;
+    private float inventoryBaseAlpha = 1f;
+    private float hotbarBaseAlpha = 1f;
+    private SpriteRenderer playerRenderer;
+
     private void Awake()
     {
         EnsureCanvasOnTop();
@@ -63,7 +71,13 @@ public class InventoryUI : MonoBehaviour
             Effects = player.GetComponent<PlayerEffects>();
             if (Effects == null)
                 Debug.LogError("InventoryUI: на player нет компонента PlayerEffects!");
+
+            playerRenderer = player.GetComponent<SpriteRenderer>();
+            if (playerRenderer == null)
+                playerRenderer = player.GetComponentInChildren<SpriteRenderer>(true);
         }
+
+        InitializeInventoryCanvasGroups();
 
         if (testItem != null)
         {
@@ -206,8 +220,100 @@ public class InventoryUI : MonoBehaviour
         }
     }
 
+    private void InitializeInventoryCanvasGroups()
+    {
+        if (inventoryRoot != null)
+        {
+            inventoryCanvasGroup = inventoryRoot.GetComponent<CanvasGroup>();
+            if (inventoryCanvasGroup == null)
+                inventoryCanvasGroup = inventoryRoot.gameObject.AddComponent<CanvasGroup>();
+            inventoryBaseAlpha = inventoryCanvasGroup.alpha;
+        }
+
+        if (hotbarRoot != null)
+        {
+            hotbarCanvasGroup = hotbarRoot.GetComponent<CanvasGroup>();
+            if (hotbarCanvasGroup == null)
+                hotbarCanvasGroup = hotbarRoot.gameObject.AddComponent<CanvasGroup>();
+            hotbarBaseAlpha = hotbarCanvasGroup.alpha;
+        }
+    }
+
+    private void UpdateInventoryOcclusion()
+    {
+        if (player == null || (inventoryCanvasGroup == null && hotbarCanvasGroup == null))
+            return;
+
+        Camera worldCamera = Camera.main;
+        if (worldCamera == null) return;
+
+        Bounds worldBounds = playerRenderer != null
+            ? playerRenderer.bounds
+            : new Bounds(player.transform.position, new Vector3(0.5f, 0.8f, 0.1f));
+
+        Vector3 min = worldBounds.min;
+        Vector3 max = worldBounds.max;
+        Vector3[] worldCorners =
+        {
+            new Vector3(min.x, min.y, worldBounds.center.z),
+            new Vector3(min.x, max.y, worldBounds.center.z),
+            new Vector3(max.x, min.y, worldBounds.center.z),
+            new Vector3(max.x, max.y, worldBounds.center.z)
+        };
+
+        Vector2 screenMin = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+        Vector2 screenMax = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+        for (int i = 0; i < worldCorners.Length; i++)
+        {
+            Vector3 screen = worldCamera.WorldToScreenPoint(worldCorners[i]);
+            screenMin = Vector2.Min(screenMin, screen);
+            screenMax = Vector2.Max(screenMax, screen);
+        }
+
+        Rect playerScreenBounds = Rect.MinMaxRect(
+            screenMin.x, screenMin.y, screenMax.x, screenMax.y);
+
+        Camera uiCamera = mainCanvas != null &&
+            mainCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? mainCanvas.worldCamera : null;
+        bool overlapsInventory = OverlapsUiRect(inventoryRoot, playerScreenBounds, uiCamera);
+        bool overlapsHotbar = OverlapsUiRect(hotbarRoot, playerScreenBounds, uiCamera);
+        bool shouldFade = overlapsInventory || overlapsHotbar;
+
+        float fade = shouldFade ? overlapAlpha : 1f;
+        if (inventoryCanvasGroup != null)
+            inventoryCanvasGroup.alpha = inventoryBaseAlpha * fade;
+        if (hotbarCanvasGroup != null)
+            hotbarCanvasGroup.alpha = hotbarBaseAlpha * fade;
+    }
+
+    private static bool OverlapsUiRect(
+        Transform root, Rect screenBounds, Camera uiCamera)
+    {
+        RectTransform rectTransform = root as RectTransform;
+        if (rectTransform == null || !root.gameObject.activeInHierarchy)
+            return false;
+
+        Vector3[] corners = new Vector3[4];
+        rectTransform.GetWorldCorners(corners);
+
+        Vector2 minimum = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+        Vector2 maximum = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector2 screen = RectTransformUtility.WorldToScreenPoint(uiCamera, corners[i]);
+            minimum = Vector2.Min(minimum, screen);
+            maximum = Vector2.Max(maximum, screen);
+        }
+
+        Rect uiBounds = Rect.MinMaxRect(
+            minimum.x, minimum.y, maximum.x, maximum.y);
+        return screenBounds.Overlaps(uiBounds, true);
+    }
+
     private void Update()
     {
+        UpdateInventoryOcclusion();
         bool control = ControlGate.HasControl;
 
         if (control != hotbarVisible)
