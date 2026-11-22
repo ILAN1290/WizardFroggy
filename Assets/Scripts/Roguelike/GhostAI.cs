@@ -166,8 +166,16 @@ public class GhostAI : MonoBehaviour
 
     private bool HasAttackRange(float distance)
     {
+        if (miniBoss)
+        {
+            // The mini-boss can fire from afar, but reserves its charged
+            // ground slam for the close-range window.
+            return distance <= 1.75f ||
+                (distance >= 3.0f && distance <= 8.5f);
+        }
+
         if (melee)
-            return distance <= (miniBoss ? 1.75f : 1.5f);
+            return distance <= 1.5f;
 
         return distance >= 3.0f && distance <= 8.5f;
     }
