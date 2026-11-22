@@ -34,6 +34,7 @@ public class RoguelikeSession : MonoBehaviour
     private int enemiesRemaining;
     private bool inLobby = true;
     private bool shopOpen;
+    private bool deathScreenShown;
     private RoguelikeMerchant activeMerchant;
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
     private GUIStyle minimapMarkerStyle;
@@ -64,6 +65,7 @@ public class RoguelikeSession : MonoBehaviour
 
     private void Awake()
     {
+        Time.timeScale = 1f;
         if (Instance != null && Instance != this)
         {
             Destroy(this);
@@ -462,7 +464,7 @@ public class RoguelikeSession : MonoBehaviour
         if (merchant == null) return;
         activeMerchant = merchant;
         shopOpen = true;
-        ShowHint("Торговец: покупайте предметы и улучшайте посох с персонажем.");
+        ShowHint("Торговец: выберите предмет или настройте три характеристики.");
     }
 
     public void CloseShop()
@@ -569,14 +571,29 @@ public class RoguelikeSession : MonoBehaviour
 
     public bool HandlePlayerDeath()
     {
+        if (deathScreenShown) return true;
         if (inLobby) return false;
-        int restartFloor = currentFloor != null
-            ? currentFloor.FloorNumber
-            : PlayerRunData.EnsureInstance().CurrentProgressFloor;
-        ReturnToLobby();
-        // There is no lobby menu anymore, so restart the current floor immediately
-        // after the normal health/mana reset instead of leaving the player in an empty scene.
-        StartFloor(restartFloor);
+
+        deathScreenShown = true;
+        shopOpen = false;
+        activeMerchant = null;
+
+        if (playerBody != null)
+            playerBody.linearVelocity = Vector2.zero;
+        if (playerController != null)
+            playerController.enabled = false;
+
+        // Roguelike.unity already contains the configured DeathMenu canvas object.
+        if (playerHealth != null)
+            playerHealth.ShowDeathScreen();
+        else
+        {
+            GameObject deathMenu = GameObject.Find("DeathMenu");
+            if (deathMenu != null)
+                deathMenu.SetActive(true);
+        }
+
+        Time.timeScale = 0f;
         return true;
     }
 
@@ -802,7 +819,7 @@ public class RoguelikeSession : MonoBehaviour
 
     private void OnGUI()
     {
-        if (inLobby) return;
+        if (inLobby || deathScreenShown) return;
 
         // The map is static GUI output; skip its layout work for input events.
         if (Event.current.type == EventType.Repaint)
