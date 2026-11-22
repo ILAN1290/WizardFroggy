@@ -29,6 +29,54 @@ public class Projectile : MonoBehaviour
     {
         rigidbody2d = GetComponent<Rigidbody2D>();
         cam = Camera.main;
+
+        if (projType == ProjectileType.PlayerProjectile)
+            ReducePlayerProjectileHitbox();
+    }
+
+    private void ReducePlayerProjectileHitbox()
+    {
+        // The original prefab collider is oversized compared with the visible bolt.
+        // Clamp its world-space dimensions so a near miss with a shelf does not
+        // consume the projectile.
+        Collider2D[] colliders = GetComponentsInChildren<Collider2D>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider2D hitbox = colliders[i];
+            if (hitbox == null) continue;
+
+            Vector3 scale = hitbox.transform.lossyScale;
+            float scaleX = Mathf.Max(0.001f, Mathf.Abs(scale.x));
+            float scaleY = Mathf.Max(0.001f, Mathf.Abs(scale.y));
+
+            BoxCollider2D box = hitbox as BoxCollider2D;
+            if (box != null)
+            {
+                box.size = new Vector2(
+                    Mathf.Min(box.size.x, 0.20f / scaleX),
+                    Mathf.Min(box.size.y, 0.20f / scaleY));
+                continue;
+            }
+
+            CircleCollider2D circle = hitbox as CircleCollider2D;
+            if (circle != null)
+            {
+                float scaleMax = Mathf.Max(scaleX, scaleY);
+                circle.radius = Mathf.Min(circle.radius, 0.11f / scaleMax);
+                continue;
+            }
+
+            CapsuleCollider2D capsule = hitbox as CapsuleCollider2D;
+            if (capsule != null)
+            {
+                capsule.size = new Vector2(
+                    Mathf.Min(capsule.size.x, 0.20f / scaleX),
+                    Mathf.Min(capsule.size.y, 0.20f / scaleY));
+            }
+        }
+
+        if (rigidbody2d != null)
+            rigidbody2d.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
     }
 
     public void SetDamage(float value)
