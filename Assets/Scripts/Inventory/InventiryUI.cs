@@ -34,9 +34,9 @@ public class InventoryUI : MonoBehaviour
 
     [Header("Прозрачность инвентаря при перекрытии игроком")]
     [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.38f;
-    private CanvasGroup inventoryCanvasGroup;
+    private CanvasGroup inventoryVisibilityGroup;
+    private CanvasGroup inventoryOcclusionGroup;
     private CanvasGroup hotbarCanvasGroup;
-    private float inventoryBaseAlpha = 1f;
     private float hotbarBaseAlpha = 1f;
     private SpriteRenderer playerRenderer;
 
@@ -224,10 +224,43 @@ public class InventoryUI : MonoBehaviour
     {
         if (inventoryRoot != null)
         {
-            inventoryCanvasGroup = inventoryRoot.GetComponent<CanvasGroup>();
-            if (inventoryCanvasGroup == null)
-                inventoryCanvasGroup = inventoryRoot.gameObject.AddComponent<CanvasGroup>();
-            inventoryBaseAlpha = inventoryCanvasGroup.alpha;
+            // This original CanvasGroup belongs to InventoryToggle. Never change
+            // its alpha: it is zero while the inventory panel is closed.
+            inventoryVisibilityGroup = inventoryRoot.GetComponent<CanvasGroup>();
+            if (inventoryVisibilityGroup == null)
+                inventoryVisibilityGroup = inventoryRoot.gameObject.AddComponent<CanvasGroup>();
+
+            RectTransform sourceRect = inventoryRoot as RectTransform;
+            if (sourceRect != null)
+            {
+                Transform originalParent = inventoryRoot.parent;
+                int originalSibling = inventoryRoot.GetSiblingIndex();
+
+                GameObject wrapper = new GameObject(
+                    "Inventory Occlusion Group",
+                    typeof(RectTransform), typeof(CanvasGroup));
+                RectTransform wrapperRect = wrapper.GetComponent<RectTransform>();
+                wrapperRect.SetParent(originalParent, false);
+                wrapperRect.anchorMin = sourceRect.anchorMin;
+                wrapperRect.anchorMax = sourceRect.anchorMax;
+                wrapperRect.anchoredPosition = sourceRect.anchoredPosition;
+                wrapperRect.sizeDelta = sourceRect.sizeDelta;
+                wrapperRect.pivot = sourceRect.pivot;
+                wrapperRect.localRotation = sourceRect.localRotation;
+                wrapperRect.localScale = sourceRect.localScale;
+                wrapperRect.SetSiblingIndex(originalSibling);
+
+                sourceRect.SetParent(wrapperRect, false);
+                sourceRect.anchorMin = Vector2.zero;
+                sourceRect.anchorMax = Vector2.one;
+                sourceRect.offsetMin = Vector2.zero;
+                sourceRect.offsetMax = Vector2.zero;
+                sourceRect.localRotation = Quaternion.identity;
+                sourceRect.localScale = Vector3.one;
+
+                inventoryOcclusionGroup = wrapper.GetComponent<CanvasGroup>();
+                inventoryOcclusionGroup.alpha = 1f;
+            }
         }
 
         if (hotbarRoot != null)
@@ -241,7 +274,20 @@ public class InventoryUI : MonoBehaviour
 
     private void UpdateInventoryOcclusion()
     {
-        if (player == null || (inventoryCanvasGroup == null && hotbarCanvasGroup == null))
+        // InventoryToggle owns the inner CanvasGroup. Only fade the outer wrapper
+        // while the inventory is genuinely open.
+        bool inventoryOpen = inventoryVisibilityGroup != null &&
+            inventoryVisibilityGroup.alpha > 0.01f &&
+            inventoryVisibilityGroup.blocksRaycasts &&
+            inventoryVisibilityGroup.interactable;
+
+        if (inventoryOcclusionGroup != null)
+            inventoryOcclusionGroup.alpha = 1f;
+        if (hotbarCanvasGroup != null)
+            hotbarCanvasGroup.alpha = hotbarBaseAlpha;
+
+        if (!inventoryOpen || player == null ||
+            (inventoryOcclusionGroup == null && hotbarCanvasGroup == null))
             return;
 
         Camera worldCamera = Camera.main;
@@ -276,15 +322,19 @@ public class InventoryUI : MonoBehaviour
         Camera uiCamera = mainCanvas != null &&
             mainCanvas.renderMode != RenderMode.ScreenSpaceOverlay
                 ? mainCanvas.worldCamera : null;
-        bool overlapsInventory = OverlapsUiRect(inventoryRoot, playerScreenBounds, uiCamera);
-        bool overlapsHotbar = OverlapsUiRect(hotbarRoot, playerScreenBounds, uiCamera);
-        bool shouldFade = overlapsInventory || overlapsHotbar;
+        bool overlapsInventory = OverlapsUiRect(
+            inventoryRoot, playerScreenBounds, uiCamera);
+        bool overlapsHotbar = OverlapsUiRect(
+            hotbarRoot, playerScreenBounds, uiCamera);
 
-        float fade = shouldFade ? overlapAlpha : 1f;
-        if (inventoryCanvasGroup != null)
-            inventoryCanvasGroup.alpha = inventoryBaseAlpha * fade;
+        if (inventoryOcclusionGroup != null)
+            inventoryOcclusionGroup.alpha = overlapsInventory ? overlapAlpha : 1f;
+
+        // The hotbar fades only when the inventory panel is open and the player
+        // actually overlaps the hotbar. A closed inventory never dims the hotbar.
         if (hotbarCanvasGroup != null)
-            hotbarCanvasGroup.alpha = hotbarBaseAlpha * fade;
+            hotbarCanvasGroup.alpha = hotbarBaseAlpha *
+                (overlapsHotbar ? overlapAlpha : 1f);
     }
 
     private static bool OverlapsUiRect(
