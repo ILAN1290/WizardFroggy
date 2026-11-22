@@ -187,6 +187,15 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         return projectile;
     }
 
+    public void DieFromWall()
+    {
+        if (defeated) return;
+
+        defeated = true;
+        if (session != null) session.OnEnemyDefeated(transform.position);
+        Destroy(gameObject);
+    }
+
     public void TakeDamage(float value)
     {
         if (defeated) return;
