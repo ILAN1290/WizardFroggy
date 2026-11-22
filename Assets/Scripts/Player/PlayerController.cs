@@ -318,7 +318,7 @@ public class PlayerController : MonoBehaviour
             cooldownTimer = 0;
             PlayerRunData runData = PlayerRunData.EnsureInstance();
             mana.SpendMana(runData.ProjectileManaCost);
-            Vector3 spawnPosition = rb.position + FacingDirection * 0.55f;
+            Vector3 spawnPosition = rb.position;
             Transform projectileParent = RoguelikeSession.ProjectileRoot;
             GameObject projectileObject = projectileParent != null
                 ? Instantiate(projectilePrefab, spawnPosition, Quaternion.identity, projectileParent)
