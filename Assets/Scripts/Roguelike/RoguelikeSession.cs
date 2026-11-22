@@ -2,6 +2,24 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+[System.Serializable]
+public class RoguelikeMerchantTextures
+{
+    public Texture2D panelBackground;
+    public Texture2D closeButton;
+    public Texture2D itemSlotBackground;
+    public Texture2D itemSlotSelectedBackground;
+    public Texture2D itemSlotSoldBackground;
+    public Texture2D itemDescriptionBackground;
+    public Texture2D itemBuyButton;
+    public Texture2D currencyIcon;
+    public Texture2D upgradeRowBackground;
+    public Texture2D upgradePlusButton;
+    public Texture2D upgradeMinusButton;
+    public Texture2D upgradeLevelFilled;
+    public Texture2D upgradeLevelEmpty;
+}
+
 /// <summary>
 /// Controls the lobby, selected floor, current room and transitions between generated rooms.
 /// Room graph generation and room decoration live in their own files.
@@ -14,6 +32,12 @@ public class RoguelikeSession : MonoBehaviour
     [SerializeField] private string lobbyEnvironmentName = "Library Environment";
     [SerializeField] private Vector2 lobbyPlayerPosition = new Vector2(0f, -3f);
     [SerializeField] private AudioClip itemPickupSound;
+
+    [Header("Merchant UI Textures")]
+    [SerializeField] private RoguelikeMerchantTextures merchantTextures =
+        new RoguelikeMerchantTextures();
+
+    public RoguelikeMerchantTextures MerchantTextures => merchantTextures;
 
     private PlayerController playerController;
     private PlayerHealth playerHealth;
