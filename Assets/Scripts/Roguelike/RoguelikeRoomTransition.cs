@@ -107,7 +107,8 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
 
     private static bool IsPlayer(Collider2D other)
     {
-        return other != null && (other.CompareTag("Player") ||
-            other.GetComponentInParent<PlayerHealth>() != null);
+        // Only the main Player-tagged collider can activate a door.
+        // Child hitboxes (parry, shields and attack effects) must not trigger travel.
+        return other != null && other.CompareTag("Player");
     }
 }
