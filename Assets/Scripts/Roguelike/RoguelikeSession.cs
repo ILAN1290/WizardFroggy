@@ -21,6 +21,12 @@ public class RoguelikeSession : MonoBehaviour
     private Rigidbody2D playerBody;
     private GameObject lobbyEnvironment;
     private GameObject dungeonRoot;
+    private Transform roomContentRoot;
+    private Transform environmentRoot;
+    private Transform enemiesRoot;
+    private Transform pickupsRoot;
+    private Transform projectilesRoot;
+    private Transform effectsRoot;
     private RoomGenerator roomGenerator;
     private RoguelikeFloorData currentFloor;
     private RoguelikeRoomData currentRoom;
@@ -32,7 +38,7 @@ public class RoguelikeSession : MonoBehaviour
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
     private GUIStyle minimapMarkerStyle;
     private GUIStyle mushroomCountStyle;
-    private static Texture2D mushroomHudTexture;
+    private Item[] lootItems;
 
     private sealed class WorldPlaceholder
     {
@@ -46,6 +52,8 @@ public class RoguelikeSession : MonoBehaviour
     public bool IsCurrentRoomCleared => currentRoom != null && currentRoom.IsCleared;
     public int CurrentFloor => currentFloor == null ? 0 : currentFloor.FloorNumber;
     public int EnemiesRemaining => enemiesRemaining;
+    public static Transform ProjectileRoot =>
+        Instance != null && !Instance.inLobby ? Instance.projectilesRoot : null;
     public RoguelikeRoomType CurrentRoomType =>
         currentRoom == null ? RoguelikeRoomType.Combat : currentRoom.Type;
 
@@ -83,6 +91,9 @@ public class RoguelikeSession : MonoBehaviour
             lobbyEnvironment.SetActive(false);
 
         dungeonRoot = new GameObject("Generated Roguelike Room");
+        roomContentRoot = new GameObject("Current Room").transform;
+        roomContentRoot.SetParent(dungeonRoot.transform, false);
+        CreateRoomFolders();
         dungeonRoot.SetActive(false);
         roomGenerator = GetComponent<RoomGenerator>();
         if (roomGenerator == null)
@@ -99,6 +110,38 @@ public class RoguelikeSession : MonoBehaviour
         transform.position = Vector2.zero;
         // Roguelike starts directly in the first available floor. There is no lobby panel.
         StartFloor(1);
+    }
+
+    private void CreateRoomFolders()
+    {
+        environmentRoot = CreateRoomFolder("Environment");
+        enemiesRoot = CreateRoomFolder("Enemies");
+        pickupsRoot = CreateRoomFolder("Pickups");
+        projectilesRoot = CreateRoomFolder("Projectiles");
+        effectsRoot = CreateRoomFolder("Effects");
+    }
+
+    private Transform CreateRoomFolder(string folderName)
+    {
+        GameObject folder = new GameObject(folderName);
+        folder.transform.SetParent(roomContentRoot, false);
+        return folder.transform;
+    }
+
+    private static void ClearChildren(Transform parent)
+    {
+        if (parent == null) return;
+        for (int i = parent.childCount - 1; i >= 0; i--)
+            Destroy(parent.GetChild(i).gameObject);
+    }
+
+    private void ClearRoomFolders()
+    {
+        ClearChildren(environmentRoot);
+        ClearChildren(enemiesRoot);
+        ClearChildren(pickupsRoot);
+        ClearChildren(projectilesRoot);
+        ClearChildren(effectsRoot);
     }
 
     private void EnablePlayerBars()
@@ -145,16 +188,15 @@ public class RoguelikeSession : MonoBehaviour
         currentRoom.IsVisited = true;
 
         worldPlaceholders.Clear();
-        for (int i = dungeonRoot.transform.childCount - 1; i >= 0; i--)
-            Destroy(dungeonRoot.transform.GetChild(i).gameObject);
+        ClearRoomFolders();
 
         enemiesRemaining = 0;
         activeMerchant = null;
         shopOpen = false;
 
         int spawnedEnemies = roomGenerator.GenerateRoom(
-            dungeonRoot.transform, currentRoom, currentFloor.FloorNumber,
-            currentFloor.Seed, this);
+            environmentRoot, enemiesRoot, effectsRoot, projectilesRoot,
+            currentRoom, currentFloor.FloorNumber, currentFloor.Seed, this);
         enemiesRemaining = spawnedEnemies;
 
         if (currentRoom.Type == RoguelikeRoomType.Combat && spawnedEnemies == 0)
@@ -209,6 +251,13 @@ public class RoguelikeSession : MonoBehaviour
         enemiesRemaining = Mathf.Max(0, count);
     }
 
+    private Item[] GetLootItems()
+    {
+        if (lootItems == null)
+            lootItems = Resources.LoadAll<Item>("RoguelikeLoot");
+        return lootItems;
+    }
+
     public void OnEnemyDefeated(Vector2 position)
     {
         enemiesRemaining = Mathf.Max(0, enemiesRemaining - 1);
@@ -216,7 +265,7 @@ public class RoguelikeSession : MonoBehaviour
 
         SpawnMushroomPickup(position, Random.Range(1, 4));
 
-        Item[] loot = Resources.LoadAll<Item>("RoguelikeLoot");
+        Item[] loot = GetLootItems();
         if (loot.Length > 0 && Random.value < 0.38f)
         {
             Item item = loot[Random.Range(0, loot.Length)];
@@ -234,7 +283,7 @@ public class RoguelikeSession : MonoBehaviour
 
     public void OpenChest(Vector2 position)
     {
-        Item[] loot = Resources.LoadAll<Item>("RoguelikeLoot");
+        Item[] loot = GetLootItems();
         if (loot.Length > 0)
         {
             int drops = Random.Range(1, 4);
@@ -252,7 +301,7 @@ public class RoguelikeSession : MonoBehaviour
     {
         GameObject pickup = new GameObject("Грибочки x" + amount);
         pickup.transform.position = position;
-        if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
+        if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
         renderer.sprite = roomGenerator != null && roomGenerator.MushroomSprite != null
             ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
@@ -289,7 +338,7 @@ public class RoguelikeSession : MonoBehaviour
 
         GameObject pickup = new GameObject("Предмет: " + item.itemName);
         pickup.transform.position = position;
-        if (dungeonRoot != null) pickup.transform.SetParent(dungeonRoot.transform, true);
+        if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
 
         Sprite itemSprite = item.icon != null ? item.icon :
             roomGenerator != null && roomGenerator.ItemSprite != null
@@ -407,8 +456,7 @@ public class RoguelikeSession : MonoBehaviour
 
         if (dungeonRoot != null)
         {
-            for (int i = dungeonRoot.transform.childCount - 1; i >= 0; i--)
-                Destroy(dungeonRoot.transform.GetChild(i).gameObject);
+            ClearRoomFolders();
             dungeonRoot.SetActive(false);
         }
 
@@ -460,7 +508,7 @@ public class RoguelikeSession : MonoBehaviour
 
         float size = Mathf.Min(240f, Screen.width - 100f, Screen.height - 120f);
         size = Mathf.Max(150f, size);
-        Rect frame = new Rect(Screen.width - size - 50f, 50f, size, size);
+        Rect frame = new Rect(Screen.width - size - 130f, 50f, size, size);
         if (roomGenerator != null && roomGenerator.MinimapFrameSprite != null)
             DrawSpriteFrame(roomGenerator.MinimapFrameSprite, frame);
         else
@@ -555,12 +603,10 @@ public class RoguelikeSession : MonoBehaviour
             }
         }
 
-        // Compact currency HUD: a small mushroom icon followed by the amount.
-        // Three times the original 25x25 HUD icon, without distorting it.
+        // Reuse the mushroom sprite already assigned to roguelike pickups.
         Rect mushroomRect = new Rect(frame.x + 2f, frame.yMax + 5f, 75f, 75f);
-        Texture2D icon = GetMushroomHudTexture();
-        if (icon != null)
-            GUI.DrawTexture(mushroomRect, icon, ScaleMode.ScaleToFit, true);
+        if (roomGenerator != null)
+            DrawSpriteFit(roomGenerator.MushroomSprite, mushroomRect);
 
         if (mushroomCountStyle == null)
         {
@@ -575,106 +621,6 @@ public class RoguelikeSession : MonoBehaviour
             150f, 55f);
         GUI.Label(countRect, PlayerRunData.EnsureInstance().Mushrooms.ToString(),
             mushroomCountStyle);
-    }
-
-    private static Texture2D GetMushroomHudTexture()
-    {
-        if (mushroomHudTexture != null) return mushroomHudTexture;
-
-        const int size = 32;
-        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        texture.name = "Roguelike Mushroom HUD Icon";
-        texture.filterMode = FilterMode.Point;
-        texture.wrapMode = TextureWrapMode.Clamp;
-
-        Color clear = new Color(0f, 0f, 0f, 0f);
-        Color outline = new Color(0.20f, 0.055f, 0.035f, 1f);
-        Color cap = new Color(0.78f, 0.16f, 0.12f, 1f);
-        Color capLight = new Color(0.96f, 0.31f, 0.20f, 1f);
-        Color capShadow = new Color(0.48f, 0.075f, 0.065f, 1f);
-        Color stem = new Color(0.94f, 0.86f, 0.65f, 1f);
-        Color stemShadow = new Color(0.69f, 0.55f, 0.38f, 1f);
-        Color spots = new Color(1f, 0.94f, 0.78f, 1f);
-
-        Color[] pixels = new Color[size * size];
-        for (int i = 0; i < pixels.Length; i++) pixels[i] = clear;
-
-        // Draw the stem first so the cap overlaps it naturally.
-        for (int y = 3; y <= 17; y++)
-        {
-            int half = y < 6 ? 5 : y < 13 ? 4 : 3;
-            int left = 16 - half;
-            int right = 16 + half;
-            for (int x = left - 1; x <= right + 1; x++)
-            {
-                if (x < 0 || x >= size) continue;
-                bool edge = x == left - 1 || x == right + 1 ||
-                    y == 3 || y == 17;
-                pixels[y * size + x] = edge ? outline :
-                    x >= right - 1 ? stemShadow : stem;
-            }
-        }
-
-        // Red dotted woodland cap with dark pixel outline.
-        int[] halfWidths = new int[32];
-        halfWidths[15] = 5;
-        halfWidths[16] = 9;
-        halfWidths[17] = 12;
-        halfWidths[18] = 14;
-        halfWidths[19] = 15;
-        halfWidths[20] = 15;
-        halfWidths[21] = 15;
-        halfWidths[22] = 15;
-        halfWidths[23] = 14;
-        halfWidths[24] = 12;
-        halfWidths[25] = 9;
-        halfWidths[26] = 6;
-        halfWidths[27] = 3;
-
-        for (int y = 14; y <= 28; y++)
-        {
-            int half = y < 15 ? 3 : halfWidths[y];
-            if (half <= 0) continue;
-            int left = 16 - half;
-            int right = 16 + half;
-            for (int x = left - 1; x <= right + 1; x++)
-            {
-                if (x < 0 || x >= size) continue;
-                bool edge = x == left - 1 || x == right + 1 ||
-                    y == 14 || y == 28;
-                Color value;
-                if (edge) value = outline;
-                else if (y <= 17 || x <= 11) value = capLight;
-                else if (x >= 24 || y >= 25) value = capShadow;
-                else value = cap;
-                pixels[y * size + x] = value;
-            }
-        }
-
-        // A few pale cap spots make the tiny icon read as a mushroom, not a berry.
-        void Spot(int cx, int cy, int radius)
-        {
-            for (int y = -radius; y <= radius; y++)
-            {
-                for (int x = -radius; x <= radius; x++)
-                {
-                    if (x * x + y * y > radius * radius) continue;
-                    int px = cx + x;
-                    int py = cy + y;
-                    if (px >= 0 && px < size && py >= 0 && py < size)
-                        pixels[py * size + px] = spots;
-                }
-            }
-        }
-
-        Spot(10, 22, 2);
-        Spot(21, 24, 2);
-        Spot(17, 18, 1);
-
-        texture.SetPixels(pixels);
-        texture.Apply(false, true);
-        mushroomHudTexture = texture;
-        return mushroomHudTexture;
     }
 
     private static void DrawMiniMapRect(Rect rect, Color colour)
@@ -725,10 +671,45 @@ public class RoguelikeSession : MonoBehaviour
         }
     }
 
+    private static void DrawSpriteFit(Sprite sprite, Rect destination)
+    {
+        if (sprite == null || sprite.texture == null) return;
+
+        Texture2D texture = sprite.texture;
+        Rect source = sprite.textureRect;
+        float sourceAspect = source.width / Mathf.Max(1f, source.height);
+        float destinationAspect = destination.width / Mathf.Max(1f, destination.height);
+        Rect target = destination;
+
+        if (sourceAspect > destinationAspect)
+        {
+            float fittedHeight = destination.width / sourceAspect;
+            target.y += (destination.height - fittedHeight) * 0.5f;
+            target.height = fittedHeight;
+        }
+        else
+        {
+            float fittedWidth = destination.height * sourceAspect;
+            target.x += (destination.width - fittedWidth) * 0.5f;
+            target.width = fittedWidth;
+        }
+
+        Rect uv = new Rect(
+            source.x / texture.width,
+            source.y / texture.height,
+            source.width / texture.width,
+            source.height / texture.height);
+        GUI.DrawTextureWithTexCoords(target, texture, uv, true);
+    }
+
     private void OnGUI()
     {
         if (inLobby) return;
-        DrawMiniMap();
+
+        // The map is static GUI output; skip its layout work for input events.
+        if (Event.current.type == EventType.Repaint)
+            DrawMiniMap();
+
         if (shopOpen && activeMerchant != null)
             activeMerchant.DrawShopGUI(this);
     }
