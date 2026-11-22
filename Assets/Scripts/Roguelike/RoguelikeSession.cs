@@ -260,6 +260,13 @@ public class RoguelikeSession : MonoBehaviour
         enemiesRemaining = Mathf.Max(0, count);
     }
 
+    public void TriggerMiniBossGroundSlam(Vector2 position, float damage)
+    {
+        if (roomGenerator != null)
+            roomGenerator.StartGroundSlamWave(
+                position, effectsRoot, transform, damage);
+    }
+
     private Item[] GetLootItems()
     {
         if (lootItems == null)
