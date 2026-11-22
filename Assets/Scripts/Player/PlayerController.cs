@@ -19,6 +19,9 @@ public class PlayerController : MonoBehaviour
     private BoxCollider2D movementCollider;
     private float speedPotionMultiplier = 1f;
     private Coroutine speedPotionRoutine;
+    private PlayerRunData runData;
+    private Vector2 lastAnimatorDirection = new Vector2(float.NaN, float.NaN);
+    private float lastAnimatorSpeed = -1f;
 
     /// <summary>
     /// Thin collider at the bottom of the sprite, used for movement and
@@ -77,6 +80,9 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        runData = PlayerRunData.EnsureInstance();
         parry = GetComponentInChildren<Parry>();
         animator = GetComponent<Animator>();
         cooldownTimer = projectileCooldown;
@@ -166,12 +172,15 @@ public class PlayerController : MonoBehaviour
 
     private void Shoot()
     {
-        float manaCost = PlayerRunData.EnsureInstance().ProjectileManaCost;
-        if (canShoot && !isInvincible && mana.CurrentMana >= manaCost &&
-            InputManager.instance.ShootInput)
-        {
+        if (!canShoot || isInvincible || mana == null ||
+            InputManager.instance == null || !InputManager.instance.ShootInput)
+            return;
+
+        if (runData == null)
+            runData = PlayerRunData.EnsureInstance();
+
+        if (mana.CurrentMana >= runData.ProjectileManaCost)
             Launch();
-        }
     }
 
     public void ApplySpeedPotion(float multiplier, float duration)
@@ -237,9 +246,21 @@ public class PlayerController : MonoBehaviour
             lookDirection = movement; 
         }
 
-        animator.SetFloat("MoveX", lookDirection.x);
-        animator.SetFloat("MoveY", lookDirection.y);
-        animator.SetFloat("Speed", movement.magnitude);
+        if (animator == null) return;
+
+        float movementSpeed = movement.magnitude;
+        if (lookDirection != lastAnimatorDirection)
+        {
+            animator.SetFloat("MoveX", lookDirection.x);
+            animator.SetFloat("MoveY", lookDirection.y);
+            lastAnimatorDirection = lookDirection;
+        }
+
+        if (!Mathf.Approximately(movementSpeed, lastAnimatorSpeed))
+        {
+            animator.SetFloat("Speed", movementSpeed);
+            lastAnimatorSpeed = movementSpeed;
+        }
 
     }
     private void Invincibility()
@@ -314,7 +335,8 @@ public class PlayerController : MonoBehaviour
             mana.SpendMana(spendingManaByInvincibilityBySecond * Time.fixedDeltaTime);
         }
 
-        rb.linearVelocity = controlledVelocity + externalVelocity + windVelocity;
+        if (rb != null)
+            rb.linearVelocity = controlledVelocity + externalVelocity + windVelocity;
     }
     private void  Launch()
     {
