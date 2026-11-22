@@ -19,7 +19,8 @@ public class GhostAI : MonoBehaviour
     [SerializeField, Min(0.04f)] private float lineOfSightCheckInterval = 0.12f;
 
     private static readonly float[] SteeringAngles = { -70f, -35f, 35f, 70f, -110f, 110f };
-    private readonly RaycastHit2D[] hitBuffer = new RaycastHit2D[8];
+    private readonly RaycastHit2D[] hitBuffer = new RaycastHit2D[16];
+    private readonly Collider2D[] nearbyGhostBuffer = new Collider2D[16];
 
     private Rigidbody2D body;
     private CircleCollider2D bodyCollider;
@@ -43,6 +44,8 @@ public class GhostAI : MonoBehaviour
     {
         body = GetComponent<Rigidbody2D>();
         bodyCollider = GetComponent<CircleCollider2D>();
+        if (body != null)
+            body.useFullKinematicContacts = true;
         player = target != null ? target : FindPlayer();
         melee = isMelee;
         miniBoss = isMiniBoss;
@@ -58,6 +61,8 @@ public class GhostAI : MonoBehaviour
     {
         body = GetComponent<Rigidbody2D>();
         bodyCollider = GetComponent<CircleCollider2D>();
+        if (body != null)
+            body.useFullKinematicContacts = true;
     }
 
     private void FixedUpdate()
@@ -100,6 +105,15 @@ public class GhostAI : MonoBehaviour
         CanAttack = inAttackRange && canSeePlayer;
 
         Vector2 desired = GetDesiredMovement(DirectionToPlayer, DistanceToPlayer);
+        Vector2 separation = GetGhostSeparation();
+        if (separation.sqrMagnitude > 0.0001f)
+        {
+            // A close neighbour takes priority over chasing the player.
+            // This prevents groups of ghosts from locking against each other.
+            float separationStrength = 1.2f + Mathf.Clamp01(separation.magnitude) * 0.8f;
+            desired = (desired + separation.normalized * separationStrength).normalized;
+        }
+
         if (Time.time >= nextObstacleCheck)
         {
             cachedSteering = desired.sqrMagnitude > 0.0001f
@@ -197,6 +211,48 @@ public class GhostAI : MonoBehaviour
         return blocked;
     }
 
+    private Vector2 GetGhostSeparation()
+    {
+        float ownRadius = GetProbeRadius();
+        int count = Physics2D.OverlapCircleNonAlloc(
+            body.position, ownRadius * 3f, nearbyGhostBuffer, obstacleMask);
+
+        Vector2 separation = Vector2.zero;
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D nearby = nearbyGhostBuffer[i];
+            if (nearby == null || nearby.isTrigger) continue;
+
+            GhostAI other = nearby.GetComponentInParent<GhostAI>();
+            if (other == null || other == this || other.body == null) continue;
+
+            Vector2 away = body.position - other.body.position;
+            float distance = away.magnitude;
+            float preferredDistance = ownRadius + other.GetProbeRadius() + 0.12f;
+            float separationRange = preferredDistance * 2.2f;
+            if (distance >= separationRange) continue;
+
+            if (distance < 0.001f)
+            {
+                // Deterministic opposite directions for ghosts that spawned
+                // at exactly the same position.
+                away = GetInstanceID() < other.GetInstanceID()
+                    ? Vector2.left : Vector2.right;
+                distance = 0.001f;
+            }
+            else
+            {
+                away /= distance;
+            }
+
+            float strength = (separationRange - distance) /
+                Mathf.Max(0.01f, preferredDistance);
+            separation += away * strength;
+        }
+
+        return separation;
+    }
+
     private float GetProbeRadius()
     {
         if (bodyCollider == null) return obstacleProbeRadius;
@@ -249,6 +305,12 @@ public class GhostAI : MonoBehaviour
 
         Transform obstacleTransform = obstacle.transform;
         if (obstacleTransform == transform || obstacleTransform.IsChildOf(transform))
+            return false;
+
+        // Ghosts are handled by the separation steering above, not by wall casts.
+        // Treating another ghost as a hard obstacle can deadlock two overlapping
+        // kinematic bodies because every cast starts inside the neighbour collider.
+        if (obstacle.GetComponentInParent<GhostAI>() != null)
             return false;
 
         if (player != null && (obstacleTransform == player ||
