@@ -132,7 +132,12 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         {
             attacksSinceSuper = 0;
             nextAttackTime = Time.time + 3.2f;
-            StartCoroutine(PerformGroundSlam());
+
+            // The mini-boss randomly chooses one of its two charged specials.
+            if (Random.value < 0.5f)
+                StartCoroutine(PerformGroundSlam());
+            else
+                StartCoroutine(PerformSpiralAttack(direction, 36, 13f, 0.05f));
             return;
         }
 
@@ -212,7 +217,8 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         Destroy(effect);
     }
 
-    private IEnumerator PerformSpiralAttack(Vector2 initialDirection)
+    private IEnumerator PerformSpiralAttack(Vector2 initialDirection,
+        int projectileCount = 24, float angleStep = 22f, float shotInterval = 0.045f)
     {
         superAttackInProgress = true;
         ai.SetMovementSuspended(true);
@@ -220,8 +226,6 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
         float angle = Mathf.Atan2(initialDirection.y, initialDirection.x) *
             Mathf.Rad2Deg;
-        const int projectileCount = 24;
-        const float angleStep = 22f;
 
         for (int i = 0; i < projectileCount && !defeated; i++)
         {
@@ -229,7 +233,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             Vector2 direction = new Vector2(
                 Mathf.Cos(radians), Mathf.Sin(radians));
             Shoot(direction);
-            yield return new WaitForSeconds(0.045f);
+            yield return new WaitForSeconds(shotInterval);
         }
 
         ai.SetMovementSuspended(false);
@@ -404,7 +408,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
     private void ShootRadialBurst()
     {
-        const int projectileCount = 16;
+        const int projectileCount = 24;
         Color redTint = new Color(1f, 0.22f, 0.27f, 1f);
 
         for (int i = 0; i < projectileCount; i++)
