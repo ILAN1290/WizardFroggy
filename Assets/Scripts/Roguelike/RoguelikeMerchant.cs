@@ -16,6 +16,7 @@ public class RoguelikeMerchant : MonoBehaviour
     private readonly Item[] offeredItems = new Item[3];
     private int selectedOfferIndex;
     private GUIStyle titleStyle;
+    private GUIStyle vendorStyle;
     private GUIStyle normalStyle;
     private GUIStyle smallStyle;
 
@@ -35,7 +36,6 @@ public class RoguelikeMerchant : MonoBehaviour
         if (available == null || available.Length == 0)
             return;
 
-        // Shuffle once when this merchant is created so all three slots are unique.
         Item[] shuffled = (Item[])available.Clone();
         for (int i = shuffled.Length - 1; i > 0; i--)
         {
@@ -72,9 +72,10 @@ public class RoguelikeMerchant : MonoBehaviour
         PlayerRunData data = PlayerRunData.EnsureInstance();
         EnsureStyles();
 
-        // 76% of screen width x 80% height is approximately 61% of screen area.
-        float panelWidth = Mathf.Min(Screen.width * 0.76f, Screen.width - 24f);
-        float panelHeight = Mathf.Min(Screen.height * 0.80f, Screen.height - 24f);
+        // Keep the complete shop narrower. The merchant occupies the left third;
+        // the two actual UI sections are shifted right into the remaining two thirds.
+        float panelWidth = Mathf.Min(Screen.width * 0.70f, Screen.width - 24f);
+        float panelHeight = Mathf.Min(Screen.height * 0.82f, Screen.height - 24f);
         Rect panel = new Rect(
             (Screen.width - panelWidth) * 0.5f,
             (Screen.height - panelHeight) * 0.5f,
@@ -83,60 +84,110 @@ public class RoguelikeMerchant : MonoBehaviour
         DrawPanel(panel, textures != null ? textures.panelBackground : null,
             new Color(0.20f, 0.12f, 0.075f, 0.98f));
 
-        float margin = panel.width * 0.035f;
-        float headerHeight = panel.height * 0.12f;
-        GUI.Label(new Rect(panel.x + margin, panel.y + 8f,
-            panel.width * 0.58f, headerHeight - 8f),
-            "ЛАВКА СТАРОГО БИБЛИОТЕКАРЯ", titleStyle);
+        float outerMargin = panel.width * 0.025f;
+        float vendorWidth = panel.width * 0.285f;
+        Rect vendorRect = new Rect(panel.x + outerMargin,
+            panel.y + outerMargin,
+            vendorWidth, panel.height - outerMargin * 2f);
+        DrawVendor(vendorRect);
 
-        float currencyX = panel.x + panel.width * 0.65f;
-        if (textures != null && textures.currencyIcon != null)
-        {
-            Rect currencyRect = new Rect(currencyX, panel.y + 13f, 28f, 28f);
-            GUI.DrawTexture(currencyRect, textures.currencyIcon, ScaleMode.ScaleToFit, true);
-            currencyX += 34f;
-        }
-        GUI.Label(new Rect(currencyX, panel.y + 12f,
-            panel.width * 0.20f, 30f), "Грибочки: " + data.Mushrooms, normalStyle);
+        float contentX = panel.x + panel.width * 0.325f;
+        float contentWidth = panel.width * 0.65f;
+        float headerHeight = panel.height * 0.105f;
+        float contentRight = contentX + contentWidth;
 
-        Rect closeRect = new Rect(panel.xMax - margin - 44f,
-            panel.y + 9f, 40f, 36f);
-        if (DrawSkinnedButton(closeRect, "×",
-            textures != null ? textures.closeButton : null, normalStyle))
+        GUI.Label(new Rect(contentX + 4f, panel.y + 8f,
+            contentWidth * 0.52f, headerHeight - 10f),
+            "ТОРГОВАЯ ЛАВКА", titleStyle);
+
+        // Mushroom icon is a Sprite and is drawn at the same pixel height as its count.
+        float currencyIconSide = normalStyle.fontSize + 5f;
+        float currencyX = contentRight - 170f;
+        Rect currencyIconRect = new Rect(currencyX,
+            panel.y + (headerHeight - currencyIconSide) * 0.5f,
+            currencyIconSide, currencyIconSide);
+        if (textures != null)
+            DrawSpriteFit(textures.currencyIcon, currencyIconRect);
+
+        GUI.Label(new Rect(currencyIconRect.xMax + 7f,
+            panel.y + 6f, 92f, headerHeight - 8f),
+            data.Mushrooms.ToString(), normalStyle);
+
+        float closeSide = Mathf.Min(44f, headerHeight - 8f);
+        Rect closeRect = new Rect(contentRight - closeSide,
+            panel.y + (headerHeight - closeSide) * 0.5f,
+            closeSide, closeSide);
+        if (DrawSquareButton(closeRect, "×",
+            textures != null ? textures.closeButton : null))
             owner.CloseShop();
 
-        DrawItemOffers(panel, margin, headerHeight);
-        DrawSelectedItemDescription(panel, margin, headerHeight);
+        float slotsTop = panel.y + headerHeight + 7f;
+        float slotsGap = contentWidth * 0.025f;
+        float slotSide = Mathf.Min(
+            (contentWidth - slotsGap * 2f) / 3f,
+            panelHeight * 0.235f);
+        float slotsWidth = slotSide * 3f + slotsGap * 2f;
+        float slotsLeft = contentX + (contentWidth - slotsWidth) * 0.5f;
 
-        // Five independent tracks: staff damage, mana cost, mana regeneration,
-        // maximum health and defence.
-        float upgradeTop = panel.y + panel.height * 0.49f;
-        float bottomMargin = panel.height * 0.035f;
-        float rowGap = panel.height * 0.009f;
-        float availableHeight = panel.yMax - bottomMargin - upgradeTop;
-        float rowHeight = (availableHeight - rowGap * (UpgradeTypes.Length - 1)) /
+        DrawItemOffers(slotsLeft, slotsTop, slotSide, slotsGap);
+
+        float descriptionTop = slotsTop + slotSide + panel.height * 0.014f;
+        float descriptionHeight = panel.height * 0.115f;
+        DrawSelectedItemDescription(new Rect(contentX, descriptionTop,
+            contentWidth, descriptionHeight));
+
+        // The five upgrade rows use square +/- buttons and ten square level cells.
+        float upgradeTop = panel.y + panel.height * 0.505f;
+        float bottomMargin = panel.height * 0.025f;
+        float rowGap = panel.height * 0.008f;
+        float rowsHeight = panel.yMax - bottomMargin - upgradeTop;
+        float rowHeight = (rowsHeight - rowGap * (UpgradeTypes.Length - 1)) /
             UpgradeTypes.Length;
 
         for (int i = 0; i < UpgradeTypes.Length; i++)
         {
             float y = upgradeTop + i * (rowHeight + rowGap);
             RoguelikeUpgradeType type = UpgradeTypes[i];
-            DrawUpgradeRow(data, panel, margin, y, rowHeight, type,
-                GetUpgradeTitle(type), GetUpgradeValue(data, type));
+            DrawUpgradeRow(data, new Rect(contentX, y, contentWidth, rowHeight),
+                type, GetUpgradeTitle(type), GetUpgradeValue(data, type));
         }
     }
 
-    private void DrawItemOffers(Rect panel, float margin, float headerHeight)
+    private void DrawVendor(Rect vendorRect)
     {
-        float top = panel.y + headerHeight;
-        float gap = panel.width * 0.018f;
-        float slotWidth = (panel.width - margin * 2f - gap * 2f) / 3f;
-        float slotHeight = panel.height * 0.205f;
+        DrawPanel(vendorRect,
+            textures != null ? textures.vendorPanelBackground : null,
+            new Color(0.13f, 0.075f, 0.05f, 0.96f));
 
+        GUI.Label(new Rect(vendorRect.x + 8f, vendorRect.y + 12f,
+            vendorRect.width - 16f, 46f), "ТОРГОВЕЦ", vendorStyle);
+
+        float portraitWidth = vendorRect.width * 0.88f;
+        float portraitHeight = vendorRect.height * 0.66f;
+        Rect portraitRect = new Rect(
+            vendorRect.center.x - portraitWidth * 0.5f,
+            vendorRect.y + vendorRect.height * 0.14f,
+            portraitWidth, portraitHeight);
+
+        if (textures != null && textures.merchantPortrait != null)
+            DrawSpriteFit(textures.merchantPortrait, portraitRect);
+        else
+            GUI.Label(portraitRect, "Портрет торговца", normalStyle);
+
+        GUI.Label(new Rect(vendorRect.x + 12f, portraitRect.yMax + 14f,
+            vendorRect.width - 24f, 64f),
+            "Старый библиотекарь", normalStyle);
+        GUI.Label(new Rect(vendorRect.x + 14f, portraitRect.yMax + 78f,
+            vendorRect.width - 28f, vendorRect.yMax - portraitRect.yMax - 90f),
+            "Редкие вещи и улучшения для долгого путешествия.", smallStyle);
+    }
+
+    private void DrawItemOffers(float left, float top, float slotSide, float gap)
+    {
         for (int i = 0; i < offeredItems.Length; i++)
         {
-            Rect slot = new Rect(panel.x + margin + i * (slotWidth + gap),
-                top, slotWidth, slotHeight);
+            Rect slot = new Rect(left + i * (slotSide + gap),
+                top, slotSide, slotSide);
 
             Item item = offeredItems[i];
             Texture2D slotTexture = textures == null ? null :
@@ -153,34 +204,31 @@ public class RoguelikeMerchant : MonoBehaviour
 
             if (item == null)
             {
-                GUI.Label(new Rect(slot.x, slot.y + slot.height * 0.4f,
-                    slot.width, 28f), "ПРОДАНО", normalStyle);
+                GUI.Label(new Rect(slot.x + 5f, slot.center.y - 15f,
+                    slot.width - 10f, 30f), "ПРОДАНО", normalStyle);
                 continue;
             }
 
-            Rect iconRect = new Rect(slot.x + slot.width * 0.36f,
-                slot.y + 8f, slot.width * 0.28f, slot.height * 0.56f);
-            DrawItemIcon(item.icon, iconRect);
+            float iconSide = slotSide * 0.48f;
+            Rect iconRect = new Rect(slot.center.x - iconSide * 0.5f,
+                slot.y + slotSide * 0.08f, iconSide, iconSide);
+            DrawSpriteFit(item.icon, iconRect);
 
-            GUI.Label(new Rect(slot.x + 8f, slot.y + slot.height * 0.67f,
-                slot.width - 16f, 24f), item.itemName, normalStyle);
-            GUI.Label(new Rect(slot.x + 8f, slot.y + slot.height * 0.83f,
-                slot.width - 16f, 22f), GetItemPrice(item) + " гриб.",
-                smallStyle);
+            GUI.Label(new Rect(slot.x + 7f, slot.y + slotSide * 0.62f,
+                slot.width - 14f, slotSide * 0.20f),
+                item.itemName, normalStyle);
+            GUI.Label(new Rect(slot.x + 7f, slot.y + slotSide * 0.82f,
+                slot.width - 14f, slotSide * 0.15f),
+                GetItemPrice(item) + " гриб.", smallStyle);
 
             if (GUI.Button(slot, GUIContent.none, GUIStyle.none))
                 selectedOfferIndex = i;
         }
     }
 
-    private void DrawSelectedItemDescription(Rect panel, float margin, float headerHeight)
+    private void DrawSelectedItemDescription(Rect rect)
     {
-        float top = panel.y + headerHeight + panel.height * 0.225f;
-        float height = panel.height * 0.125f;
-        Rect descriptionRect = new Rect(panel.x + margin, top,
-            panel.width - margin * 2f, height);
-
-        DrawPanel(descriptionRect,
+        DrawPanel(rect,
             textures != null ? textures.itemDescriptionBackground : null,
             new Color(0.13f, 0.085f, 0.06f, 0.95f));
 
@@ -189,38 +237,37 @@ public class RoguelikeMerchant : MonoBehaviour
 
         if (selected == null)
         {
-            GUI.Label(new Rect(descriptionRect.x + 16f, descriptionRect.y + 10f,
-                descriptionRect.width - 32f, 28f),
-                "Выберите доступный предмет в одном из трёх слотов.", normalStyle);
+            GUI.Label(new Rect(rect.x + 12f, rect.y + 6f,
+                rect.width - 24f, rect.height - 12f),
+                "Выберите предмет в одном из трёх слотов.", normalStyle);
             return;
         }
 
-        GUI.Label(new Rect(descriptionRect.x + 16f, descriptionRect.y + 8f,
-            descriptionRect.width * 0.62f, 28f),
+        float buySide = Mathf.Min(rect.height - 10f, 76f);
+        Rect buyRect = new Rect(rect.xMax - buySide - 8f,
+            rect.center.y - buySide * 0.5f, buySide, buySide);
+
+        GUI.Label(new Rect(rect.x + 12f, rect.y + 5f,
+            rect.width - buySide - 38f, 30f),
             selected.itemName, normalStyle);
-        GUI.Label(new Rect(descriptionRect.x + 16f, descriptionRect.y + 36f,
-            descriptionRect.width * 0.66f, height - 40f),
+        GUI.Label(new Rect(rect.x + 12f, rect.y + 35f,
+            rect.width - buySide - 38f, rect.height - 40f),
             GetItemDescription(selected), smallStyle);
 
         int price = GetItemPrice(selected);
         bool canBuy = PlayerRunData.EnsureInstance().Mushrooms >= price &&
             Inventory.Instance != null && Inventory.Instance.CanAdd(selected, 1);
-
         bool previousEnabled = GUI.enabled;
         GUI.enabled = previousEnabled && canBuy;
-        if (DrawSkinnedButton(new Rect(descriptionRect.xMax - 220f,
-            descriptionRect.y + (height - 42f) * 0.5f, 200f, 42f),
-            "КУПИТЬ • " + price,
-            textures != null ? textures.itemBuyButton : null, normalStyle))
+        if (DrawSquareButton(buyRect, price.ToString(),
+            textures != null ? textures.itemBuyButton : null))
             BuySelectedItem();
         GUI.enabled = previousEnabled;
     }
 
-    private void DrawUpgradeRow(PlayerRunData data, Rect panel, float margin,
-        float y, float height, RoguelikeUpgradeType type, string title, string value)
+    private void DrawUpgradeRow(PlayerRunData data, Rect row,
+        RoguelikeUpgradeType type, string title, string value)
     {
-        Rect row = new Rect(panel.x + margin, y,
-            panel.width - margin * 2f, height);
         DrawPanel(row, textures != null ? textures.upgradeRowBackground : null,
             new Color(0.12f, 0.075f, 0.055f, 0.9f));
 
@@ -228,21 +275,23 @@ public class RoguelikeMerchant : MonoBehaviour
         int cost = data.GetUpgradePrice(type);
         int refund = data.GetUpgradeRefund(type);
 
-        GUI.Label(new Rect(row.x + 14f, row.y + 3f,
-            row.width * 0.25f, 24f), title, normalStyle);
-        GUI.Label(new Rect(row.x + 14f, row.y + 28f,
-            row.width * 0.25f, 22f), value, smallStyle);
+        float buttonSide = Mathf.Clamp(row.height * 0.60f, 30f, 46f);
+        float buttonY = row.center.y - buttonSide * 0.5f;
+        Rect plusRect = new Rect(row.xMax - buttonSide - 4f,
+            buttonY, buttonSide, buttonSide);
+        Rect minusRect = new Rect(plusRect.x - buttonSide - 8f,
+            buttonY, buttonSide, buttonSide);
 
-        float buttonWidth = Mathf.Clamp(row.width * 0.055f, 34f, 58f);
-        float buttonHeight = Mathf.Min(34f, height * 0.52f);
-        float buttonY = row.y + (height - buttonHeight) * 0.5f;
-        float minusX = row.x + row.width * 0.29f;
-        Rect minusRect = new Rect(minusX, buttonY, buttonWidth, buttonHeight);
+        float labelWidth = row.width * 0.28f;
+        GUI.Label(new Rect(row.x + 10f, row.y + 3f,
+            labelWidth, row.height * 0.48f), title, normalStyle);
+        GUI.Label(new Rect(row.x + 10f, row.y + row.height * 0.48f,
+            labelWidth, row.height * 0.40f), value, smallStyle);
 
         bool previousEnabled = GUI.enabled;
         GUI.enabled = previousEnabled && data.CanDowngrade(type);
-        if (DrawSkinnedButton(minusRect, "−",
-            textures != null ? textures.upgradeMinusButton : null, normalStyle))
+        if (DrawSquareButton(minusRect, "−",
+            textures != null ? textures.upgradeMinusButton : null))
         {
             if (data.TryDowngrade(type))
             {
@@ -252,11 +301,9 @@ public class RoguelikeMerchant : MonoBehaviour
             }
         }
 
-        float plusX = row.x + row.width - buttonWidth;
-        Rect plusRect = new Rect(plusX, buttonY, buttonWidth, buttonHeight);
         GUI.enabled = previousEnabled && data.CanUpgrade(type) && data.Mushrooms >= cost;
-        if (DrawSkinnedButton(plusRect, "+",
-            textures != null ? textures.upgradePlusButton : null, normalStyle))
+        if (DrawSquareButton(plusRect, "+",
+            textures != null ? textures.upgradePlusButton : null))
         {
             if (data.TryUpgrade(type))
             {
@@ -271,17 +318,24 @@ public class RoguelikeMerchant : MonoBehaviour
         }
         GUI.enabled = previousEnabled;
 
-        float meterX = minusRect.xMax + 12f;
-        float meterWidth = plusRect.xMin - meterX - 12f;
-        float segmentGap = Mathf.Clamp(meterWidth * 0.012f, 2f, 6f);
-        float segmentWidth = Mathf.Max(1f, (meterWidth - segmentGap * 9f) / 10f);
-        float segmentHeight = Mathf.Min(24f, height * 0.34f);
-        float segmentY = row.y + (height - segmentHeight) * 0.5f;
+        // Reserve a wide strip between the stat label and the two square buttons.
+        // Each of the ten level cells is square rather than a stretched rectangle.
+        float meterX = row.x + labelWidth + 12f;
+        float meterRight = minusRect.x - 12f;
+        float meterWidth = Mathf.Max(0f, meterRight - meterX);
+        float segmentGap = 3f;
+        float segmentSide = Mathf.Min(
+            row.height * 0.42f,
+            (meterWidth - segmentGap * 9f) / 10f);
+        segmentSide = Mathf.Max(1f, segmentSide);
+        float totalMeterWidth = segmentSide * 10f + segmentGap * 9f;
+        meterX += Mathf.Max(0f, (meterWidth - totalMeterWidth) * 0.5f);
+        float meterY = row.center.y - segmentSide * 0.5f;
 
         for (int i = 0; i < 10; i++)
         {
-            Rect segment = new Rect(meterX + i * (segmentWidth + segmentGap),
-                segmentY, segmentWidth, segmentHeight);
+            Rect segment = new Rect(meterX + i * (segmentSide + segmentGap),
+                meterY, segmentSide, segmentSide);
             Texture2D segmentTexture = null;
             if (textures != null)
                 segmentTexture = i < level
@@ -293,12 +347,10 @@ public class RoguelikeMerchant : MonoBehaviour
             DrawPanel(segment, segmentTexture, fallback);
         }
 
-        GUI.Label(new Rect(meterX, row.y + 2f, meterWidth, 18f),
-            level + "/10", smallStyle);
-        GUI.Label(new Rect(minusRect.x - 4f, row.y + height - 19f,
-            buttonWidth + 8f, 17f), "½ " + refund, smallStyle);
-        GUI.Label(new Rect(plusRect.x - 18f, row.y + height - 19f,
-            buttonWidth + 36f, 17f), "+" + cost, smallStyle);
+        GUI.Label(new Rect(minusRect.x - 12f, row.y + row.height - 20f,
+            buttonSide + 24f, 18f), "½ " + refund, smallStyle);
+        GUI.Label(new Rect(plusRect.x - 12f, row.y + row.height - 20f,
+            buttonSide + 24f, 18f), "+" + cost, smallStyle);
     }
 
     private static string GetUpgradeTitle(RoguelikeUpgradeType type)
@@ -308,7 +360,7 @@ public class RoguelikeMerchant : MonoBehaviour
             case RoguelikeUpgradeType.StaffDamage: return "УРОН ПОСОХА";
             case RoguelikeUpgradeType.ManaConsumption: return "РАСХОД МАНЫ";
             case RoguelikeUpgradeType.ManaRegeneration: return "РЕГЕНЕРАЦИЯ МАНЫ";
-            case RoguelikeUpgradeType.MaximumHealth: return "МАКСИМАЛЬНОЕ ЗДОРОВЬЕ";
+            case RoguelikeUpgradeType.MaximumHealth: return "МАКС. ЗДОРОВЬЕ";
             case RoguelikeUpgradeType.Defense: return "ЗАЩИТА";
             default: return "УЛУЧШЕНИЕ";
         }
@@ -325,9 +377,9 @@ public class RoguelikeMerchant : MonoBehaviour
             case RoguelikeUpgradeType.ManaRegeneration:
                 return "В секунду: " + data.ManaRegeneration.ToString("0.0");
             case RoguelikeUpgradeType.MaximumHealth:
-                return "Здоровье: " + data.MaximumHealth.ToString("0");
+                return "HP: " + data.MaximumHealth.ToString("0");
             case RoguelikeUpgradeType.Defense:
-                return "Снижение урона: " + (data.DamageReduction * 100f).ToString("0") + "%";
+                return "Защита: " + (data.DamageReduction * 100f).ToString("0") + "%";
             default:
                 return "—";
         }
@@ -335,6 +387,7 @@ public class RoguelikeMerchant : MonoBehaviour
 
     private static void DrawPanel(Rect rect, Texture2D texture, Color fallbackColor)
     {
+        if (rect.width <= 0f || rect.height <= 0f) return;
         if (texture != null)
         {
             GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill, true);
@@ -347,15 +400,46 @@ public class RoguelikeMerchant : MonoBehaviour
         GUI.color = previousColor;
     }
 
-    private static bool DrawSkinnedButton(
-        Rect rect, string label, Texture2D texture, GUIStyle labelStyle)
+    private bool DrawSquareButton(Rect rect, string label, Texture2D texture)
     {
+        if (texture != null)
+            GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill, true);
+
+        GUIStyle buttonTextStyle = normalStyle;
         if (texture == null)
             return GUI.Button(rect, label);
 
-        GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill, true);
-        GUI.Label(rect, label, labelStyle);
+        GUI.Label(rect, label, buttonTextStyle);
         return GUI.Button(rect, GUIContent.none, GUIStyle.none);
+    }
+
+    private static void DrawSpriteFit(Sprite sprite, Rect destination)
+    {
+        if (sprite == null || sprite.texture == null) return;
+
+        Texture2D texture = sprite.texture;
+        Rect source = sprite.textureRect;
+        float sourceAspect = source.width / Mathf.Max(1f, source.height);
+        float destinationAspect = destination.width / Mathf.Max(1f, destination.height);
+        Rect target = destination;
+
+        if (sourceAspect > destinationAspect)
+        {
+            float fittedHeight = destination.width / sourceAspect;
+            target.y += (destination.height - fittedHeight) * 0.5f;
+            target.height = fittedHeight;
+        }
+        else
+        {
+            float fittedWidth = destination.height * sourceAspect;
+            target.x += (destination.width - fittedWidth) * 0.5f;
+            target.width = fittedWidth;
+        }
+
+        Rect uv = new Rect(
+            source.x / texture.width, source.y / texture.height,
+            source.width / texture.width, source.height / texture.height);
+        GUI.DrawTextureWithTexCoords(target, texture, uv, true);
     }
 
     private void BuySelectedItem()
@@ -418,35 +502,37 @@ public class RoguelikeMerchant : MonoBehaviour
         return "Полезный предмет для дальнейшего прохождения.";
     }
 
-    private static void DrawItemIcon(Sprite sprite, Rect destination)
-    {
-        if (sprite == null || sprite.texture == null) return;
-
-        Texture2D texture = sprite.texture;
-        Rect source = sprite.textureRect;
-        Rect uv = new Rect(source.x / texture.width, source.y / texture.height,
-            source.width / texture.width, source.height / texture.height);
-        GUI.DrawTextureWithTexCoords(destination, texture, uv, true);
-    }
-
     private void EnsureStyles()
     {
         if (titleStyle == null)
         {
             titleStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = Mathf.Clamp(Screen.height / 38, 18, 30),
+                fontSize = Mathf.Clamp(Screen.height / 30, 24, 36),
                 fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft
+                alignment = TextAnchor.MiddleLeft,
+                wordWrap = true
             };
             titleStyle.normal.textColor = new Color(1f, 0.87f, 0.66f);
+        }
+
+        if (vendorStyle == null)
+        {
+            vendorStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = Mathf.Clamp(Screen.height / 38, 20, 30),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true
+            };
+            vendorStyle.normal.textColor = new Color(1f, 0.87f, 0.66f);
         }
 
         if (normalStyle == null)
         {
             normalStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = Mathf.Clamp(Screen.height / 55, 13, 21),
+                fontSize = Mathf.Clamp(Screen.height / 44, 17, 26),
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = true
             };
@@ -457,7 +543,7 @@ public class RoguelikeMerchant : MonoBehaviour
         {
             smallStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = Mathf.Clamp(Screen.height / 72, 11, 16),
+                fontSize = Mathf.Clamp(Screen.height / 54, 15, 21),
                 alignment = TextAnchor.MiddleLeft,
                 wordWrap = true
             };
