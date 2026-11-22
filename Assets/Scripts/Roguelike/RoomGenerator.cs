@@ -142,8 +142,8 @@ public class RoomGenerator : MonoBehaviour
         // Нижняя стена всегда рисуется поверх персонажа. Как только игрок
         // уходит за её внутреннюю линию, прозрачность меняется сразу у всей кладки
         // и у двери, а не только у отдельного тайла под ногами.
-        bool playerBehindLowerWall = hasLowerWallOcclusion &&
-            playerBounds.min.y < lowerWallOcclusionY;
+        bool playerTouchesLowerWall = hasLowerWallOcclusion &&
+            playerBounds.min.y <= lowerWallOcclusionY + 0.001f;
         for (int i = lowerWallOcclusionStates.Count - 1; i >= 0; i--)
         {
             OcclusionState state = lowerWallOcclusionStates[i];
@@ -155,7 +155,7 @@ public class RoomGenerator : MonoBehaviour
             }
 
             Color color = state.OriginalColor;
-            if (playerBehindLowerWall)
+            if (playerTouchesLowerWall)
                 color.a *= occludedAlpha;
             renderer.color = color;
             renderer.sortingOrder = state.OriginalSortingOrder;
@@ -280,7 +280,9 @@ public class RoomGenerator : MonoBehaviour
             ? Mathf.Max(0.001f, upperWallTileSprite.bounds.size.y)
             : bottomWallTileSprite != null
                 ? Mathf.Max(0.001f, bottomWallTileSprite.bounds.size.y) : 0f;
-        float sideWallBottom = bottom - 2f * frameTileHeight;
+        // The lower masonry now reaches one tile below the room's inner edge.
+        // Extend both side walls to exactly the same bottom boundary.
+        float sideWallBottom = bottom - frameTileHeight;
         float sideWallTop = top + 3f * frameTileHeight;
 
         CreateUpperWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
@@ -425,16 +427,18 @@ public class RoomGenerator : MonoBehaviour
 
         if (!hasDoor) return;
 
-        // Fill the old doorway position with the normal side-wall texture.
-        // The actual door is nudged outward by 10 screen pixels.
+        // Restore solid wall at the original opening and move the door panel
+        // one complete tile inward: left door to the right, right door to the left.
         CreateVerticalWallTilesSegment(tilesRoot,
             sideName + " wall • default tile behind door",
             wallX, doorBottom, doorTop, tileHeight, tileSprite, 3);
+        CreateWallCollider(collidersRoot,
+            sideName + " wall • closed original doorway",
+            new Vector2(wallX, centreY), new Vector2(tileWidth, doorHeight));
 
-        float doorPush = 10f / GetScreenPixelsPerWorldUnitX();
-        float outwardDirection = dx < 0 ? -1f : 1f;
+        float inwardDirection = dx < 0 ? 1f : -1f;
         Vector2 doorPosition = new Vector2(
-            wallX + outwardDirection * doorPush, centreY);
+            wallX + inwardDirection * tileWidth, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
         Color openedTint = new Color(0.66f, 0.66f, 0.66f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
@@ -480,7 +484,9 @@ public class RoomGenerator : MonoBehaviour
         // Raise the lower wall another tile so its complete brickwork and door
         // remain visible inside the camera view.
         float wallBaseY = innerY + tileHeight * 2f;
-        lowerWallOcclusionY = wallBaseY - tileHeight * 1.5f;
+        // The inner/top edge of the lowest wall is the touch threshold for
+        // the dedicated 15px player movement hitbox.
+        lowerWallOcclusionY = wallBaseY;
         hasLowerWallOcclusion = true;
 
         int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
@@ -558,8 +564,7 @@ public class RoomGenerator : MonoBehaviour
     {
         GameObject door = CreateDoorRoot(doorsRoot, "Нижняя дверь", position);
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
-        blocker.size = new Vector2(width, tileHeight * 2f);
-        blocker.offset = new Vector2(0f, -tileHeight * 0.5f);
+        blocker.isTrigger = false;
 
         BoxCollider2D sensor = door.AddComponent<BoxCollider2D>();
         sensor.isTrigger = true;
@@ -585,10 +590,75 @@ public class RoomGenerator : MonoBehaviour
 
         SetSensorToDoorSpriteBounds(sensor, renderers);
 
+        BoxCollider2D movableHitbox = ConfigureLowerDoorHitboxes(
+            door, blocker, renderers);
+        foreach (SpriteRenderer renderer in renderers)
+            RegisterOcclusion(renderer, movableHitbox);
+
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, 0, -1, spawnPosition, blocker, sensor, renderers,
             closedUpperDoorSprites, openedUpperDoorSprites,
             Color.white, Color.white, false);
+    }
+
+    private static BoxCollider2D ConfigureLowerDoorHitboxes(
+        GameObject door, BoxCollider2D solidHitbox, SpriteRenderer[] renderers)
+    {
+        if (door == null || solidHitbox == null || renderers == null)
+            return null;
+
+        bool foundBounds = false;
+        Bounds worldBounds = new Bounds();
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer renderer = renderers[i];
+            if (renderer == null || renderer.sprite == null) continue;
+
+            if (!foundBounds)
+            {
+                worldBounds = renderer.bounds;
+                foundBounds = true;
+            }
+            else
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        if (!foundBounds) return null;
+
+        Transform root = door.transform;
+        Vector3 lowerLeft = root.InverseTransformPoint(new Vector3(
+            worldBounds.min.x, worldBounds.min.y, root.position.z));
+        Vector3 upperRight = root.InverseTransformPoint(new Vector3(
+            worldBounds.max.x, worldBounds.max.y, root.position.z));
+
+        float width = upperRight.x - lowerLeft.x;
+        float height = upperRight.y - lowerLeft.y;
+        if (width <= 0.001f || height <= 0.001f) return null;
+
+        const float solidFraction = 0.25f;
+        float solidHeight = height * solidFraction;
+        float movableHeight = height - solidHeight;
+        float centreX = (lowerLeft.x + upperRight.x) * 0.5f;
+
+        solidHitbox.size = new Vector2(width, solidHeight);
+        solidHitbox.offset = new Vector2(
+            centreX, lowerLeft.y + solidHeight * 0.5f);
+        solidHitbox.isTrigger = false;
+
+        GameObject movableArea = new GameObject("Lower Door Movable Hitbox");
+        movableArea.tag = "Wall";
+        movableArea.layer = door.layer;
+        movableArea.transform.SetParent(root, false);
+        movableArea.AddComponent<RoguelikeGhostObstacle>();
+
+        BoxCollider2D movableHitbox = movableArea.AddComponent<BoxCollider2D>();
+        movableHitbox.size = new Vector2(width, movableHeight);
+        movableHitbox.offset = new Vector2(
+            centreX, lowerLeft.y + solidHeight + movableHeight * 0.5f);
+        movableHitbox.isTrigger = true;
+        return movableHitbox;
     }
 
     private void CreateUpperDoor(Transform doorsRoot, RoguelikeSession session,
@@ -616,6 +686,7 @@ public class RoomGenerator : MonoBehaviour
                 closedUpperDoorSprites != null && i < closedUpperDoorSprites.Length
                     ? closedUpperDoorSprites[i] : null,
                 Color.white);
+            renderer.sortingOrder = 3;
             renderers[i] = renderer;
         }
 
@@ -864,9 +935,9 @@ public class RoomGenerator : MonoBehaviour
             shelf.transform.localRotation = upper
                 ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
 
-            // The vertical shelf is now half the size of the previous iteration.
+            // Increase the vertical shelf by 1.3x from the previous iteration.
             shelf.transform.localScale = Vector3.one *
-                (scale * (upper ? 2f : 4f / 3f));
+                (scale * (upper ? 2f : (4f / 3f) * 1.3f));
         }
         else
         {
@@ -930,8 +1001,8 @@ public class RoomGenerator : MonoBehaviour
         else
         {
             // The vertical shelf is rotated by 90 degrees: local X points upward.
-            // Its lower three quarters block movement; the top quarter is pass-through.
-            float solidDepth = spriteBounds.size.x * 0.75f;
+            // Its lower two thirds block movement; the upper third is pass-through.
+            float solidDepth = spriteBounds.size.x * (2f / 3f);
             float movableDepth = spriteBounds.size.x - solidDepth;
 
             solidHitbox.size = new Vector2(solidDepth, spriteBounds.size.y);
