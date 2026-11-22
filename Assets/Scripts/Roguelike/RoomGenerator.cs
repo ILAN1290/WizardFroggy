@@ -83,14 +83,23 @@ public class RoomGenerator : MonoBehaviour
             if (playerObject == null) return;
             cachedPlayerTransform = playerObject.transform;
             cachedPlayerRenderer = playerObject.GetComponent<SpriteRenderer>();
-            cachedPlayerCollider = playerObject.GetComponent<Collider2D>();
+            PlayerController playerController = playerObject.GetComponent<PlayerController>();
+            cachedPlayerCollider = playerController != null &&
+                playerController.MovementCollider != null
+                    ? playerController.MovementCollider
+                    : playerObject.GetComponent<Collider2D>();
         }
 
-        Bounds playerBounds = cachedPlayerRenderer != null
-            ? cachedPlayerRenderer.bounds
-            : cachedPlayerCollider != null
-                ? cachedPlayerCollider.bounds
-                : new Bounds(cachedPlayerTransform.position, new Vector3(0.7f, 0.7f, 0.1f));
+        PlayerController cachedController =
+            cachedPlayerTransform.GetComponent<PlayerController>();
+        if (cachedController != null && cachedController.MovementCollider != null)
+            cachedPlayerCollider = cachedController.MovementCollider;
+
+        Bounds playerBounds = cachedPlayerCollider != null
+            ? cachedPlayerCollider.bounds
+            : cachedPlayerRenderer != null
+                ? cachedPlayerRenderer.bounds
+                : new Bounds(cachedPlayerTransform.position, new Vector3(0.7f, 0.15f, 0.1f));
         int playerSortingOrder = cachedPlayerRenderer != null
             ? cachedPlayerRenderer.sortingOrder : 0;
 
@@ -165,8 +174,12 @@ public class RoomGenerator : MonoBehaviour
         cachedPlayerTransform = playerObject != null ? playerObject.transform : null;
         cachedPlayerRenderer = playerObject != null
             ? playerObject.GetComponent<SpriteRenderer>() : null;
-        cachedPlayerCollider = playerObject != null
-            ? playerObject.GetComponent<Collider2D>() : null;
+        PlayerController playerController = playerObject != null
+            ? playerObject.GetComponent<PlayerController>() : null;
+        cachedPlayerCollider = playerController != null &&
+            playerController.MovementCollider != null
+                ? playerController.MovementCollider
+                : playerObject != null ? playerObject.GetComponent<Collider2D>() : null;
         // The player must render above the upper wall; the lower wall keeps
         // its separate foreground sorting order and opacity behaviour.
         if (cachedPlayerRenderer != null)
@@ -258,13 +271,10 @@ public class RoomGenerator : MonoBehaviour
         float top = centre.y + height * 0.5f;
         const float entryInset = 1.15f;
 
-        // Extend the floor a few pixels beyond the calculated room bounds to hide
-        // thin black seams caused by tile/camera pixel rounding.
-        const float floorBleedPixels = 8f;
-        float floorMarginX = floorBleedPixels / GetScreenPixelsPerWorldUnitX();
-        float floorMarginY = floorBleedPixels / GetScreenPixelsPerWorldUnitY();
-        FitWoodenFloorToRoom(left - floorMarginX, right + floorMarginX,
-            bottom - floorMarginY, top + floorMarginY);
+        // Keep the wooden floor across the complete Tilemap and camera view.
+        // Wall tiles and colliders define the room; the floor must never be cut
+        // back to the inner walkable rectangle.
+        FillWoodenFloorMap();
 
         float frameTileHeight = upperWallTileSprite != null
             ? Mathf.Max(0.001f, upperWallTileSprite.bounds.size.y)
@@ -415,7 +425,16 @@ public class RoomGenerator : MonoBehaviour
 
         if (!hasDoor) return;
 
-        Vector2 doorPosition = new Vector2(wallX, centreY);
+        // Fill the old doorway position with the normal side-wall texture.
+        // The actual door is nudged outward by 10 screen pixels.
+        CreateVerticalWallTilesSegment(tilesRoot,
+            sideName + " wall • default tile behind door",
+            wallX, doorBottom, doorTop, tileHeight, tileSprite, 3);
+
+        float doorPush = 10f / GetScreenPixelsPerWorldUnitX();
+        float outwardDirection = dx < 0 ? -1f : 1f;
+        Vector2 doorPosition = new Vector2(
+            wallX + outwardDirection * doorPush, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
         Color openedTint = new Color(0.66f, 0.66f, 0.66f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
@@ -458,8 +477,9 @@ public class RoomGenerator : MonoBehaviour
         float tileWidth = Mathf.Max(0.001f, baseTile.bounds.size.x);
         float tileHeight = Mathf.Max(0.001f, baseTile.bounds.size.y);
 
-        // Raise the whole lower wall by one tile into the room.
-        float wallBaseY = innerY + tileHeight;
+        // Raise the lower wall another tile so its complete brickwork and door
+        // remain visible inside the camera view.
+        float wallBaseY = innerY + tileHeight * 2f;
         lowerWallOcclusionY = wallBaseY - tileHeight * 1.5f;
         hasLowerWallOcclusion = true;
 
@@ -641,6 +661,16 @@ public class RoomGenerator : MonoBehaviour
         }
 
         SetSensorToDoorSpriteBounds(sensor, renderers);
+        if (directionX != 0)
+        {
+            // Keep collision and transition sensing on the original wall plane;
+            // only the visible door sprites protrude outward.
+            float doorPush = 10f / GetScreenPixelsPerWorldUnitX();
+            float outwardDirection = directionX < 0 ? -1f : 1f;
+            float localCorrection = -outwardDirection * doorPush;
+            blocker.offset = new Vector2(localCorrection, blocker.offset.y);
+            sensor.offset += new Vector2(localCorrection, 0f);
+        }
 
         // spawnPosition is deliberately on the wall opposite the entry door.
         // Recalculating it from this door's sensor would place the player beside
@@ -834,9 +864,9 @@ public class RoomGenerator : MonoBehaviour
             shelf.transform.localRotation = upper
                 ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
 
-            // The vertical shelf is reduced by a factor of 1.5 from its previous size.
+            // The vertical shelf is now half the size of the previous iteration.
             shelf.transform.localScale = Vector3.one *
-                (scale * (upper ? 2f : 4f / 1.5f));
+                (scale * (upper ? 2f : 4f / 3f));
         }
         else
         {
@@ -1089,42 +1119,19 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
-    private static void FitWoodenFloorToRoom(
-        float left, float right, float bottom, float top)
+    private static void FillWoodenFloorMap()
     {
         GameObject floorObject = GameObject.Find("WoodenFloorTiles");
         Tilemap floor = floorObject != null ? floorObject.GetComponent<Tilemap>() : null;
         if (floor == null) return;
 
-        BoundsInt originalBounds = floor.cellBounds;
-        if (originalBounds.size.x <= 0 || originalBounds.size.y <= 0) return;
-
-        Vector3Int minCell = floor.WorldToCell(new Vector3(left + 0.001f, bottom + 0.001f, 0f));
-        Vector3Int maxCell = floor.WorldToCell(new Vector3(right - 0.001f, top - 0.001f, 0f));
-
-        Vector3 cellOrigin = floor.CellToWorld(minCell);
-        float cellWidth = Mathf.Abs(
-            floor.CellToWorld(minCell + Vector3Int.right).x - cellOrigin.x);
-        float cellHeight = Mathf.Abs(
-            floor.CellToWorld(minCell + Vector3Int.up).y - cellOrigin.y);
-        if (cellWidth <= 0.001f || cellHeight <= 0.001f) return;
-
-        // Keep only whole tile cells that fit inside the walkable rectangle.
-        while (floor.CellToWorld(minCell).x < left - 0.001f) minCell.x++;
-        while (floor.CellToWorld(minCell).y < bottom - 0.001f) minCell.y++;
-        while (floor.CellToWorld(maxCell).x + cellWidth > right + 0.001f) maxCell.x--;
-        while (floor.CellToWorld(maxCell).y + cellHeight > top + 0.001f) maxCell.y--;
-
-        int minX = minCell.x;
-        int maxX = maxCell.x;
-        int minY = minCell.y;
-        int maxY = maxCell.y;
-        if (maxX < minX || maxY < minY) return;
+        BoundsInt usedBounds = floor.cellBounds;
+        if (usedBounds.size.x <= 0 || usedBounds.size.y <= 0) return;
 
         TileBase fallbackTile = null;
-        for (int y = originalBounds.yMin; y < originalBounds.yMax && fallbackTile == null; y++)
+        for (int y = usedBounds.yMin; y < usedBounds.yMax && fallbackTile == null; y++)
         {
-            for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
+            for (int x = usedBounds.xMin; x < usedBounds.xMax; x++)
             {
                 fallbackTile = floor.GetTile(new Vector3Int(x, y, 0));
                 if (fallbackTile != null) break;
@@ -1132,18 +1139,32 @@ public class RoomGenerator : MonoBehaviour
         }
         if (fallbackTile == null) return;
 
-        // Remove every existing tile outside the walkable rectangle, including
-        // rows above the upper wall and below the lower wall.
-        for (int y = originalBounds.yMin; y < originalBounds.yMax; y++)
+        int minX = usedBounds.xMin;
+        int maxX = usedBounds.xMax - 1;
+        int minY = usedBounds.yMin;
+        int maxY = usedBounds.yMax - 1;
+
+        // Extend the existing map to cover the complete camera viewport plus
+        // a safety margin. The existing Tilemap area is always retained.
+        Camera camera = Camera.main;
+        if (camera != null)
         {
-            for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
-            {
-                if (x < minX || x > maxX || y < minY || y > maxY)
-                    floor.SetTile(new Vector3Int(x, y, 0), null);
-            }
+            Vector3 bottomLeft = camera.ViewportToWorldPoint(
+                new Vector3(0f, 0f, Mathf.Abs(camera.transform.position.z)));
+            Vector3 topRight = camera.ViewportToWorldPoint(
+                new Vector3(1f, 1f, Mathf.Abs(camera.transform.position.z)));
+            Vector3Int cameraMin = floor.WorldToCell(bottomLeft);
+            Vector3Int cameraMax = floor.WorldToCell(topRight);
+
+            const int paddingCells = 2;
+            minX = Mathf.Min(minX, cameraMin.x - paddingCells);
+            maxX = Mathf.Max(maxX, cameraMax.x + paddingCells);
+            minY = Mathf.Min(minY, cameraMin.y - paddingCells);
+            maxY = Mathf.Max(maxY, cameraMax.y + paddingCells);
         }
 
-        // Fill any gaps and extend the floor only through cells fully inside the walls.
+        // Fill empty cells only. Never delete existing floor tiles: black gaps
+        // previously appeared because cells beyond the room rectangle were cleared.
         for (int y = minY; y <= maxY; y++)
         {
             for (int x = minX; x <= maxX; x++)
