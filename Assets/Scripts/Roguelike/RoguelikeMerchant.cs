@@ -2,16 +2,27 @@ using UnityEngine;
 
 public class RoguelikeMerchant : MonoBehaviour
 {
+    private static readonly RoguelikeUpgradeType[] UpgradeTypes =
+    {
+        RoguelikeUpgradeType.StaffDamage,
+        RoguelikeUpgradeType.ManaConsumption,
+        RoguelikeUpgradeType.ManaRegeneration,
+        RoguelikeUpgradeType.MaximumHealth,
+        RoguelikeUpgradeType.Defense
+    };
+
     private RoguelikeSession session;
+    private RoguelikeMerchantTextures textures;
     private readonly Item[] offeredItems = new Item[3];
     private int selectedOfferIndex;
     private GUIStyle titleStyle;
     private GUIStyle normalStyle;
     private GUIStyle smallStyle;
 
-    public void Initialize(RoguelikeSession owner)
+    public void Initialize(RoguelikeSession owner, RoguelikeMerchantTextures uiTextures)
     {
         session = owner;
+        textures = uiTextures;
         GenerateOffers();
     }
 
@@ -61,56 +72,58 @@ public class RoguelikeMerchant : MonoBehaviour
         PlayerRunData data = PlayerRunData.EnsureInstance();
         EnsureStyles();
 
-        // The panel covers roughly 60% of the screen area while remaining responsive.
-        float panelWidth = Screen.width * 0.76f;
-        float panelHeight = Screen.height * 0.80f;
-        panelWidth = Mathf.Min(panelWidth, Screen.width - 24f);
-        panelHeight = Mathf.Min(panelHeight, Screen.height - 24f);
-
+        // 76% of screen width x 80% height is approximately 61% of screen area.
+        float panelWidth = Mathf.Min(Screen.width * 0.76f, Screen.width - 24f);
+        float panelHeight = Mathf.Min(Screen.height * 0.80f, Screen.height - 24f);
         Rect panel = new Rect(
             (Screen.width - panelWidth) * 0.5f,
             (Screen.height - panelHeight) * 0.5f,
             panelWidth, panelHeight);
 
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.20f, 0.12f, 0.075f, 0.98f);
-        GUI.Box(panel, GUIContent.none);
-        GUI.color = previousColor;
+        DrawPanel(panel, textures != null ? textures.panelBackground : null,
+            new Color(0.20f, 0.12f, 0.075f, 0.98f));
 
         float margin = panel.width * 0.035f;
         float headerHeight = panel.height * 0.12f;
-        GUI.Label(new Rect(panel.x + margin, panel.y + 10f,
+        GUI.Label(new Rect(panel.x + margin, panel.y + 8f,
             panel.width * 0.58f, headerHeight - 8f),
             "ЛАВКА СТАРОГО БИБЛИОТЕКАРЯ", titleStyle);
-        GUI.Label(new Rect(panel.x + panel.width * 0.65f, panel.y + 15f,
-            panel.width * 0.23f, 30f),
-            "Грибочки: " + data.Mushrooms, normalStyle);
+
+        float currencyX = panel.x + panel.width * 0.65f;
+        if (textures != null && textures.currencyIcon != null)
+        {
+            Rect currencyRect = new Rect(currencyX, panel.y + 13f, 28f, 28f);
+            GUI.DrawTexture(currencyRect, textures.currencyIcon, ScaleMode.ScaleToFit, true);
+            currencyX += 34f;
+        }
+        GUI.Label(new Rect(currencyX, panel.y + 12f,
+            panel.width * 0.20f, 30f), "Грибочки: " + data.Mushrooms, normalStyle);
 
         Rect closeRect = new Rect(panel.xMax - margin - 44f,
-            panel.y + 10f, 40f, 36f);
-        if (GUI.Button(closeRect, "×"))
+            panel.y + 9f, 40f, 36f);
+        if (DrawSkinnedButton(closeRect, "×",
+            textures != null ? textures.closeButton : null, normalStyle))
             owner.CloseShop();
 
         DrawItemOffers(panel, margin, headerHeight);
         DrawSelectedItemDescription(panel, margin, headerHeight);
 
+        // Five independent tracks: staff damage, mana cost, mana regeneration,
+        // maximum health and defence.
         float upgradeTop = panel.y + panel.height * 0.49f;
         float bottomMargin = panel.height * 0.035f;
-        float rowGap = panel.height * 0.018f;
+        float rowGap = panel.height * 0.009f;
         float availableHeight = panel.yMax - bottomMargin - upgradeTop;
-        float rowHeight = (availableHeight - rowGap * 2f) / 3f;
+        float rowHeight = (availableHeight - rowGap * (UpgradeTypes.Length - 1)) /
+            UpgradeTypes.Length;
 
-        DrawUpgradeRow(data, panel, margin, upgradeTop, rowHeight,
-            RoguelikeUpgradeType.StaffDamage, "УРОН ПОСОХА",
-            "Урон: " + data.StaffDamage.ToString("0.0"));
-        DrawUpgradeRow(data, panel, margin, upgradeTop + rowHeight + rowGap,
-            rowHeight, RoguelikeUpgradeType.Mana, "МАНА",
-            "Расход: " + data.ProjectileManaCost.ToString("0.0") +
-            "  •  Регенерация: " + data.ManaRegeneration.ToString("0.0") + "/с");
-        DrawUpgradeRow(data, panel, margin, upgradeTop + (rowHeight + rowGap) * 2f,
-            rowHeight, RoguelikeUpgradeType.Vitality, "ЗДОРОВЬЕ И ЗАЩИТА",
-            "Здоровье: " + data.MaximumHealth.ToString("0") +
-            "  •  Защита: " + (data.DamageReduction * 100f).ToString("0") + "%");
+        for (int i = 0; i < UpgradeTypes.Length; i++)
+        {
+            float y = upgradeTop + i * (rowHeight + rowGap);
+            RoguelikeUpgradeType type = UpgradeTypes[i];
+            DrawUpgradeRow(data, panel, margin, y, rowHeight, type,
+                GetUpgradeTitle(type), GetUpgradeValue(data, type));
+        }
     }
 
     private void DrawItemOffers(Rect panel, float margin, float headerHeight)
@@ -125,14 +138,19 @@ public class RoguelikeMerchant : MonoBehaviour
             Rect slot = new Rect(panel.x + margin + i * (slotWidth + gap),
                 top, slotWidth, slotHeight);
 
-            Color previousColor = GUI.color;
-            GUI.color = i == selectedOfferIndex
-                ? new Color(0.62f, 0.39f, 0.18f, 1f)
-                : new Color(0.31f, 0.22f, 0.16f, 1f);
-            GUI.Box(slot, GUIContent.none);
-            GUI.color = previousColor;
-
             Item item = offeredItems[i];
+            Texture2D slotTexture = textures == null ? null :
+                item == null ? textures.itemSlotSoldBackground :
+                i == selectedOfferIndex ? textures.itemSlotSelectedBackground :
+                textures.itemSlotBackground;
+
+            Color fallback = item == null
+                ? new Color(0.18f, 0.14f, 0.12f, 1f)
+                : i == selectedOfferIndex
+                    ? new Color(0.62f, 0.39f, 0.18f, 1f)
+                    : new Color(0.31f, 0.22f, 0.16f, 1f);
+            DrawPanel(slot, slotTexture, fallback);
+
             if (item == null)
             {
                 GUI.Label(new Rect(slot.x, slot.y + slot.height * 0.4f,
@@ -162,10 +180,9 @@ public class RoguelikeMerchant : MonoBehaviour
         Rect descriptionRect = new Rect(panel.x + margin, top,
             panel.width - margin * 2f, height);
 
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.13f, 0.085f, 0.06f, 0.95f);
-        GUI.Box(descriptionRect, GUIContent.none);
-        GUI.color = previousColor;
+        DrawPanel(descriptionRect,
+            textures != null ? textures.itemDescriptionBackground : null,
+            new Color(0.13f, 0.085f, 0.06f, 0.95f));
 
         Item selected = selectedOfferIndex >= 0 && selectedOfferIndex < offeredItems.Length
             ? offeredItems[selectedOfferIndex] : null;
@@ -191,9 +208,10 @@ public class RoguelikeMerchant : MonoBehaviour
 
         bool previousEnabled = GUI.enabled;
         GUI.enabled = previousEnabled && canBuy;
-        if (GUI.Button(new Rect(descriptionRect.xMax - 220f,
+        if (DrawSkinnedButton(new Rect(descriptionRect.xMax - 220f,
             descriptionRect.y + (height - 42f) * 0.5f, 200f, 42f),
-            "КУПИТЬ • " + price))
+            "КУПИТЬ • " + price,
+            textures != null ? textures.itemBuyButton : null, normalStyle))
             BuySelectedItem();
         GUI.enabled = previousEnabled;
     }
@@ -203,48 +221,47 @@ public class RoguelikeMerchant : MonoBehaviour
     {
         Rect row = new Rect(panel.x + margin, y,
             panel.width - margin * 2f, height);
-
-        Color previousColor = GUI.color;
-        GUI.color = new Color(0.12f, 0.075f, 0.055f, 0.9f);
-        GUI.Box(row, GUIContent.none);
-        GUI.color = previousColor;
+        DrawPanel(row, textures != null ? textures.upgradeRowBackground : null,
+            new Color(0.12f, 0.075f, 0.055f, 0.9f));
 
         int level = data.GetUpgradeLevel(type);
         int cost = data.GetUpgradePrice(type);
         int refund = data.GetUpgradeRefund(type);
 
-        GUI.Label(new Rect(row.x + 14f, row.y + 5f,
+        GUI.Label(new Rect(row.x + 14f, row.y + 3f,
             row.width * 0.25f, 24f), title, normalStyle);
-        GUI.Label(new Rect(row.x + 14f, row.y + 29f,
+        GUI.Label(new Rect(row.x + 14f, row.y + 28f,
             row.width * 0.25f, 22f), value, smallStyle);
 
         float buttonWidth = Mathf.Clamp(row.width * 0.055f, 34f, 58f);
+        float buttonHeight = Mathf.Min(34f, height * 0.52f);
+        float buttonY = row.y + (height - buttonHeight) * 0.5f;
         float minusX = row.x + row.width * 0.29f;
-        Rect minusRect = new Rect(minusX, row.y + (height - 34f) * 0.5f,
-            buttonWidth, 34f);
+        Rect minusRect = new Rect(minusX, buttonY, buttonWidth, buttonHeight);
 
         bool previousEnabled = GUI.enabled;
         GUI.enabled = previousEnabled && data.CanDowngrade(type);
-        if (GUI.Button(minusRect, "−"))
+        if (DrawSkinnedButton(minusRect, "−",
+            textures != null ? textures.upgradeMinusButton : null, normalStyle))
         {
             if (data.TryDowngrade(type))
             {
-                if (type == RoguelikeUpgradeType.Vitality)
-                    ApplyVitalityChange();
+                if (type == RoguelikeUpgradeType.MaximumHealth)
+                    ApplyMaximumHealthChange();
                 ShowHint("Уровень снижен. Возвращено " + refund + " грибочков.");
             }
         }
 
         float plusX = row.x + row.width - buttonWidth;
-        Rect plusRect = new Rect(plusX, row.y + (height - 34f) * 0.5f,
-            buttonWidth, 34f);
+        Rect plusRect = new Rect(plusX, buttonY, buttonWidth, buttonHeight);
         GUI.enabled = previousEnabled && data.CanUpgrade(type) && data.Mushrooms >= cost;
-        if (GUI.Button(plusRect, "+"))
+        if (DrawSkinnedButton(plusRect, "+",
+            textures != null ? textures.upgradePlusButton : null, normalStyle))
         {
             if (data.TryUpgrade(type))
             {
-                if (type == RoguelikeUpgradeType.Vitality)
-                    ApplyVitalityChange();
+                if (type == RoguelikeUpgradeType.MaximumHealth)
+                    ApplyMaximumHealthChange();
                 ShowHint("Уровень улучшения: " + data.GetUpgradeLevel(type) + "/10.");
             }
             else
@@ -257,27 +274,88 @@ public class RoguelikeMerchant : MonoBehaviour
         float meterX = minusRect.xMax + 12f;
         float meterWidth = plusRect.xMin - meterX - 12f;
         float segmentGap = Mathf.Clamp(meterWidth * 0.012f, 2f, 6f);
-        float segmentWidth = (meterWidth - segmentGap * 9f) / 10f;
-        float segmentHeight = Mathf.Min(26f, height * 0.42f);
+        float segmentWidth = Mathf.Max(1f, (meterWidth - segmentGap * 9f) / 10f);
+        float segmentHeight = Mathf.Min(24f, height * 0.34f);
         float segmentY = row.y + (height - segmentHeight) * 0.5f;
 
         for (int i = 0; i < 10; i++)
         {
             Rect segment = new Rect(meterX + i * (segmentWidth + segmentGap),
                 segmentY, segmentWidth, segmentHeight);
-            GUI.color = i < level
+            Texture2D segmentTexture = null;
+            if (textures != null)
+                segmentTexture = i < level
+                    ? textures.upgradeLevelFilled : textures.upgradeLevelEmpty;
+
+            Color fallback = i < level
                 ? new Color(0.92f, 0.68f, 0.25f, 1f)
                 : new Color(0.25f, 0.19f, 0.14f, 1f);
-            GUI.DrawTexture(segment, Texture2D.whiteTexture);
+            DrawPanel(segment, segmentTexture, fallback);
         }
-        GUI.color = previousColor;
 
-        GUI.Label(new Rect(meterX, row.y + 4f, meterWidth, 20f),
+        GUI.Label(new Rect(meterX, row.y + 2f, meterWidth, 18f),
             level + "/10", smallStyle);
-        GUI.Label(new Rect(minusRect.x - 4f, row.y + height - 22f,
-            buttonWidth + 8f, 18f), "½ " + refund, smallStyle);
-        GUI.Label(new Rect(plusRect.x - 18f, row.y + height - 22f,
-            buttonWidth + 36f, 18f), "+" + cost, smallStyle);
+        GUI.Label(new Rect(minusRect.x - 4f, row.y + height - 19f,
+            buttonWidth + 8f, 17f), "½ " + refund, smallStyle);
+        GUI.Label(new Rect(plusRect.x - 18f, row.y + height - 19f,
+            buttonWidth + 36f, 17f), "+" + cost, smallStyle);
+    }
+
+    private static string GetUpgradeTitle(RoguelikeUpgradeType type)
+    {
+        switch (type)
+        {
+            case RoguelikeUpgradeType.StaffDamage: return "УРОН ПОСОХА";
+            case RoguelikeUpgradeType.ManaConsumption: return "РАСХОД МАНЫ";
+            case RoguelikeUpgradeType.ManaRegeneration: return "РЕГЕНЕРАЦИЯ МАНЫ";
+            case RoguelikeUpgradeType.MaximumHealth: return "МАКСИМАЛЬНОЕ ЗДОРОВЬЕ";
+            case RoguelikeUpgradeType.Defense: return "ЗАЩИТА";
+            default: return "УЛУЧШЕНИЕ";
+        }
+    }
+
+    private static string GetUpgradeValue(PlayerRunData data, RoguelikeUpgradeType type)
+    {
+        switch (type)
+        {
+            case RoguelikeUpgradeType.StaffDamage:
+                return "Урон: " + data.StaffDamage.ToString("0.0");
+            case RoguelikeUpgradeType.ManaConsumption:
+                return "За выстрел: " + data.ProjectileManaCost.ToString("0.0");
+            case RoguelikeUpgradeType.ManaRegeneration:
+                return "В секунду: " + data.ManaRegeneration.ToString("0.0");
+            case RoguelikeUpgradeType.MaximumHealth:
+                return "Здоровье: " + data.MaximumHealth.ToString("0");
+            case RoguelikeUpgradeType.Defense:
+                return "Снижение урона: " + (data.DamageReduction * 100f).ToString("0") + "%";
+            default:
+                return "—";
+        }
+    }
+
+    private static void DrawPanel(Rect rect, Texture2D texture, Color fallbackColor)
+    {
+        if (texture != null)
+        {
+            GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill, true);
+            return;
+        }
+
+        Color previousColor = GUI.color;
+        GUI.color = fallbackColor;
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = previousColor;
+    }
+
+    private static bool DrawSkinnedButton(
+        Rect rect, string label, Texture2D texture, GUIStyle labelStyle)
+    {
+        if (texture == null)
+            return GUI.Button(rect, label);
+
+        GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill, true);
+        GUI.Label(rect, label, labelStyle);
+        return GUI.Button(rect, GUIContent.none, GUIStyle.none);
     }
 
     private void BuySelectedItem()
@@ -321,7 +399,7 @@ public class RoguelikeMerchant : MonoBehaviour
         }
     }
 
-    private void ApplyVitalityChange()
+    private void ApplyMaximumHealthChange()
     {
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         PlayerHealth health = player != null ? player.GetComponent<PlayerHealth>() : null;
