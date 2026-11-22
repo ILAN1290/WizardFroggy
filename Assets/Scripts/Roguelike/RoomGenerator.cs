@@ -48,6 +48,7 @@ public class RoomGenerator : MonoBehaviour
     private sealed class OcclusionState
     {
         public SpriteRenderer Renderer;
+        public Collider2D FadeTrigger;
         public Color OriginalColor;
         public int OriginalSortingOrder;
     }
@@ -105,10 +106,12 @@ public class RoomGenerator : MonoBehaviour
             }
 
             Bounds objectBounds = renderer.bounds;
-            bool overlapsPlayer = playerBounds.min.x <= objectBounds.max.x &&
-                playerBounds.max.x >= objectBounds.min.x &&
-                playerBounds.min.y <= objectBounds.max.y &&
-                playerBounds.max.y >= objectBounds.min.y;
+            Bounds fadeBounds = state.FadeTrigger != null
+                ? state.FadeTrigger.bounds : objectBounds;
+            bool overlapsPlayer = playerBounds.min.x <= fadeBounds.max.x &&
+                playerBounds.max.x >= fadeBounds.min.x &&
+                playerBounds.min.y <= fadeBounds.max.y &&
+                playerBounds.max.y >= fadeBounds.min.y;
             bool playerBehind = playerBounds.center.y > objectBounds.center.y;
             Color color = state.OriginalColor;
 
@@ -117,9 +120,7 @@ public class RoomGenerator : MonoBehaviour
                 renderer.sortingOrder = playerBehind
                     ? Mathf.Max(state.OriginalSortingOrder, playerSortingOrder + 1)
                     : Mathf.Min(state.OriginalSortingOrder, playerSortingOrder - 1);
-
-                if (playerBehind)
-                    color.a *= occludedAlpha;
+                color.a *= occludedAlpha;
             }
             else
             {
@@ -257,8 +258,13 @@ public class RoomGenerator : MonoBehaviour
         float top = centre.y + height * 0.5f;
         const float entryInset = 1.15f;
 
-        // Keep the wooden floor exactly between the inner faces of the side walls.
-        FitWoodenFloorToRoom(left, right, bottom, top);
+        // Extend the floor a few pixels beyond the calculated room bounds to hide
+        // thin black seams caused by tile/camera pixel rounding.
+        const float floorBleedPixels = 8f;
+        float floorMarginX = floorBleedPixels / GetScreenPixelsPerWorldUnitX();
+        float floorMarginY = floorBleedPixels / GetScreenPixelsPerWorldUnitY();
+        FitWoodenFloorToRoom(left - floorMarginX, right + floorMarginX,
+            bottom - floorMarginY, top + floorMarginY);
 
         float frameTileHeight = upperWallTileSprite != null
             ? Mathf.Max(0.001f, upperWallTileSprite.bounds.size.y)
@@ -411,7 +417,7 @@ public class RoomGenerator : MonoBehaviour
 
         Vector2 doorPosition = new Vector2(wallX, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
-        Color openedTint = new Color(0.78f, 0.78f, 0.78f, 1f);
+        Color openedTint = new Color(0.66f, 0.66f, 0.66f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
             doorPosition, spawnPosition, new Vector2(tileWidth, doorHeight),
             new Vector2(1.0f, 1.2f),
@@ -471,11 +477,16 @@ public class RoomGenerator : MonoBehaviour
         {
             for (int column = 0; column < fullColumns; column++)
             {
-                bool insideDoor = hasDoor &&
+                bool insideDoor = hasDoor && row >= 1 &&
                     column >= firstDoorColumn && column <= lastDoorColumn;
                 if (insideDoor) continue;
 
-                Sprite tile = ChooseUpperWallTile(roomIndex, column, row);
+                bool tileAboveLowerDoor = hasDoor && row == 0 &&
+                    column >= firstDoorColumn && column <= lastDoorColumn;
+                // In the Roguelike scene upperWallTileSprite is tile #5 from the
+                // dungeon atlas; keep it directly above the lowered doorway.
+                Sprite tile = tileAboveLowerDoor
+                    ? baseTile : ChooseUpperWallTile(roomIndex, column, row);
                 SpriteRenderer renderer = CreateWallTile(tilesRoot,
                     "Нижняя стена • тайл",
                     new Vector2(left + (column + 0.5f) * tileWidth,
@@ -516,7 +527,7 @@ public class RoomGenerator : MonoBehaviour
             Vector2 spawn = new Vector2(centre.x,
                 centre.y + roomHeight * 0.5f - 1.15f);
             CreateBottomDoor(doorsRoot, session,
-                new Vector2(centre.x, wallBaseY - tileHeight * 0.5f),
+                new Vector2(centre.x, wallBaseY - tileHeight * 1.5f),
                 spawn, doorWidthTiles * tileWidth, tileWidth, tileHeight);
         }
     }
@@ -527,7 +538,8 @@ public class RoomGenerator : MonoBehaviour
     {
         GameObject door = CreateDoorRoot(doorsRoot, "Нижняя дверь", position);
         BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
-        blocker.size = new Vector2(width, tileHeight);
+        blocker.size = new Vector2(width, tileHeight * 2f);
+        blocker.offset = new Vector2(0f, -tileHeight * 0.5f);
 
         BoxCollider2D sensor = door.AddComponent<BoxCollider2D>();
         sensor.isTrigger = true;
@@ -779,13 +791,14 @@ public class RoomGenerator : MonoBehaviour
         collider.size = size;
     }
 
-    private void RegisterOcclusion(SpriteRenderer renderer)
+    private void RegisterOcclusion(SpriteRenderer renderer, Collider2D fadeTrigger = null)
     {
         if (renderer == null) return;
 
         occlusionStates.Add(new OcclusionState
         {
             Renderer = renderer,
+            FadeTrigger = fadeTrigger,
             OriginalColor = renderer.color,
             OriginalSortingOrder = renderer.sortingOrder
         });
@@ -811,88 +824,121 @@ public class RoomGenerator : MonoBehaviour
             lateralShelfPrefab = Resources.Load<GameObject>("RoguelikePrefabs/Lateral Book Case");
 
         GameObject prefab = upper ? upperShelfPrefab : lateralShelfPrefab;
+        GameObject shelf;
         if (prefab != null)
         {
-            GameObject shelf = Instantiate(prefab, root);
+            shelf = Instantiate(prefab, root);
             shelf.name = objectName;
             shelf.tag = "Wall";
             shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
-            // Боковой стеллаж в исходной сцене стоит вертикально.
             shelf.transform.localRotation = upper
                 ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
-            // The upright (lateral) shelf is twice its previous size.
-            shelf.transform.localScale = Vector3.one * (scale * (upper ? 2f : 4f));
 
-            foreach (Collider2D collider in shelf.GetComponentsInChildren<Collider2D>(true))
-                PrepareShelfCollider(collider, upper);
-
-            SpriteRenderer[] renderers = shelf.GetComponentsInChildren<SpriteRenderer>(true);
-            foreach (SpriteRenderer renderer in renderers)
-                RegisterOcclusion(renderer);
-            return;
-        }
-
-        GameObject fallbackShelf = CreateRect(root, objectName, position,
-            new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), -2, true);
-        fallbackShelf.tag = "Wall";
-        fallbackShelf.transform.localRotation = upper
-            ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
-        foreach (Collider2D collider in fallbackShelf.GetComponents<Collider2D>())
-            PrepareShelfCollider(collider, upper);
-        foreach (SpriteRenderer renderer in fallbackShelf.GetComponentsInChildren<SpriteRenderer>())
-            RegisterOcclusion(renderer);
-    }
-
-    private static void PrepareShelfCollider(Collider2D collider, bool upper)
-    {
-        if (collider == null) return;
-
-        BoxCollider2D box = collider as BoxCollider2D;
-        if (box == null)
-        {
-            collider.enabled = true;
-            collider.isTrigger = true;
-            return;
-        }
-
-        box.enabled = true;
-        box.usedByComposite = false;
-        box.isTrigger = false;
-
-        SpriteRenderer spriteRenderer = box.GetComponent<SpriteRenderer>();
-        Bounds spriteBounds = spriteRenderer != null && spriteRenderer.sprite != null
-            ? spriteRenderer.sprite.bounds
-            : new Bounds(box.offset, box.size);
-
-        // The collider spans the complete rendered shelf width. Its depth is
-        // measured upward from the bottom edge: 70 screen pixels for horizontal
-        // shelves and 280 screen pixels for vertical shelves.
-        float pixelsPerWorldUnitY = GetScreenPixelsPerWorldUnitY();
-        Vector3 lossyScale = box.transform.lossyScale;
-        float localVerticalScale = upper
-            ? Mathf.Abs(lossyScale.y)
-            : Mathf.Abs(lossyScale.x);
-        float requestedPixels = upper ? 70f : 280f;
-        float spriteLocalDepth = upper ? spriteBounds.size.y : spriteBounds.size.x;
-        float hitboxDepth = requestedPixels /
-            (pixelsPerWorldUnitY * Mathf.Max(0.001f, localVerticalScale));
-        hitboxDepth = Mathf.Clamp(hitboxDepth, 0.001f, spriteLocalDepth);
-
-        if (upper)
-        {
-            // Horizontal shelf: local Y is world vertical.
-            box.size = new Vector2(spriteBounds.size.x, hitboxDepth);
-            box.offset = new Vector2(spriteBounds.center.x,
-                spriteBounds.min.y + hitboxDepth * 0.5f);
+            // The vertical shelf is reduced by a factor of 1.5 from its previous size.
+            shelf.transform.localScale = Vector3.one *
+                (scale * (upper ? 2f : 4f / 1.5f));
         }
         else
         {
-            // Vertical shelf is rotated by 90 degrees: local X points upward
-            // in world space, while local Y defines its full world-space width.
-            box.size = new Vector2(hitboxDepth, spriteBounds.size.y);
-            box.offset = new Vector2(
-                spriteBounds.min.x + hitboxDepth * 0.5f, spriteBounds.center.y);
+            shelf = CreateRect(root, objectName, position,
+                new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), -2, true);
+            shelf.tag = "Wall";
+            shelf.transform.localRotation = upper
+                ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
         }
+
+        BoxCollider2D solidHitbox = shelf.GetComponent<BoxCollider2D>();
+        SpriteRenderer mainRenderer = shelf.GetComponent<SpriteRenderer>();
+        if (mainRenderer == null)
+            mainRenderer = shelf.GetComponentInChildren<SpriteRenderer>(true);
+
+        BoxCollider2D movableHitbox = ConfigureShelfHitboxes(
+            solidHitbox, mainRenderer, upper);
+
+        Collider2D[] colliders = shelf.GetComponentsInChildren<Collider2D>(true);
+        foreach (Collider2D collider in colliders)
+        {
+            if (collider != solidHitbox && collider != movableHitbox)
+                collider.enabled = false;
+        }
+
+        SpriteRenderer[] renderers = shelf.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (SpriteRenderer renderer in renderers)
+            RegisterOcclusion(renderer, movableHitbox);
+    }
+
+    private static BoxCollider2D ConfigureShelfHitboxes(
+        BoxCollider2D solidHitbox, SpriteRenderer spriteRenderer, bool horizontalShelf)
+    {
+        if (solidHitbox == null || spriteRenderer == null ||
+            spriteRenderer.sprite == null)
+            return null;
+
+        solidHitbox.enabled = true;
+        solidHitbox.usedByComposite = false;
+        solidHitbox.isTrigger = false;
+
+        Bounds spriteBounds = spriteRenderer.sprite.bounds;
+        Vector2 movableSize;
+        Vector2 movableOffset;
+
+        if (horizontalShelf)
+        {
+            // Horizontal shelf: the lower third is solid; the upper two thirds
+            // are pass-through for the player and fade the sprite on entry.
+            float solidHeight = spriteBounds.size.y / 3f;
+            float movableHeight = spriteBounds.size.y - solidHeight;
+
+            solidHitbox.size = new Vector2(spriteBounds.size.x, solidHeight);
+            solidHitbox.offset = new Vector2(spriteBounds.center.x,
+                spriteBounds.min.y + solidHeight * 0.5f);
+
+            movableSize = new Vector2(spriteBounds.size.x, movableHeight);
+            movableOffset = new Vector2(spriteBounds.center.x,
+                spriteBounds.min.y + solidHeight + movableHeight * 0.5f);
+        }
+        else
+        {
+            // The vertical shelf is rotated by 90 degrees: local X points upward.
+            // Its lower three quarters block movement; the top quarter is pass-through.
+            float solidDepth = spriteBounds.size.x * 0.75f;
+            float movableDepth = spriteBounds.size.x - solidDepth;
+
+            solidHitbox.size = new Vector2(solidDepth, spriteBounds.size.y);
+            solidHitbox.offset = new Vector2(
+                spriteBounds.min.x + solidDepth * 0.5f, spriteBounds.center.y);
+
+            movableSize = new Vector2(movableDepth, spriteBounds.size.y);
+            movableOffset = new Vector2(
+                spriteBounds.min.x + solidDepth + movableDepth * 0.5f,
+                spriteBounds.center.y);
+        }
+
+        GameObject movableArea = new GameObject("Shelf Movable Hitbox");
+        movableArea.tag = "Wall";
+        movableArea.layer = solidHitbox.gameObject.layer;
+        movableArea.transform.SetParent(solidHitbox.transform, false);
+
+        movableArea.AddComponent<RoguelikeGhostObstacle>();
+        BoxCollider2D movableHitbox = movableArea.AddComponent<BoxCollider2D>();
+        movableHitbox.size = movableSize;
+        movableHitbox.offset = movableOffset;
+        movableHitbox.isTrigger = true;
+        return movableHitbox;
+    }
+
+    private static float GetScreenPixelsPerWorldUnitX()
+    {
+        Camera camera = Camera.main;
+        if (camera != null && camera.orthographic)
+        {
+            float pixelWidth = camera.pixelWidth > 0
+                ? camera.pixelWidth : Mathf.Max(1, Screen.width);
+            float worldWidth = camera.orthographicSize * 2f * Mathf.Max(0.01f, camera.aspect);
+            return pixelWidth / Mathf.Max(0.01f, worldWidth);
+        }
+
+        return Mathf.Max(1, Screen.width) / 17.5f;
     }
 
     private static float GetScreenPixelsPerWorldUnitY()
