@@ -76,7 +76,8 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
                 sprite = source[i];
 
             if (sprite != null) renderer.sprite = sprite;
-            renderer.color = opened ? Color.white : lockedTint;
+            bool hasOpenedAppearance = openedSprites != null && openedSprites.Length > 0;
+            renderer.color = opened && hasOpenedAppearance ? Color.white : lockedTint;
             renderer.enabled = renderer.sprite != null;
         }
     }
