@@ -2,10 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Movement and positioning brain for roguelike ghosts.
-/// Melee ghosts flank the player and close gaps; ranged ghosts hold a firing
-/// distance, retreat when pressured and circle to seek a clear line of sight.
-/// Both styles steer around solid room geometry instead of walking directly
-/// into shelves and walls.
+/// Physics queries run at a limited rate and reuse a fixed hit buffer to avoid
+/// per-frame allocations while preserving obstacle avoidance.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody2D), typeof(CircleCollider2D))]
@@ -17,6 +15,11 @@ public class GhostAI : MonoBehaviour
     [SerializeField, Min(0.05f)] private float obstacleProbeRadius = 0.38f;
     [SerializeField, Min(0f)] private float steeringWeight = 0.6f;
     [SerializeField, Min(0.25f)] private float flankSwitchInterval = 2.6f;
+    [SerializeField, Min(0.04f)] private float obstacleCheckInterval = 0.12f;
+    [SerializeField, Min(0.04f)] private float lineOfSightCheckInterval = 0.12f;
+
+    private static readonly float[] SteeringAngles = { -70f, -35f, 35f, 70f, -110f, 110f };
+    private readonly RaycastHit2D[] hitBuffer = new RaycastHit2D[8];
 
     private Rigidbody2D body;
     private Transform player;
@@ -24,7 +27,12 @@ public class GhostAI : MonoBehaviour
     private bool miniBoss;
     private float moveSpeed;
     private float nextFlankSwitch;
+    private float nextObstacleCheck;
+    private float nextLineOfSightCheck;
+    private float nextPlayerSearch;
     private int flankSide = 1;
+    private bool canSeePlayer;
+    private Vector2 cachedSteering;
 
     public bool CanAttack { get; private set; }
     public Vector2 DirectionToPlayer { get; private set; }
@@ -39,6 +47,9 @@ public class GhostAI : MonoBehaviour
         moveSpeed = isMelee ? (isMiniBoss ? 2.0f : 2.4f) : 1.7f;
         flankSide = Random.value < 0.5f ? -1 : 1;
         nextFlankSwitch = Time.time + flankSwitchInterval;
+        nextObstacleCheck = Time.time;
+        nextLineOfSightCheck = Time.time;
+        nextPlayerSearch = Time.time + 1f;
     }
 
     private void Awake()
@@ -46,32 +57,59 @@ public class GhostAI : MonoBehaviour
         body = GetComponent<Rigidbody2D>();
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
         if (body == null) return;
-        if (player == null) player = FindPlayer();
-        if (player == null) return;
+
+        if (player == null && Time.time >= nextPlayerSearch)
+        {
+            player = FindPlayer();
+            nextPlayerSearch = Time.time + 1f;
+        }
+
+        if (player == null)
+        {
+            CanAttack = false;
+            cachedSteering = Vector2.zero;
+            return;
+        }
 
         Vector2 toPlayer = (Vector2)player.position - body.position;
-        DistanceToPlayer = toPlayer.magnitude;
-        DirectionToPlayer = DistanceToPlayer > 0.001f
+        float distanceSquared = toPlayer.sqrMagnitude;
+        DistanceToPlayer = Mathf.Sqrt(distanceSquared);
+        DirectionToPlayer = distanceSquared > 0.000001f
             ? toPlayer / DistanceToPlayer
             : Vector2.up;
 
         if (Time.time >= nextFlankSwitch)
         {
             flankSide *= -1;
-            nextFlankSwitch = Time.time + flankSwitchInterval * Random.Range(0.8f, 1.25f);
+            nextFlankSwitch = Time.time +
+                flankSwitchInterval * Random.Range(0.8f, 1.25f);
         }
 
-        CanAttack = HasAttackRange(DistanceToPlayer) && HasLineOfSight();
+        bool inAttackRange = HasAttackRange(DistanceToPlayer);
+        if (Time.time >= nextLineOfSightCheck)
+        {
+            canSeePlayer = inAttackRange && HasLineOfSight();
+            nextLineOfSightCheck = Time.time + lineOfSightCheckInterval;
+        }
+        CanAttack = inAttackRange && canSeePlayer;
 
         Vector2 desired = GetDesiredMovement(DirectionToPlayer, DistanceToPlayer);
-        if (desired.sqrMagnitude < 0.001f) return;
+        if (Time.time >= nextObstacleCheck)
+        {
+            cachedSteering = desired.sqrMagnitude > 0.0001f
+                ? FindOpenDirection(desired.normalized)
+                : Vector2.zero;
+            nextObstacleCheck = Time.time + obstacleCheckInterval;
+        }
 
-        Vector2 steering = FindOpenDirection(desired.normalized);
-        if (steering.sqrMagnitude > 0.001f)
-            body.MovePosition(body.position + steering * moveSpeed * Time.deltaTime);
+        if (cachedSteering.sqrMagnitude > 0.0001f)
+        {
+            body.MovePosition(body.position +
+                cachedSteering * moveSpeed * Time.fixedDeltaTime);
+        }
     }
 
     private bool HasAttackRange(float distance)
@@ -90,12 +128,9 @@ public class GhostAI : MonoBehaviour
         {
             if (distance > 1.7f) return towardPlayer;
             if (distance < 0.95f) return -towardPlayer;
-            // Once close, circle to the player's side rather than piling directly
-            // onto their position. The flank direction changes every few seconds.
             return (tangent + towardPlayer * 0.12f).normalized;
         }
 
-        // Ranged ghosts try to keep a firing lane between 4.5 and 6 units.
         if (distance > 6.2f) return towardPlayer;
         if (distance < 3.4f) return -towardPlayer;
         return (tangent + towardPlayer * 0.08f).normalized;
@@ -103,37 +138,19 @@ public class GhostAI : MonoBehaviour
 
     private Vector2 FindOpenDirection(Vector2 desired)
     {
-        const float angleStep = 35f;
+        if (!IsDirectionBlocked(desired, out float directClearance))
+            return desired;
+
         Vector2 bestDirection = desired;
-        float bestScore = float.NegativeInfinity;
+        float bestScore = ScoreDirection(desired, desired, directClearance, true);
 
-        for (int i = 0; i < 9; i++)
+        // Only fan out when the direct path is blocked. Most frames and most
+        // ghosts therefore need one cast instead of nine allocating CircleCastAll calls.
+        for (int i = 0; i < SteeringAngles.Length; i++)
         {
-            int offset = i == 0 ? 0 : ((i + 1) / 2) * (i % 2 == 1 ? 1 : -1);
-            Vector2 candidate = Rotate(desired, offset * angleStep);
-            float clearance = lookAheadDistance;
-            bool blocked = false;
-
-            RaycastHit2D[] hits = Physics2D.CircleCastAll(
-                body.position, obstacleProbeRadius, candidate,
-                lookAheadDistance, obstacleMask);
-
-            for (int h = 0; h < hits.Length; h++)
-            {
-                Collider2D obstacle = hits[h].collider;
-                if (obstacle == null || obstacle.isTrigger) continue;
-                if (obstacle.transform == transform ||
-                    obstacle.transform.IsChildOf(transform)) continue;
-                if (player != null && (obstacle.transform == player ||
-                    obstacle.transform.IsChildOf(player))) continue;
-
-                blocked = true;
-                clearance = Mathf.Min(clearance, hits[h].distance);
-            }
-
-            float alignment = Vector2.Dot(candidate, desired);
-            float score = alignment + clearance / Mathf.Max(0.01f, lookAheadDistance) * steeringWeight;
-            if (!blocked) score += 0.35f;
+            Vector2 candidate = Rotate(desired, SteeringAngles[i]);
+            bool blocked = IsDirectionBlocked(candidate, out float clearance);
+            float score = ScoreDirection(candidate, desired, clearance, blocked);
             if (score > bestScore)
             {
                 bestScore = score;
@@ -144,19 +161,62 @@ public class GhostAI : MonoBehaviour
         return bestDirection.normalized;
     }
 
+    private float ScoreDirection(Vector2 candidate, Vector2 desired,
+        float clearance, bool blocked)
+    {
+        float score = Vector2.Dot(candidate, desired) +
+            clearance / Mathf.Max(0.01f, lookAheadDistance) * steeringWeight;
+        return blocked ? score : score + 0.35f;
+    }
+
+    private bool IsDirectionBlocked(Vector2 direction, out float clearance)
+    {
+        clearance = lookAheadDistance;
+        int hitCount = Physics2D.CircleCastNonAlloc(
+            body.position, obstacleProbeRadius, direction,
+            hitBuffer, lookAheadDistance, obstacleMask);
+
+        bool blocked = false;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider2D obstacle = hitBuffer[i].collider;
+            if (!IsRelevantObstacle(obstacle)) continue;
+
+            blocked = true;
+            clearance = Mathf.Min(clearance, hitBuffer[i].distance);
+        }
+
+        return blocked;
+    }
+
     private bool HasLineOfSight()
     {
         if (player == null) return false;
-        RaycastHit2D[] hits = Physics2D.LinecastAll(body.position, player.position, obstacleMask);
-        for (int i = 0; i < hits.Length; i++)
+
+        int hitCount = Physics2D.LinecastNonAlloc(
+            body.position, player.position, hitBuffer, obstacleMask);
+
+        for (int i = 0; i < hitCount; i++)
         {
-            Collider2D obstacle = hits[i].collider;
-            if (obstacle == null || obstacle.isTrigger) continue;
-            if (obstacle.transform == transform ||
-                obstacle.transform.IsChildOf(transform)) continue;
-            if (obstacle.transform == player || obstacle.transform.IsChildOf(player)) continue;
-            return false;
+            if (IsRelevantObstacle(hitBuffer[i].collider))
+                return false;
         }
+
+        return true;
+    }
+
+    private bool IsRelevantObstacle(Collider2D obstacle)
+    {
+        if (obstacle == null || obstacle.isTrigger) return false;
+
+        Transform obstacleTransform = obstacle.transform;
+        if (obstacleTransform == transform || obstacleTransform.IsChildOf(transform))
+            return false;
+
+        if (player != null && (obstacleTransform == player ||
+            obstacleTransform.IsChildOf(player)))
+            return false;
+
         return true;
     }
 
