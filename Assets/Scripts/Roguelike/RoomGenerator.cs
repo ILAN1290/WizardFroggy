@@ -133,7 +133,7 @@ public class RoomGenerator : MonoBehaviour
         // уходит за её внутреннюю линию, прозрачность меняется сразу у всей кладки
         // и у двери, а не только у отдельного тайла под ногами.
         bool playerBehindLowerWall = hasLowerWallOcclusion &&
-            playerBounds.center.y < lowerWallOcclusionY;
+            playerBounds.min.y < lowerWallOcclusionY;
         for (int i = lowerWallOcclusionStates.Count - 1; i >= 0; i--)
         {
             OcclusionState state = lowerWallOcclusionStates[i];
@@ -458,6 +458,9 @@ public class RoomGenerator : MonoBehaviour
         hasLowerWallOcclusion = true;
 
         int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
+        // Keep the lower doorway centred on the same three wall columns.
+        if (hasDoor && fullColumns > doorWidthTiles && fullColumns % 2 == 0)
+            fullColumns--;
         float coveredWidth = fullColumns * tileWidth;
         float left = centre.x - coveredWidth * 0.5f;
         int centreColumn = fullColumns / 2;
