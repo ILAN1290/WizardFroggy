@@ -315,7 +315,7 @@ public class RoguelikeSession : MonoBehaviour
             ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
         // Keep loot behind all interior furniture sprites.
-        renderer.sortingOrder = -10;
+        renderer.sortingOrder = -5;
 
         float pickupRadius = 0.25f;
         // Keep the pickup at exactly 50x50 screen pixels, independent of sprite PPU.
@@ -375,7 +375,7 @@ public class RoguelikeSession : MonoBehaviour
         renderer.sprite = itemSprite;
         renderer.color = Color.white;
         // Item icons render beneath all interior furniture.
-        renderer.sortingOrder = -10;
+        renderer.sortingOrder = -5;
 
         Vector2 spriteSize = itemSprite.bounds.size;
         visual.transform.localScale = new Vector3(
