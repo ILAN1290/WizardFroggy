@@ -129,7 +129,8 @@ public class RoomGenerator : MonoBehaviour
         float bottom = centre.y - height * 0.5f;
         float top = centre.y + height * 0.5f;
         const float edgeInset = 0.25f;
-        const float spawnInset = 1.6f;
+        const float sideSpawnInset = 5.3f;
+        const float verticalSpawnInset = 4.1f;
         const float sensorDepth = 0.8f;
         const float sensorSpan = 2.8f;
 
@@ -138,7 +139,7 @@ public class RoomGenerator : MonoBehaviour
             CreateRoomTransition(root, "Переход через левый край",
                 new Vector2(left + edgeInset, centre.y),
                 new Vector2(sensorDepth, sensorSpan), session, -1, 0,
-                new Vector2(right - spawnInset, centre.y));
+                new Vector2(right - sideSpawnInset, centre.y));
         }
 
         if (room.X < 3 && room.Neighbours.Contains(room.Index + 1))
@@ -146,7 +147,7 @@ public class RoomGenerator : MonoBehaviour
             CreateRoomTransition(root, "Переход через правый край",
                 new Vector2(right - edgeInset, centre.y),
                 new Vector2(sensorDepth, sensorSpan), session, 1, 0,
-                new Vector2(left + spawnInset, centre.y));
+                new Vector2(left + sideSpawnInset, centre.y));
         }
 
         if (room.Y > 0 && room.Neighbours.Contains(room.Index - 4))
@@ -154,7 +155,7 @@ public class RoomGenerator : MonoBehaviour
             CreateRoomTransition(root, "Переход через нижний край",
                 new Vector2(centre.x, bottom + edgeInset),
                 new Vector2(sensorSpan, sensorDepth), session, 0, -1,
-                new Vector2(centre.x, top - spawnInset));
+                new Vector2(centre.x, top - verticalSpawnInset));
         }
 
         if (room.Y < 3 && room.Neighbours.Contains(room.Index + 4))
@@ -162,7 +163,7 @@ public class RoomGenerator : MonoBehaviour
             CreateRoomTransition(root, "Переход через верхний край",
                 new Vector2(centre.x, top - edgeInset),
                 new Vector2(sensorSpan, sensorDepth), session, 0, 1,
-                new Vector2(centre.x, bottom + spawnInset));
+                new Vector2(centre.x, bottom + verticalSpawnInset));
         }
     }
 
