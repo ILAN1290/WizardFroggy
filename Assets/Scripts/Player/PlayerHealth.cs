@@ -34,6 +34,7 @@ public class PlayerHealth : MonoBehaviour
     }
 
     public float MaxHealth { get { return maxHealth; } }
+    public bool IsDead => deathHandled;
     void Start()
     {
         playerController = GetComponent<PlayerController>();
@@ -181,13 +182,13 @@ public class PlayerHealth : MonoBehaviour
 
     private void OnDisable()
     {
-        if (initialized && PlayerRunData.Instance != null)
+        if (initialized && !deathHandled && PlayerRunData.Instance != null)
             PlayerRunData.Instance.SaveHealth(currentHealth);
     }
 
     private void OnDestroy()
     {
-        if (initialized && PlayerRunData.Instance != null)
+        if (initialized && !deathHandled && PlayerRunData.Instance != null)
             PlayerRunData.Instance.SaveHealth(currentHealth);
     }
 }
