@@ -34,6 +34,9 @@ public class GhostAI : MonoBehaviour
     private float nextFlankSwitch;
     private float nextObstacleCheck;
     private float nextLineOfSightCheck;
+    private float nextPenetrationCheck;
+    private float nextSeparationCheck;
+    private Vector2 cachedSeparation;
     private float nextPlayerSearch;
     private int flankSide = 1;
     private bool canSeePlayer;
@@ -58,6 +61,8 @@ public class GhostAI : MonoBehaviour
         nextFlankSwitch = Time.time + flankSwitchInterval;
         nextObstacleCheck = Time.time;
         nextLineOfSightCheck = Time.time;
+        nextPenetrationCheck = Time.time;
+        nextSeparationCheck = Time.time;
         nextPlayerSearch = Time.time + 1f;
     }
 
@@ -90,13 +95,16 @@ public class GhostAI : MonoBehaviour
             return;
         }
 
-        // A ghost can be spawned or pushed partly inside a shelf/wall.
-        // Resolve the penetration before steering so it can escape instead
-        // of repeatedly receiving a zero-length safe movement step.
-        if (ResolveOverlappingObstacles())
+        // Penetration recovery is more expensive than the movement sweep.
+        // Run it at the navigation interval instead of every physics tick.
+        if (Time.time >= nextPenetrationCheck)
         {
-            cachedSteering = Vector2.zero;
-            nextObstacleCheck = Time.time;
+            if (ResolveOverlappingObstacles())
+            {
+                cachedSteering = Vector2.zero;
+                nextObstacleCheck = Time.time;
+            }
+            nextPenetrationCheck = Time.time + obstacleCheckInterval;
         }
 
         if (player == null && Time.time >= nextPlayerSearch)
@@ -134,17 +142,24 @@ public class GhostAI : MonoBehaviour
         }
         CanAttack = inAttackRange && canSeePlayer;
 
-        Vector2 desired = GetDesiredMovement(DirectionToPlayer, DistanceToPlayer);
-        Vector2 separation = GetGhostSeparation();
-        if (separation.sqrMagnitude > 0.0001f)
+        if (Time.time >= nextSeparationCheck)
         {
-            // A close neighbour takes priority over chasing the player.
-            // This prevents groups of ghosts from locking against each other.
-            float separationStrength = 1.2f + Mathf.Clamp01(separation.magnitude) * 0.8f;
-            desired = (desired + separation.normalized * separationStrength).normalized;
+            cachedSeparation = GetGhostSeparation();
+            nextSeparationCheck = Time.time + obstacleCheckInterval;
         }
 
-        if (Time.time >= nextObstacleCheck || separation.sqrMagnitude > 0.01f)
+        Vector2 desired = GetDesiredMovement(DirectionToPlayer, DistanceToPlayer);
+        if (cachedSeparation.sqrMagnitude > 0.0001f)
+        {
+            // A close neighbour takes priority over chasing the player.
+            // Reuse the cached result until the next navigation sample.
+            float separationStrength = 1.2f +
+                Mathf.Clamp01(cachedSeparation.magnitude) * 0.8f;
+            desired = (desired +
+                cachedSeparation.normalized * separationStrength).normalized;
+        }
+
+        if (Time.time >= nextObstacleCheck)
         {
             cachedSteering = desired.sqrMagnitude > 0.0001f
                 ? FindOpenDirection(desired.normalized)
