@@ -53,7 +53,9 @@ public class PlayerMana : MonoBehaviour
 
         if (currentManaValue != maxManaValue && !isSpending)
         {
-            currentManaValue = Mathf.Clamp(currentManaValue + fillingSpeed * Time.deltaTime, 0, maxManaValue);
+            float regeneration = PlayerRunData.EnsureInstance().ManaRegeneration;
+            currentManaValue = Mathf.Clamp(
+                currentManaValue + regeneration * Time.deltaTime, 0, maxManaValue);
         }
     }
 }
