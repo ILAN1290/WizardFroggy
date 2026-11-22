@@ -524,7 +524,7 @@ public class RoguelikeSession : MonoBehaviour
 
         float size = Mathf.Min(240f, Screen.width - 100f, Screen.height - 120f);
         size = Mathf.Max(150f, size);
-        Rect frame = new Rect(Screen.width - size - 130f, 50f, size, size);
+        Rect frame = new Rect(Screen.width - size - 140f, 50f, size, size);
         if (roomGenerator != null && roomGenerator.MinimapFrameSprite != null)
             DrawSpriteFrame(roomGenerator.MinimapFrameSprite, frame);
         else
