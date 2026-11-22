@@ -24,6 +24,7 @@ public class Projectile : MonoBehaviour
     private Camera cam;
     private float life;
     private bool enteredScreen;
+    private bool passThroughUpperWall;
 
     void Awake()
     {
@@ -94,7 +95,11 @@ public class Projectile : MonoBehaviour
             maxLife = 0f;
         }
 
-        rigidbody2d.AddForce(direction * force);
+        Vector2 shotDirection = direction.sqrMagnitude > 0.0001f
+            ? direction.normalized : Vector2.up;
+        passThroughUpperWall = projType == ProjectileType.PlayerProjectile &&
+            shotDirection.y <= 0.05f;
+        rigidbody2d.AddForce(shotDirection * force);
     }
 
     private void Update()
@@ -154,7 +159,16 @@ public class Projectile : MonoBehaviour
         }
 
         if (other.CompareTag("Wall") && !other.isTrigger)
+        {
+            // The upper boundary overlaps the player's launch area. Sideways
+            // and downward shots should pass through it instead of being consumed.
+            if (projType == ProjectileType.PlayerProjectile &&
+                passThroughUpperWall &&
+                other.name.StartsWith("Верхняя стена"))
+                return;
+
             Destroy(gameObject);
+        }
     }
 
     public void Reflect(Vector2 reflectDirection, float force)
