@@ -25,6 +25,12 @@ public class RoguelikeProjectile : MonoBehaviour
     public void Initialize(Vector2 targetDirection, float projectileSpeed,
         float projectileDamage, Color tint)
     {
+        Initialize(targetDirection, projectileSpeed, projectileDamage, tint, false);
+    }
+
+    public void Initialize(Vector2 targetDirection, float projectileSpeed,
+        float projectileDamage, Color tint, bool whiteCore)
+    {
         direction = targetDirection.sqrMagnitude > 0.001f
             ? targetDirection.normalized : Vector2.up;
         speed = Mathf.Max(0f, projectileSpeed);
@@ -39,7 +45,9 @@ public class RoguelikeProjectile : MonoBehaviour
         if (renderer.sprite == null)
             renderer.sprite = RoomGenerator.WhiteSquareSprite;
 
-        renderer.color = tint;
+        // Mini-boss bolts keep a white core while the glow and trail retain
+        // the red tint, matching the bright comet-like projectile style.
+        renderer.color = whiteCore ? Color.white : tint;
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 8;
 
