@@ -143,6 +143,7 @@ public class RoomGenerator : MonoBehaviour
         wall.transform.localPosition = new Vector3(position.x, position.y, 0f);
         wall.transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
+        wall.tag = "Wall";
         BoxCollider2D blocker = wall.AddComponent<BoxCollider2D>();
         blocker.isTrigger = false;
         blocker.size = size;
@@ -504,6 +505,7 @@ public class RoomGenerator : MonoBehaviour
         {
             GameObject shelf = Instantiate(prefab, root);
             shelf.name = objectName;
+            shelf.tag = "Wall";
             shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
             shelf.transform.localRotation = Quaternion.identity;
             // Enlarge room furniture uniformly so the source sprite proportions stay intact.
@@ -513,8 +515,9 @@ public class RoomGenerator : MonoBehaviour
             return;
         }
 
-        CreateRect(root, objectName, position, new Vector2(2.6f, 0.85f),
-            new Color(0.3f, 0.2f, 0.16f), 2, true);
+        GameObject fallbackShelf = CreateRect(root, objectName, position,
+            new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), 2, true);
+        fallbackShelf.tag = "Wall";
     }
 
     private void SpawnGhost(Transform root, RoguelikeSession session, int floor,
