@@ -136,18 +136,22 @@ public class PlayerController : MonoBehaviour
                 Mathf.Max(0.01f, camera.orthographicSize * 2f)
             : Mathf.Max(1, Screen.height) / 12f;
 
-        const float movementHitboxHeightPixels = 15f;
+        const float movementHitboxHeightPixels = 10f;
+        const float movementHitboxWidthRatio = 0.82f;
+        const float movementHitboxDownOffsetPixels = 1.5f;
         float movementHitboxHeight = movementHitboxHeightPixels /
             Mathf.Max(1f, pixelsPerWorldUnitY);
+        float movementHitboxWidth = spriteBounds.size.x * movementHitboxWidthRatio;
 
         Vector3 worldCentre = new Vector3(
             spriteBounds.center.x,
-            spriteBounds.min.y + movementHitboxHeight * 0.5f,
+            spriteBounds.min.y + movementHitboxHeight * 0.5f -
+                movementHitboxDownOffsetPixels / Mathf.Max(1f, pixelsPerWorldUnitY),
             transform.position.z);
         Vector3 localCentre = transform.InverseTransformPoint(worldCentre);
         Vector3 parentScale = transform.lossyScale;
 
-        GameObject movementHitboxObject = new GameObject("Movement Hitbox • 15px");
+        GameObject movementHitboxObject = new GameObject("Movement Hitbox • 10px");
         movementHitboxObject.layer = gameObject.layer;
         movementHitboxObject.transform.SetParent(transform, false);
         movementHitboxObject.transform.localPosition = localCentre;
@@ -155,7 +159,7 @@ public class PlayerController : MonoBehaviour
 
         movementCollider = movementHitboxObject.AddComponent<BoxCollider2D>();
         movementCollider.size = new Vector2(
-            spriteBounds.size.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
+            movementHitboxWidth / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
             movementHitboxHeight / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)));
         movementCollider.isTrigger = false;
     }
