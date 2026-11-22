@@ -370,7 +370,7 @@ public class RoomGenerator : MonoBehaviour
                 CreateWallTile(tilesRoot, "Верхняя стена • тайл",
                     new Vector2(left + (column + 0.5f) * tileWidth,
                         innerY + (row + 0.5f) * tileHeight),
-                    tile, Color.white, -9);
+                    tile, Color.white, -100);
             }
 
             // The source room width is not an integer number of 16x16 tiles.
@@ -385,10 +385,10 @@ public class RoomGenerator : MonoBehaviour
                 Sprite rightTile = ChooseUpperWallTile(room.Index, fullColumns, row);
                 CreateWallTile(tilesRoot, "Верхняя стена • край",
                     new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f, rowY),
-                    leftTile, Color.white, -9, new Vector2(partialWidth / tileWidth, 1f));
+                    leftTile, Color.white, -100, new Vector2(partialWidth / tileWidth, 1f));
                 CreateWallTile(tilesRoot, "Верхняя стена • край",
                     new Vector2(centre.x + width * 0.5f - partialWidth * 0.5f, rowY),
-                    rightTile, Color.white, -9, new Vector2(partialWidth / tileWidth, 1f));
+                    rightTile, Color.white, -100, new Vector2(partialWidth / tileWidth, 1f));
             }
         }
 
