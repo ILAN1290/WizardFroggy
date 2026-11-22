@@ -461,9 +461,13 @@ public class RoguelikeSession : MonoBehaviour
 
     public void OpenShop(RoguelikeMerchant merchant)
     {
-        if (merchant == null) return;
+        if (merchant == null || deathScreenShown) return;
         activeMerchant = merchant;
         shopOpen = true;
+        if (playerBody != null)
+            playerBody.linearVelocity = Vector2.zero;
+        if (playerController != null)
+            playerController.enabled = false;
         ShowHint("Торговец: выберите предмет или настройте три характеристики.");
     }
 
@@ -471,6 +475,8 @@ public class RoguelikeSession : MonoBehaviour
     {
         shopOpen = false;
         activeMerchant = null;
+        if (!deathScreenShown && playerController != null)
+            playerController.enabled = true;
     }
 
     public void ShowHint(string message)
