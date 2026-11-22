@@ -102,7 +102,7 @@ public class RoguelikeMerchant : MonoBehaviour
 
         // Mushroom icon is a Sprite and is drawn at the same pixel height as its count.
         float currencyIconSide = normalStyle.fontSize + 5f;
-        float currencyX = contentRight - 170f;
+        float currencyX = contentRight - 200f;
         Rect currencyIconRect = new Rect(currencyX,
             panel.y + (headerHeight - currencyIconSide) * 0.5f,
             currencyIconSide, currencyIconSide);
