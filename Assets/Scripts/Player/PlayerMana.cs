@@ -20,6 +20,12 @@ public class PlayerMana : MonoBehaviour
         initialized = true;
     }
 
+    public void ApplyTestMana()
+    {
+        maxManaValue = 10000f;
+        currentManaValue = 10000f;
+    }
+
     public void SpendMana(float value)
     {
         if (effects != null && effects.IsInfiniteMana) return;
