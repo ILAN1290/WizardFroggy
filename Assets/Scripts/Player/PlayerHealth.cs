@@ -36,7 +36,9 @@ public class PlayerHealth : MonoBehaviour
     {
         playerController = GetComponent<PlayerController>();
         effects = GetComponent<PlayerEffects>();
-        currentHealth = PlayerRunData.EnsureInstance().LoadHealth(maxHealth);
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        maxHealth = runData.MaximumHealth;
+        currentHealth = runData.LoadHealth(maxHealth);
         initialized = true;
     }
     private void Update()
@@ -59,15 +61,26 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = Mathf.Clamp(currentHealth + health, 0, maxHealth);
     }
+
+    public void ApplyMaximumHealthUpgrade()
+    {
+        float previousMaximum = maxHealth;
+        maxHealth = PlayerRunData.EnsureInstance().MaximumHealth;
+        currentHealth = Mathf.Min(maxHealth,
+            currentHealth + Mathf.Max(0f, maxHealth - previousMaximum));
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveHealth(currentHealth);
+    }
     public void TakeDamage(float damage)
     {
         if (effects != null && effects.IsInvincible) return;
-        currentHealth -= damage;
-        Debug.Log($"����� ������� {damage} �����. ������� ��������: {currentHealth}");
-        if (currentHealth <= 0)
-        {
+
+        float damageReduction = PlayerRunData.EnsureInstance().DamageReduction;
+        float finalDamage = Mathf.Max(0f, damage * (1f - damageReduction));
+        currentHealth -= finalDamage;
+        Debug.Log($"Получено урона {finalDamage} единиц. Текущее здоровье: {currentHealth}");
+        if (currentHealth <= 0f)
             Die();
-        }
     }
 
     public void StartBurning(float burnDamage, float duration, string color)
