@@ -38,6 +38,14 @@ public class Projectile : MonoBehaviour
 
     public void Launch(Vector2 direction, float force)
     {
+        // Player shots are consumed only by walls or enemies, not by a timer
+        // or by leaving the camera viewport.
+        if (projType == ProjectileType.PlayerProjectile)
+        {
+            destroyOffScreen = false;
+            maxLife = 0f;
+        }
+
         rigidbody2d.AddForce(direction * force);
     }
 
