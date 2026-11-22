@@ -20,7 +20,7 @@ public class GhostAI : MonoBehaviour
 
     private static readonly float[] SteeringAngles = { -70f, -35f, 35f, 70f, -110f, 110f };
     private readonly RaycastHit2D[] hitBuffer = new RaycastHit2D[16];
-    private readonly Collider2D[] nearbyGhostBuffer = new Collider2D[16];
+    private readonly Collider2D[] nearbyGhostBuffer = new Collider2D[32];
 
     private static int nextGhostId;
     private int ghostId;
@@ -72,6 +72,15 @@ public class GhostAI : MonoBehaviour
     private void FixedUpdate()
     {
         if (body == null) return;
+
+        // A ghost can be spawned or pushed partly inside a shelf/wall.
+        // Resolve the penetration before steering so it can escape instead
+        // of repeatedly receiving a zero-length safe movement step.
+        if (ResolveOverlappingObstacles())
+        {
+            cachedSteering = Vector2.zero;
+            nextObstacleCheck = Time.time;
+        }
 
         if (player == null && Time.time >= nextPlayerSearch)
         {
@@ -268,6 +277,49 @@ public class GhostAI : MonoBehaviour
         }
 
         return separation;
+    }
+
+    private bool ResolveOverlappingObstacles()
+    {
+        if (bodyCollider == null) return false;
+
+        bool anyResolved = false;
+        const int maximumPasses = 4;
+        const float separationPadding = 0.025f;
+
+        for (int pass = 0; pass < maximumPasses; pass++)
+        {
+            int count = Physics2D.OverlapCircleNonAlloc(
+                body.position, GetProbeRadius() + separationPadding,
+                nearbyGhostBuffer, obstacleMask);
+            bool passResolved = false;
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider2D obstacle = nearbyGhostBuffer[i];
+                if (!IsRelevantObstacle(obstacle)) continue;
+
+                // ComputePenetration returns the minimum direction and distance
+                // required to move this ghost collider out of the obstacle.
+                if (!Physics2D.ComputePenetration(
+                    bodyCollider, body.position, body.rotation,
+                    obstacle, obstacle.transform.position,
+                    obstacle.transform.eulerAngles.z,
+                    out Vector2 separationDirection, out float penetration))
+                    continue;
+
+                float correction = Mathf.Max(0.01f, penetration) +
+                    separationPadding;
+                body.position += separationDirection * correction;
+                passResolved = true;
+                anyResolved = true;
+            }
+
+            if (!passResolved) break;
+            Physics2D.SyncTransforms();
+        }
+
+        return anyResolved;
     }
 
     private float GetProbeRadius()
