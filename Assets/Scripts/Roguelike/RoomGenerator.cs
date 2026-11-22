@@ -1485,6 +1485,9 @@ public class RoomGenerator : MonoBehaviour
                 if (burningCells.Contains(playerCell))
                 {
                     health.TakeDamage(damage);
+                    // Reuse the same red burning effect and damage-over-time
+                    // pipeline as the main boss fire attacks.
+                    health.StartBurning(3f, 2f, "Red");
                     damageTimer = 0.7f;
                 }
             }
