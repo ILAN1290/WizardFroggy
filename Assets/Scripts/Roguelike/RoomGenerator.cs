@@ -199,7 +199,8 @@ public class RoomGenerator : MonoBehaviour
         CreateRoomBoundaries(root, session, room, roomCentre, roomWidth, roomHeight);
 
         foreach (RoguelikeShelfPlacement shelf in layout.Shelves)
-            CreateShelf(root, shelf.Name, shelf.Position, shelf.Upper, shelf.Scale);
+            CreateShelf(root, shelf.Name, shelf.Position, shelf.Upper,
+                shelf.Scale, roomCentre);
 
         foreach (Vector2 trapPosition in layout.TrapPositions)
             SpawnTrap(root, trapPosition);
@@ -212,8 +213,8 @@ public class RoomGenerator : MonoBehaviour
         {
             GameObject chest = CreateRect(root, "Сундук", layout.ChestPosition,
                 new Vector2(1.5f, 1.1f), new Color(0.56f, 0.31f, 0.12f), 4, false);
-            BoxCollider2D trigger = chest.AddComponent<BoxCollider2D>();
-            trigger.isTrigger = true;
+            BoxCollider2D movableHitbox = chest.AddComponent<BoxCollider2D>();
+            movableHitbox.isTrigger = true;
             chest.AddComponent<RoguelikeChest>().Initialize(session);
             ApplyPlaceholder(chest, chestSprite, "СУНДУК", session);
 
@@ -223,10 +224,29 @@ public class RoomGenerator : MonoBehaviour
                 chest.transform.localScale = new Vector3(
                     1.5f / Mathf.Max(0.001f, spriteSize.x),
                     1.1f / Mathf.Max(0.001f, spriteSize.y), 1f);
-                trigger.size = new Vector2(
-                    1.5f / Mathf.Max(0.001f, chest.transform.localScale.x),
-                    1.1f / Mathf.Max(0.001f, chest.transform.localScale.y));
             }
+
+            // The upper two thirds are pass-through and also act as the
+            // automatic opening proximity zone. The lower third is solid.
+            float localWidth = 1.5f /
+                Mathf.Max(0.001f, Mathf.Abs(chest.transform.localScale.x));
+            float localHeight = 1.1f /
+                Mathf.Max(0.001f, Mathf.Abs(chest.transform.localScale.y));
+            float solidHeight = localHeight / 3f;
+            float movableHeight = localHeight - solidHeight;
+
+            movableHitbox.size = new Vector2(localWidth, movableHeight);
+            movableHitbox.offset = new Vector2(0f,
+                -localHeight * 0.5f + solidHeight + movableHeight * 0.5f);
+
+            GameObject solidArea = new GameObject("Chest Non-Movable Hitbox");
+            solidArea.tag = "Wall";
+            solidArea.layer = chest.layer;
+            solidArea.transform.SetParent(chest.transform, false);
+            BoxCollider2D solidHitbox = solidArea.AddComponent<BoxCollider2D>();
+            solidHitbox.size = new Vector2(localWidth, solidHeight);
+            solidHitbox.offset = new Vector2(0f,
+                -localHeight * 0.5f + solidHeight * 0.5f);
         }
 
         if (layout.SpawnMerchant)
@@ -436,7 +456,11 @@ public class RoomGenerator : MonoBehaviour
 
         // Дверь находится непосредственно в плоскости боковой стены:
         // проём остаётся открытым, а блокирующий коллайдер принадлежит двери.
-        Vector2 doorPosition = new Vector2(wallX, centreY);
+        float inwardDirection = dx < 0 ? 1f : -1f;
+        float inwardOffset = 15f /
+            Mathf.Max(1f, GetScreenPixelsPerWorldUnitX());
+        Vector2 doorPosition = new Vector2(
+            wallX + inwardDirection * inwardOffset, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
         Color openedTint = new Color(0.66f, 0.66f, 0.66f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
@@ -633,7 +657,7 @@ public class RoomGenerator : MonoBehaviour
         float height = upperRight.y - lowerLeft.y;
         if (width <= 0.001f || height <= 0.001f) return null;
 
-        const float solidFraction = 0.25f;
+        const float solidFraction = 0.2f;
         float solidHeight = height * solidFraction;
         float movableHeight = height - solidHeight;
         float centreX = (lowerLeft.x + upperRight.x) * 0.5f;
@@ -904,8 +928,17 @@ public class RoomGenerator : MonoBehaviour
     }
 
     private void CreateShelf(Transform root, string objectName, Vector2 position,
-        bool upper, float scale)
+        bool upper, float scale, Vector2 roomCentre)
     {
+        // Vertical shelves sit beside the side entrances in some layouts.
+        // Move them inward so their sprite and collider no longer cover doors.
+        if (!upper)
+        {
+            const float sideShelfInset = 0.7f;
+            float side = Mathf.Sign(position.x - roomCentre.x);
+            position.x -= side * sideShelfInset;
+        }
+
         if (upperShelfPrefab == null)
             upperShelfPrefab = Resources.Load<GameObject>("RoguelikePrefabs/Upper Book Case");
         if (lateralShelfPrefab == null)
@@ -1072,8 +1105,12 @@ public class RoomGenerator : MonoBehaviour
         for (int i = 0; i < overlaps.Length; i++)
         {
             Collider2D obstacle = overlaps[i];
-            if (obstacle == null || obstacle.isTrigger) continue;
-            if (obstacle.CompareTag("Wall")) return true;
+            if (obstacle == null) continue;
+
+            bool ghostOnlyObstacle =
+                obstacle.GetComponent<RoguelikeGhostObstacle>() != null;
+            if (obstacle.isTrigger && !ghostOnlyObstacle) continue;
+            if (obstacle.CompareTag("Wall") || ghostOnlyObstacle) return true;
         }
         return false;
     }
