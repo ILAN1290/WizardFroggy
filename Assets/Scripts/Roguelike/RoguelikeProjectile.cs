@@ -1,30 +1,18 @@
-using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Lightweight projectile for roguelike ghosts.
+/// The glow sprite is shared; no temporary trail GameObjects are spawned.
+/// </summary>
 public class RoguelikeProjectile : MonoBehaviour
 {
-    private sealed class TrailParticle
-    {
-        public GameObject Object;
-        public SpriteRenderer Renderer;
-        public Vector2 Velocity;
-        public Vector3 StartScale;
-        public Color Color;
-        public float Age;
-        public float Lifetime;
-    }
-
     private static Sprite glowSprite;
 
-    private readonly List<TrailParticle> trailParticles = new List<TrailParticle>();
     private Vector2 direction;
     private float speed;
     private float damage;
     private float life;
-    private float trailTimer;
-    private Color projectileColor = new Color(0.72f, 0.92f, 1f, 1f);
     private Rigidbody2D body;
-    private SpriteRenderer mainRenderer;
     private bool initialized;
 
     public void Initialize(Vector2 targetDirection, float projectileSpeed, float projectileDamage)
@@ -38,37 +26,34 @@ public class RoguelikeProjectile : MonoBehaviour
     {
         direction = targetDirection.sqrMagnitude > 0.001f
             ? targetDirection.normalized : Vector2.up;
-        speed = projectileSpeed;
-        damage = projectileDamage;
-        projectileColor = tint;
+        speed = Mathf.Max(0f, projectileSpeed);
+        damage = Mathf.Max(0f, projectileDamage);
         body = GetComponent<Rigidbody2D>();
-        mainRenderer = GetComponent<SpriteRenderer>();
 
-        if (mainRenderer == null)
-            mainRenderer = gameObject.AddComponent<SpriteRenderer>();
-        if (mainRenderer.sprite == null)
-            mainRenderer.sprite = RoomGenerator.WhiteSquareSprite;
+        SpriteRenderer renderer = GetComponent<SpriteRenderer>();
+        if (renderer == null)
+            renderer = gameObject.AddComponent<SpriteRenderer>();
+        if (renderer.sprite == null)
+            renderer.sprite = RoomGenerator.WhiteSquareSprite;
 
-        mainRenderer.color = projectileColor;
-        mainRenderer.sortingLayerName = "Default";
-        mainRenderer.sortingOrder = 8;
+        renderer.color = tint;
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = 8;
 
-        CreateGlow();
+        CreateGlow(tint);
         initialized = true;
     }
 
-    private void CreateGlow()
+    private void CreateGlow(Color tint)
     {
         GameObject glow = new GameObject("Свечение снаряда");
         glow.transform.SetParent(transform, false);
-        glow.transform.localPosition = Vector3.zero;
 
-        SpriteRenderer glowRenderer = glow.AddComponent<SpriteRenderer>();
-        glowRenderer.sprite = GlowSprite;
-        glowRenderer.color = new Color(projectileColor.r, projectileColor.g,
-            projectileColor.b, 0.42f);
-        glowRenderer.sortingLayerName = "Default";
-        glowRenderer.sortingOrder = 7;
+        SpriteRenderer renderer = glow.AddComponent<SpriteRenderer>();
+        renderer.sprite = GlowSprite;
+        renderer.color = new Color(tint.r, tint.g, tint.b, 0.42f);
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = 7;
         glow.transform.localScale = Vector3.one * 2.6f;
     }
 
@@ -85,100 +70,19 @@ public class RoguelikeProjectile : MonoBehaviour
             transform.position = nextPosition;
 
         life += Time.fixedDeltaTime;
-        trailTimer -= Time.fixedDeltaTime;
-        if (trailTimer <= 0f)
-        {
-            trailTimer = 0.045f;
-            SpawnTrailParticle();
-        }
-
         if (life >= 5f)
             Destroy(gameObject);
-    }
-
-    private void Update()
-    {
-        float deltaTime = Time.deltaTime;
-        for (int i = trailParticles.Count - 1; i >= 0; i--)
-        {
-            TrailParticle particle = trailParticles[i];
-            if (particle.Object == null)
-            {
-                trailParticles.RemoveAt(i);
-                continue;
-            }
-
-            particle.Age += deltaTime;
-            float progress = Mathf.Clamp01(particle.Age / particle.Lifetime);
-            particle.Object.transform.position += (Vector3)(particle.Velocity * deltaTime);
-            particle.Object.transform.localScale = particle.StartScale * (1f - progress * 0.75f);
-
-            Color faded = particle.Color;
-            faded.a *= 1f - progress;
-            particle.Renderer.color = faded;
-
-            if (particle.Age >= particle.Lifetime)
-            {
-                Destroy(particle.Object);
-                trailParticles.RemoveAt(i);
-            }
-        }
-    }
-
-    private void SpawnTrailParticle()
-    {
-        GameObject square = new GameObject("Полупрозрачный квадратный след");
-        square.transform.SetParent(transform.parent, true);
-
-        Vector2 side = new Vector2(-direction.y, direction.x);
-        float sideOffset = Random.Range(-0.12f, 0.12f);
-        square.transform.position = transform.position -
-            (Vector3)(direction * Random.Range(0.08f, 0.18f)) +
-            (Vector3)(side * sideOffset);
-
-        SpriteRenderer renderer = square.AddComponent<SpriteRenderer>();
-        renderer.sprite = RoomGenerator.WhiteSquareSprite;
-        renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = 6;
-
-        Color varied = Color.Lerp(projectileColor, Color.white,
-            Random.Range(0.08f, 0.32f));
-        varied.a = Random.Range(0.42f, 0.72f);
-        renderer.color = varied;
-
-        float size = Random.Range(0.055f, 0.105f);
-        Vector3 scale = Vector3.one * size;
-        square.transform.localScale = scale;
-
-        TrailParticle particle = new TrailParticle
-        {
-            Object = square,
-            Renderer = renderer,
-            StartScale = scale,
-            Color = varied,
-            Velocity = -direction * Random.Range(0.45f, 1.1f) +
-                side * Random.Range(-0.65f, 0.65f),
-            Lifetime = Random.Range(0.22f, 0.42f)
-        };
-        trailParticles.Add(particle);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other == null) return;
+
         PlayerHealth health = other.GetComponentInParent<PlayerHealth>();
         if (health == null) return;
 
         health.TakeDamage(damage);
         Destroy(gameObject);
-    }
-
-    private void OnDestroy()
-    {
-        for (int i = 0; i < trailParticles.Count; i++)
-            if (trailParticles[i].Object != null)
-                Destroy(trailParticles[i].Object);
-        trailParticles.Clear();
     }
 
     private static Sprite GlowSprite
