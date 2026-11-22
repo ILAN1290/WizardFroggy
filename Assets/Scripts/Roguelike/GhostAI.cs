@@ -73,6 +73,16 @@ public class GhostAI : MonoBehaviour
     {
         if (body == null) return;
 
+        if (IsOverlappingWall())
+        {
+            GhostEnemy enemy = GetComponent<GhostEnemy>();
+            if (enemy != null)
+                enemy.DieFromWall();
+            else
+                Destroy(gameObject);
+            return;
+        }
+
         if (player == null && Time.time >= nextPlayerSearch)
         {
             player = FindPlayer();
@@ -316,9 +326,33 @@ public class GhostAI : MonoBehaviour
         return true;
     }
 
+    private bool IsOverlappingWall()
+    {
+        int count = Physics2D.OverlapCircleNonAlloc(
+            body.position, GetProbeRadius(), nearbyGhostBuffer, obstacleMask);
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D obstacle = nearbyGhostBuffer[i];
+            if (obstacle == null || !IsRelevantObstacle(obstacle)) continue;
+
+            if (obstacle.CompareTag("Wall") ||
+                obstacle.GetComponent<RoguelikeGhostObstacle>() != null)
+                return true;
+        }
+
+        return false;
+    }
+
     private bool IsRelevantObstacle(Collider2D obstacle)
     {
-        if (obstacle == null || obstacle.isTrigger) return false;
+        if (obstacle == null) return false;
+
+        // The pass-through shelf hitbox is a trigger for the player, but a solid
+        // navigation obstacle for ghosts. Other trigger volumes remain ignored.
+        bool ghostShelfTrigger =
+            obstacle.GetComponent<RoguelikeGhostObstacle>() != null;
+        if (obstacle.isTrigger && !ghostShelfTrigger) return false;
 
         Transform obstacleTransform = obstacle.transform;
         if (obstacleTransform == transform || obstacleTransform.IsChildOf(transform))
@@ -352,4 +386,11 @@ public class GhostAI : MonoBehaviour
             vector.x * cosine - vector.y * sine,
             vector.x * sine + vector.y * cosine);
     }
+}
+
+/// <summary>
+/// Marker for the upper shelf hitbox: pass-through for the player, solid for ghosts.
+/// </summary>
+public sealed class RoguelikeGhostObstacle : MonoBehaviour
+{
 }
