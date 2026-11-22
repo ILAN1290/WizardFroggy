@@ -1417,11 +1417,13 @@ public class RoomGenerator : MonoBehaviour
         GameObject tileObject = new GameObject("Telegraph and Fire Tiles");
         tileObject.transform.SetParent(overlayRoot.transform, false);
         Tilemap overlayMap = tileObject.AddComponent<Tilemap>();
+        overlayMap.tileAnchor = floor.tileAnchor;
         TilemapRenderer overlayRenderer = tileObject.AddComponent<TilemapRenderer>();
 
         TilemapRenderer floorRenderer = floor.GetComponent<TilemapRenderer>();
         if (floorRenderer != null)
         {
+            overlayRenderer.sharedMaterial = floorRenderer.sharedMaterial;
             overlayRenderer.sortingLayerID = floorRenderer.sortingLayerID;
             overlayRenderer.sortingOrder = floorRenderer.sortingOrder + 1;
         }
