@@ -148,7 +148,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             projectileBody.gravityScale = 0f;
 
             bolt.AddComponent<RoguelikeProjectile>().Initialize(
-                direction, 4.6f, damage * 0.65f, redTint);
+                direction, 4.6f, damage * 0.65f, redTint, true);
         }
     }
 
@@ -192,7 +192,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         if (defeated) return;
 
         defeated = true;
-        if (session != null) session.OnEnemyDefeated(transform.position);
+        if (session != null) session.OnEnemyDefeated(transform.position, miniBoss);
         Destroy(gameObject);
     }
 
@@ -203,7 +203,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         if (health <= 0f)
         {
             defeated = true;
-            if (session != null) session.OnEnemyDefeated(transform.position);
+            if (session != null) session.OnEnemyDefeated(transform.position, miniBoss);
             Destroy(gameObject);
         }
     }
