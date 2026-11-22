@@ -309,15 +309,15 @@ public class RoguelikeSession : MonoBehaviour
     private void SpawnMushroomPickup(Vector2 position, int amount)
     {
         GameObject pickup = new GameObject("Грибочки x" + amount);
-        pickup.transform.position = position;
         if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
         SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
         renderer.sprite = roomGenerator != null && roomGenerator.MushroomSprite != null
             ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
-        // Loot is drawn behind interior furniture so it does not cover shelves.
-        renderer.sortingOrder = -3;
+        // Keep loot behind all interior furniture sprites.
+        renderer.sortingOrder = -10;
 
+        float pickupRadius = 0.25f;
         // Keep the pickup at exactly 50x50 screen pixels, independent of sprite PPU.
         if (renderer.sprite != null)
         {
@@ -328,17 +328,24 @@ public class RoguelikeSession : MonoBehaviour
                     Mathf.Max(0.01f, camera.orthographicSize * 2f);
                 float pixelsPerWorldUnitX = camera.pixelWidth /
                     Mathf.Max(0.01f, camera.orthographicSize * 2f * camera.aspect);
+                float worldWidth = 50f / Mathf.Max(1f, pixelsPerWorldUnitX);
+                float worldHeight = 50f / Mathf.Max(1f, pixelsPerWorldUnitY);
                 Vector2 sourceSize = renderer.sprite.bounds.size;
                 pickup.transform.localScale = new Vector3(
-                    50f / Mathf.Max(0.001f, sourceSize.x * pixelsPerWorldUnitX),
-                    50f / Mathf.Max(0.001f, sourceSize.y * pixelsPerWorldUnitY), 1f);
+                    worldWidth / Mathf.Max(0.001f, sourceSize.x),
+                    worldHeight / Mathf.Max(0.001f, sourceSize.y), 1f);
+                pickupRadius = Mathf.Max(worldWidth, worldHeight) * 0.5f;
             }
         }
+
+        position = FindAccessiblePickupPosition(position, pickupRadius);
+        pickup.transform.position = position;
         if (roomGenerator != null)
             roomGenerator.ApplyPlaceholder(pickup, roomGenerator.MushroomSprite, "ГРИБОЧКИ", this);
 
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;
+        collider.radius = pickupRadius;
         pickup.AddComponent<RoguelikePickup>().SetupCurrency(amount);
     }
 
@@ -346,27 +353,30 @@ public class RoguelikeSession : MonoBehaviour
     {
         if (item == null) return;
 
-        GameObject pickup = new GameObject("Предмет: " + item.itemName);
-        pickup.transform.position = position;
-        if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
-
         Sprite itemSprite = item.icon != null ? item.icon :
             roomGenerator != null && roomGenerator.ItemSprite != null
                 ? roomGenerator.ItemSprite : RoomGenerator.CircleSprite;
-
-        GameObject visual = new GameObject("Иконка предмета 70x70");
-        visual.transform.SetParent(pickup.transform, false);
-        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
-        renderer.sprite = itemSprite;
-        renderer.color = Color.white;
-        // Item icons remain visible on the floor but render beneath furniture.
-        renderer.sortingOrder = -3;
 
         Camera camera = Camera.main;
         float pixelsPerUnit = camera != null && camera.orthographic && camera.pixelHeight > 0
             ? camera.pixelHeight / Mathf.Max(0.01f, camera.orthographicSize * 2f)
             : 120f;
         float worldSize = 70f / Mathf.Max(1f, pixelsPerUnit);
+        float pickupRadius = worldSize * 0.48f;
+        position = FindAccessiblePickupPosition(position, pickupRadius);
+
+        GameObject pickup = new GameObject("Предмет: " + item.itemName);
+        pickup.transform.position = position;
+        if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
+
+        GameObject visual = new GameObject("Иконка предмета 70x70");
+        visual.transform.SetParent(pickup.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = itemSprite;
+        renderer.color = Color.white;
+        // Item icons render beneath all interior furniture.
+        renderer.sortingOrder = -10;
+
         Vector2 spriteSize = itemSprite.bounds.size;
         visual.transform.localScale = new Vector3(
             worldSize / Mathf.Max(0.001f, spriteSize.x),
@@ -374,9 +384,57 @@ public class RoguelikeSession : MonoBehaviour
 
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;
-        collider.radius = worldSize * 0.48f;
+        collider.radius = pickupRadius;
 
         pickup.AddComponent<RoguelikePickup>().SetupItem(item, count, itemPickupSound);
+    }
+
+    private static Vector2 FindAccessiblePickupPosition(Vector2 preferredPosition,
+        float pickupRadius)
+    {
+        Physics2D.SyncTransforms();
+        if (IsPickupPositionFree(preferredPosition, pickupRadius))
+            return preferredPosition;
+
+        const int directions = 20;
+        const int rings = 12;
+        float step = Mathf.Max(0.18f, pickupRadius * 1.4f);
+
+        for (int ring = 1; ring <= rings; ring++)
+        {
+            float distance = pickupRadius + 0.12f + ring * step;
+            for (int direction = 0; direction < directions; direction++)
+            {
+                float angle = direction * (Mathf.PI * 2f / directions);
+                Vector2 candidate = preferredPosition + new Vector2(
+                    Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                if (IsPickupPositionFree(candidate, pickupRadius))
+                    return candidate;
+            }
+        }
+
+        // Keep a deterministic fallback rather than discarding the drop.
+        return preferredPosition;
+    }
+
+    private static bool IsPickupPositionFree(Vector2 position, float pickupRadius)
+    {
+        Collider2D[] overlaps = Physics2D.OverlapCircleAll(
+            position, pickupRadius + 0.06f);
+
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider2D obstacle = overlaps[i];
+            if (obstacle == null || !obstacle.enabled || obstacle.isTrigger)
+                continue;
+
+            // Generated invisible wall colliders and the solid shelf sections
+            // use the Wall tag. Never place loot inside those blocking shapes.
+            if (obstacle.CompareTag("Wall"))
+                return false;
+        }
+
+        return true;
     }
 
     public void OpenShop(RoguelikeMerchant merchant)
