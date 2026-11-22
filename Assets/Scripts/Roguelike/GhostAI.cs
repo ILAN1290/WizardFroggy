@@ -114,7 +114,7 @@ public class GhostAI : MonoBehaviour
             desired = (desired + separation.normalized * separationStrength).normalized;
         }
 
-        if (Time.time >= nextObstacleCheck)
+        if (Time.time >= nextObstacleCheck || separation.sqrMagnitude > 0.01f)
         {
             cachedSteering = desired.sqrMagnitude > 0.0001f
                 ? FindOpenDirection(desired.normalized)
@@ -215,7 +215,7 @@ public class GhostAI : MonoBehaviour
     {
         float ownRadius = GetProbeRadius();
         int count = Physics2D.OverlapCircleNonAlloc(
-            body.position, ownRadius * 3f, nearbyGhostBuffer, obstacleMask);
+            body.position, ownRadius * 5f, nearbyGhostBuffer, obstacleMask);
 
         Vector2 separation = Vector2.zero;
         for (int i = 0; i < count; i++)
