@@ -19,6 +19,7 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
     private Sprite[] closedSprites;
     private Sprite[] openedSprites;
     private Color lockedTint = Color.gray;
+    private Color openedTint = Color.white;
     private bool hideWhenOpened;
     private bool transitionRequested;
     private bool lastOpened;
@@ -26,7 +27,7 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
     public void Initialize(RoguelikeSession owner, int dx, int dy, Vector2 spawn,
         BoxCollider2D solidBlocker, BoxCollider2D transitionSensor,
         SpriteRenderer[] doorVisuals, Sprite[] closed, Sprite[] opened,
-        Color closedTint, bool hideVisualWhenOpened)
+        Color closedTint, Color openTint, bool hideVisualWhenOpened)
     {
         session = owner;
         directionX = dx;
@@ -38,6 +39,7 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
         closedSprites = closed;
         openedSprites = opened;
         lockedTint = closedTint;
+        openedTint = openTint;
         hideWhenOpened = hideVisualWhenOpened;
 
         if (sensor != null) sensor.isTrigger = true;
@@ -76,8 +78,7 @@ public sealed class RoguelikeRoomTransition : MonoBehaviour
                 sprite = source[i];
 
             if (sprite != null) renderer.sprite = sprite;
-            bool hasOpenedAppearance = openedSprites != null && openedSprites.Length > 0;
-            renderer.color = opened && hasOpenedAppearance ? Color.white : lockedTint;
+            renderer.color = opened ? openedTint : lockedTint;
             renderer.enabled = renderer.sprite != null;
         }
     }
