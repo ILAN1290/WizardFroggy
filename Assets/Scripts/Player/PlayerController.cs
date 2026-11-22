@@ -66,6 +66,7 @@ public class PlayerController : MonoBehaviour
 
     //Health
     private PlayerHealth playerHealth;
+    private SpriteRenderer playerSpriteRenderer;
 
     [Header("TEST")]
     [SerializeField] private bool TEST_hp;
@@ -81,6 +82,7 @@ public class PlayerController : MonoBehaviour
         cooldownTimer = projectileCooldown;
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
+        playerSpriteRenderer = GetComponent<SpriteRenderer>();
         InitializeMovementHitbox();
         StartCoroutine(ApplyTestSettings());
     }
@@ -318,7 +320,9 @@ public class PlayerController : MonoBehaviour
             cooldownTimer = 0;
             PlayerRunData runData = PlayerRunData.EnsureInstance();
             mana.SpendMana(runData.ProjectileManaCost);
-            Vector3 spawnPosition = rb.position;
+            Vector3 spawnPosition = playerSpriteRenderer != null
+                ? playerSpriteRenderer.bounds.center
+                : rb.worldCenterOfMass;
             Transform projectileParent = RoguelikeSession.ProjectileRoot;
             GameObject projectileObject = projectileParent != null
                 ? Instantiate(projectilePrefab, spawnPosition, Quaternion.identity, projectileParent)
