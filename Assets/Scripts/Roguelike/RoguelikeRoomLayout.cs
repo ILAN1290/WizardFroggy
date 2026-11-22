@@ -1,11 +1,8 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class RoguelikeRoomLayout
 {
-    public readonly List<RoguelikeWallSection> Walls = new List<RoguelikeWallSection>();
-    public readonly List<RoguelikeDoorPlacement> Doors = new List<RoguelikeDoorPlacement>();
     public readonly List<RoguelikeShelfPlacement> Shelves = new List<RoguelikeShelfPlacement>();
     public readonly List<Vector2> TrapPositions = new List<Vector2>();
     public readonly List<RoguelikeGhostPlacement> Ghosts = new List<RoguelikeGhostPlacement>();
@@ -16,41 +13,6 @@ public sealed class RoguelikeRoomLayout
     public Vector2 ChestPosition;
     public Vector2 MerchantPosition;
     public Vector2 ExitPosition;
-}
-
-public struct RoguelikeWallSection
-{
-    public string Name;
-    public Vector2 Position;
-    public Vector2 Size;
-    public float Rotation;
-
-    public RoguelikeWallSection(string name, Vector2 position, Vector2 size, float rotation)
-    {
-        Name = name;
-        Position = position;
-        Size = size;
-        Rotation = rotation;
-    }
-}
-
-public struct RoguelikeDoorPlacement
-{
-    public Vector2 Position;
-    public Vector2 SpawnPosition;
-    public int DirectionX;
-    public int DirectionY;
-    public float Rotation;
-
-    public RoguelikeDoorPlacement(Vector2 position, Vector2 spawnPosition,
-        int directionX, int directionY, float rotation)
-    {
-        Position = position;
-        SpawnPosition = spawnPosition;
-        DirectionX = directionX;
-        DirectionY = directionY;
-        Rotation = rotation;
-    }
 }
 
 public struct RoguelikeShelfPlacement
@@ -84,8 +46,7 @@ public struct RoguelikeGhostPlacement
 }
 
 /// <summary>
-/// Owns all room-level layout decisions: wall sections, door positions,
-/// shelf patterns, trap positions, and the number/type/positions of enemies.
+/// Owns the room contents: shelf patterns, trap positions, and enemy placement.
 /// RoomGenerator only turns this plan into Unity GameObjects.
 /// </summary>
 public static class RoguelikeRoomLayoutGenerator
@@ -98,8 +59,6 @@ public static class RoguelikeRoomLayoutGenerator
 
         System.Random random = new System.Random(
             floorSeed ^ (room.Index * 104729) ^ (floorNumber * 7919));
-
-        AddWallsAndDoors(layout, room, roomWidth, roomHeight, centre);
 
         layout.ChestPosition = centre;
         layout.MerchantPosition = centre;
@@ -132,116 +91,6 @@ public static class RoguelikeRoomLayoutGenerator
         }
 
         return layout;
-    }
-
-    private static void AddWallsAndDoors(RoguelikeRoomLayout layout,
-        RoguelikeRoomData room, float width, float height, Vector2 centre)
-    {
-        const float wallThickness = 0.22f;
-        const float doorOpening = 2.2f;
-        const float spawnInset = 0.8f;
-
-        float leftX = centre.x - width * 0.5f;
-        float rightX = centre.x + width * 0.5f;
-        float bottomY = centre.y - height * 0.5f;
-        float topY = centre.y + height * 0.5f;
-        float centreX = centre.x;
-        float centreY = centre.y;
-
-        bool hasLeftPassage = room.X > 0 && room.Neighbours.Contains(room.Index - 1);
-        bool hasRightPassage = room.X < 3 && room.Neighbours.Contains(room.Index + 1);
-        bool hasDownPassage = room.Y > 0 && room.Neighbours.Contains(room.Index - 4);
-        bool hasUpPassage = room.Y < 3 && room.Neighbours.Contains(room.Index + 4);
-
-        // Top passage: the door stays at 0 degrees.
-        AddHorizontalBoundary(layout, "Верхняя невидимая стена",
-            leftX, rightX, topY, wallThickness, hasUpPassage, doorOpening);
-        if (hasUpPassage)
-        {
-            layout.Doors.Add(new RoguelikeDoorPlacement(
-                new Vector2(centreX, topY),
-                new Vector2(centreX, bottomY + spawnInset),
-                0, 1, 0f));
-        }
-
-        // Left door rotates 90 degrees to the left.
-        AddVerticalBoundary(layout, "Левая невидимая стена",
-            leftX, bottomY, topY, wallThickness, hasLeftPassage, doorOpening);
-        if (hasLeftPassage)
-        {
-            layout.Doors.Add(new RoguelikeDoorPlacement(
-                new Vector2(leftX, centreY),
-                new Vector2(rightX - spawnInset, centreY),
-                -1, 0, 90f));
-        }
-
-        // Right door rotates 90 degrees to the right.
-        AddVerticalBoundary(layout, "Правая невидимая стена",
-            rightX, bottomY, topY, wallThickness, hasRightPassage, doorOpening);
-        if (hasRightPassage)
-        {
-            layout.Doors.Add(new RoguelikeDoorPlacement(
-                new Vector2(rightX, centreY),
-                new Vector2(leftX + spawnInset, centreY),
-                1, 0, 90f));
-        }
-
-        // Bottom door rotates by 180 degrees.
-        AddHorizontalBoundary(layout, "Нижняя невидимая стена",
-            leftX, rightX, bottomY, wallThickness, hasDownPassage, doorOpening);
-        if (hasDownPassage)
-        {
-            layout.Doors.Add(new RoguelikeDoorPlacement(
-                new Vector2(centreX, bottomY),
-                new Vector2(centreX, topY - spawnInset),
-                0, -1, 180f));
-        }
-    }
-
-    private static void AddHorizontalBoundary(RoguelikeRoomLayout layout, string name,
-        float left, float right, float y, float thickness, bool hasDoor, float doorWidth)
-    {
-        if (!hasDoor)
-        {
-            layout.Walls.Add(new RoguelikeWallSection(name,
-                new Vector2((left + right) * 0.5f, y),
-                new Vector2(right - left, thickness), 0f));
-            return;
-        }
-
-        float centre = (left + right) * 0.5f;
-        float segmentLength = (right - left - doorWidth) * 0.5f;
-        if (segmentLength <= 0.05f) return;
-
-        layout.Walls.Add(new RoguelikeWallSection(name + " • левая часть",
-            new Vector2(left + segmentLength * 0.5f, y),
-            new Vector2(segmentLength, thickness), 0f));
-        layout.Walls.Add(new RoguelikeWallSection(name + " • правая часть",
-            new Vector2(centre + doorWidth * 0.5f + segmentLength * 0.5f, y),
-            new Vector2(segmentLength, thickness), 0f));
-    }
-
-    private static void AddVerticalBoundary(RoguelikeRoomLayout layout, string name,
-        float x, float bottom, float top, float thickness, bool hasDoor, float doorHeight)
-    {
-        if (!hasDoor)
-        {
-            layout.Walls.Add(new RoguelikeWallSection(name,
-                new Vector2(x, (bottom + top) * 0.5f),
-                new Vector2(top - bottom, thickness), 90f));
-            return;
-        }
-
-        float centre = (bottom + top) * 0.5f;
-        float segmentLength = (top - bottom - doorHeight) * 0.5f;
-        if (segmentLength <= 0.05f) return;
-
-        layout.Walls.Add(new RoguelikeWallSection(name + " • нижняя часть",
-            new Vector2(x, bottom + segmentLength * 0.5f),
-            new Vector2(segmentLength, thickness), 90f));
-        layout.Walls.Add(new RoguelikeWallSection(name + " • верхняя часть",
-            new Vector2(x, centre + doorHeight * 0.5f + segmentLength * 0.5f),
-            new Vector2(segmentLength, thickness), 90f));
     }
 
     private static void AddCombatEncounter(RoguelikeRoomLayout layout, System.Random random,
