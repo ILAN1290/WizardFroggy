@@ -57,6 +57,8 @@ public class RoomGenerator : MonoBehaviour
         RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
             room, floorNumber, floorSeed, roomWidth, roomHeight, roomCentre);
 
+        CreateRoomTransitions(root, session, room, roomCentre, roomWidth, roomHeight);
+
         foreach (RoguelikeShelfPlacement shelf in layout.Shelves)
             CreateShelf(root, shelf.Name, shelf.Position, shelf.Upper, shelf.Scale);
 
@@ -115,6 +117,69 @@ public class RoomGenerator : MonoBehaviour
         trigger.radius = 1.1f;
         exit.AddComponent<RoguelikeExit>().Initialize(session);
         ApplyPlaceholder(exit, exitSprite, "ВЫХОД", session);
+    }
+
+    private void CreateRoomTransitions(Transform root, RoguelikeSession session,
+        RoguelikeRoomData room, Vector2 centre, float width, float height)
+    {
+        if (room == null || session == null) return;
+
+        float left = centre.x - width * 0.5f;
+        float right = centre.x + width * 0.5f;
+        float bottom = centre.y - height * 0.5f;
+        float top = centre.y + height * 0.5f;
+        const float edgeInset = 0.25f;
+        const float spawnInset = 1.6f;
+        const float sensorDepth = 0.8f;
+        const float sensorSpan = 2.8f;
+
+        if (room.X > 0 && room.Neighbours.Contains(room.Index - 1))
+        {
+            CreateRoomTransition(root, "Переход через левый край",
+                new Vector2(left + edgeInset, centre.y),
+                new Vector2(sensorDepth, sensorSpan), session, -1, 0,
+                new Vector2(right - spawnInset, centre.y));
+        }
+
+        if (room.X < 3 && room.Neighbours.Contains(room.Index + 1))
+        {
+            CreateRoomTransition(root, "Переход через правый край",
+                new Vector2(right - edgeInset, centre.y),
+                new Vector2(sensorDepth, sensorSpan), session, 1, 0,
+                new Vector2(left + spawnInset, centre.y));
+        }
+
+        if (room.Y > 0 && room.Neighbours.Contains(room.Index - 4))
+        {
+            CreateRoomTransition(root, "Переход через нижний край",
+                new Vector2(centre.x, bottom + edgeInset),
+                new Vector2(sensorSpan, sensorDepth), session, 0, -1,
+                new Vector2(centre.x, top - spawnInset));
+        }
+
+        if (room.Y < 3 && room.Neighbours.Contains(room.Index + 4))
+        {
+            CreateRoomTransition(root, "Переход через верхний край",
+                new Vector2(centre.x, top - edgeInset),
+                new Vector2(sensorSpan, sensorDepth), session, 0, 1,
+                new Vector2(centre.x, bottom + spawnInset));
+        }
+    }
+
+    private static void CreateRoomTransition(Transform root, string objectName,
+        Vector2 position, Vector2 size, RoguelikeSession session,
+        int dx, int dy, Vector2 spawnPosition)
+    {
+        GameObject transition = new GameObject(objectName);
+        transition.transform.SetParent(root, false);
+        transition.transform.localPosition = new Vector3(position.x, position.y, 0f);
+
+        BoxCollider2D sensor = transition.AddComponent<BoxCollider2D>();
+        sensor.isTrigger = true;
+        sensor.size = size;
+
+        transition.AddComponent<RoguelikeRoomTransition>().Initialize(
+            session, dx, dy, spawnPosition);
     }
 
     private void CreateShelf(Transform root, string objectName, Vector2 position,
