@@ -127,16 +127,25 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
         Vector2 direction = ai.DirectionToPlayer;
 
-        if (miniBoss)
+        if (miniBoss && attacksSinceSuper >= 3 &&
+            ai.DistanceToPlayer <= 1.75f)
         {
-            attacksSinceSuper++;
-            if (attacksSinceSuper >= 4)
-            {
-                attacksSinceSuper = 0;
-                nextAttackTime = Time.time + 3.2f;
-                StartCoroutine(PerformGroundSlam());
-                return;
-            }
+            attacksSinceSuper = 0;
+            nextAttackTime = Time.time + 3.2f;
+            StartCoroutine(PerformGroundSlam());
+            return;
+        }
+
+        // At range, the mini-boss fires ordinary aimed shots and stores one
+        // charge per attack. Reaching three charges does not trigger the slam:
+        // it keeps chasing and waits until it gets close to the player.
+        if (miniBoss && ai.DistanceToPlayer > 1.75f)
+        {
+            attacksSinceSuper = Mathf.Min(attacksSinceSuper + 1, 3);
+            nextAttackTime = Time.time + 1.8f;
+            StartCoroutine(PlayAttackAnimation(direction));
+            Shoot(direction);
+            return;
         }
 
         if (melee)
@@ -395,7 +404,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
     private void ShootRadialBurst()
     {
-        const int projectileCount = 8;
+        const int projectileCount = 16;
         Color redTint = new Color(1f, 0.22f, 0.27f, 1f);
 
         for (int i = 0; i < projectileCount; i++)
