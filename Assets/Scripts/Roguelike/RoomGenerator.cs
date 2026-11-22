@@ -57,8 +57,6 @@ public class RoomGenerator : MonoBehaviour
         new List<OcclusionState>();
     private readonly List<OcclusionState> lowerWallOcclusionStates =
         new List<OcclusionState>();
-    private float lowerWallOcclusionY;
-    private bool hasLowerWallOcclusion;
 
     [Header("Миникарта")]
     [SerializeField] private Sprite minimapFrameSprite;
@@ -139,11 +137,21 @@ public class RoomGenerator : MonoBehaviour
             renderer.color = color;
         }
 
-        // Нижняя стена всегда рисуется поверх персонажа. Как только игрок
-        // уходит за её внутреннюю линию, прозрачность меняется сразу у всей кладки
-        // и у двери, а не только у отдельного тайла под ногами.
-        bool playerTouchesLowerWall = hasLowerWallOcclusion &&
-            playerBounds.min.y <= lowerWallOcclusionY + 0.001f;
+        // Проверяем касание именно с прямоугольниками отрисованных тайлов стены.
+        // Небольшой допуск учитывает погрешность float, чтобы касание границ
+        // хитбокса движения и текстуры не пропускалось на один кадр.
+        Bounds contactBounds = playerBounds;
+        contactBounds.Expand(new Vector3(0.002f, 0.002f, 0f));
+        bool playerTouchesLowerWall = false;
+        for (int i = 0; i < lowerWallOcclusionStates.Count; i++)
+        {
+            SpriteRenderer wallRenderer = lowerWallOcclusionStates[i].Renderer;
+            if (wallRenderer != null && wallRenderer.bounds.Intersects(contactBounds))
+            {
+                playerTouchesLowerWall = true;
+                break;
+            }
+        }
         for (int i = lowerWallOcclusionStates.Count - 1; i >= 0; i--)
         {
             OcclusionState state = lowerWallOcclusionStates[i];
@@ -169,7 +177,6 @@ public class RoomGenerator : MonoBehaviour
         Transform root = environmentRoot;
         occlusionStates.Clear();
         lowerWallOcclusionStates.Clear();
-        hasLowerWallOcclusion = false;
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
         cachedPlayerTransform = playerObject != null ? playerObject.transform : null;
         cachedPlayerRenderer = playerObject != null
@@ -427,18 +434,9 @@ public class RoomGenerator : MonoBehaviour
 
         if (!hasDoor) return;
 
-        // Restore solid wall at the original opening and move the door panel
-        // one complete tile inward: left door to the right, right door to the left.
-        CreateVerticalWallTilesSegment(tilesRoot,
-            sideName + " wall • default tile behind door",
-            wallX, doorBottom, doorTop, tileHeight, tileSprite, 3);
-        CreateWallCollider(collidersRoot,
-            sideName + " wall • closed original doorway",
-            new Vector2(wallX, centreY), new Vector2(tileWidth, doorHeight));
-
-        float inwardDirection = dx < 0 ? 1f : -1f;
-        Vector2 doorPosition = new Vector2(
-            wallX + inwardDirection * tileWidth, centreY);
+        // Дверь находится непосредственно в плоскости боковой стены:
+        // проём остаётся открытым, а блокирующий коллайдер принадлежит двери.
+        Vector2 doorPosition = new Vector2(wallX, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
         Color openedTint = new Color(0.66f, 0.66f, 0.66f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
@@ -484,10 +482,8 @@ public class RoomGenerator : MonoBehaviour
         // Raise the lower wall another tile so its complete brickwork and door
         // remain visible inside the camera view.
         float wallBaseY = innerY + tileHeight * 2f;
-        // The solid lower-wall collider occupies the bottom row. Its top
-        // edge is where the 15px movement hitbox first touches the wall.
-        lowerWallOcclusionY = wallBaseY - tileHeight * 2f;
-        hasLowerWallOcclusion = true;
+        // Прозрачность определяется пересечением MovementCollider с bounds
+        // каждого SpriteRenderer нижней стены, а не координатным порогом.
 
         int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
         // Keep the lower doorway centred on the same three wall columns.
@@ -928,7 +924,7 @@ public class RoomGenerator : MonoBehaviour
 
             // Increase the vertical shelf by 1.3x from the previous iteration.
             shelf.transform.localScale = Vector3.one *
-                (scale * (upper ? 2f : (4f / 3f) * 1.3f));
+                (scale * (upper ? 2f : (4f / 3f) * 1.3f * 1.5f));
         }
         else
         {
