@@ -80,9 +80,13 @@ public class RoomGenerator : MonoBehaviour
             cachedPlayerCollider = playerObject.GetComponent<Collider2D>();
         }
 
-        Bounds playerBounds = cachedPlayerCollider != null
-            ? cachedPlayerCollider.bounds
-            : new Bounds(cachedPlayerTransform.position, new Vector3(0.7f, 0.7f, 0.1f));
+        // Use the rendered character bounds so fading starts exactly when
+        // the visible sprite is covered, not only when its feet collider overlaps.
+        Bounds playerBounds = cachedPlayerRenderer != null
+            ? cachedPlayerRenderer.bounds
+            : cachedPlayerCollider != null
+                ? cachedPlayerCollider.bounds
+                : new Bounds(cachedPlayerTransform.position, new Vector3(0.7f, 0.7f, 0.1f));
         int playerSortingOrder = cachedPlayerRenderer != null
             ? cachedPlayerRenderer.sortingOrder : 0;
 
