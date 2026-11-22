@@ -32,8 +32,23 @@ public class InventoryUI : MonoBehaviour
     private RectTransform cursorRectTransform;
     private bool hotbarVisible = true;
 
+    private void Awake()
+    {
+        EnsureCanvasOnTop();
+    }
+
+    private void EnsureCanvasOnTop()
+    {
+        if (mainCanvas == null) return;
+
+        // Keep the inventory and cursor above every world sprite and other canvas.
+        mainCanvas.overrideSorting = true;
+        mainCanvas.sortingOrder = short.MaxValue;
+    }
+
     private void Start()
     {
+        EnsureCanvasOnTop();
         Inventory.Instance.Init(hotbarSlotCount + inventorySlotCount);
 
         if (player == null)
@@ -62,6 +77,7 @@ public class InventoryUI : MonoBehaviour
         if (cursorItemPrefab != null && mainCanvas != null)
         {
             cursorItem = Instantiate(cursorItemPrefab, mainCanvas.transform);
+            cursorItem.transform.SetAsLastSibling();
             cursorItem.SetActive(false);
             cursorIcon = cursorItem.GetComponent<Image>();
             cursorCount = cursorItem.GetComponentInChildren<TextMeshProUGUI>();
