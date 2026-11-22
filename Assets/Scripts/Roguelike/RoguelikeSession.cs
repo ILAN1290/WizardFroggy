@@ -315,7 +315,8 @@ public class RoguelikeSession : MonoBehaviour
         renderer.sprite = roomGenerator != null && roomGenerator.MushroomSprite != null
             ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
-        renderer.sortingOrder = 5;
+        // Loot is drawn behind interior furniture so it does not cover shelves.
+        renderer.sortingOrder = -3;
 
         // Keep the pickup at exactly 50x50 screen pixels, independent of sprite PPU.
         if (renderer.sprite != null)
@@ -358,7 +359,8 @@ public class RoguelikeSession : MonoBehaviour
         SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
         renderer.sprite = itemSprite;
         renderer.color = Color.white;
-        renderer.sortingOrder = 6;
+        // Item icons remain visible on the floor but render beneath furniture.
+        renderer.sortingOrder = -3;
 
         Camera camera = Camera.main;
         float pixelsPerUnit = camera != null && camera.orthographic && camera.pixelHeight > 0
