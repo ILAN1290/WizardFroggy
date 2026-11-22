@@ -678,7 +678,7 @@ public class RoomGenerator : MonoBehaviour
             shelf.transform.localScale = Vector3.one * (scale * 2f);
 
             foreach (Collider2D collider in shelf.GetComponentsInChildren<Collider2D>(true))
-                PrepareShelfCollider(collider);
+                PrepareShelfCollider(collider, upper);
 
             SpriteRenderer[] renderers = shelf.GetComponentsInChildren<SpriteRenderer>(true);
             foreach (SpriteRenderer renderer in renderers)
@@ -690,12 +690,12 @@ public class RoomGenerator : MonoBehaviour
             new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), -2, true);
         fallbackShelf.tag = "Wall";
         foreach (Collider2D collider in fallbackShelf.GetComponents<Collider2D>())
-            PrepareShelfCollider(collider);
+            PrepareShelfCollider(collider, upper);
         foreach (SpriteRenderer renderer in fallbackShelf.GetComponentsInChildren<SpriteRenderer>())
             RegisterOcclusion(renderer);
     }
 
-    private static void PrepareShelfCollider(Collider2D collider)
+    private static void PrepareShelfCollider(Collider2D collider, bool upper)
     {
         if (collider == null) return;
         collider.enabled = true;
@@ -709,14 +709,24 @@ public class RoomGenerator : MonoBehaviour
         box.usedByComposite = false;
         float originalHeight = box.size.y;
         float collisionDepth = Mathf.Min(originalHeight, 0.32f);
-        float originalBottom = box.offset.y - originalHeight * 0.5f;
         box.size = new Vector2(box.size.x, collisionDepth);
-        box.offset = new Vector2(box.offset.x,
-            originalBottom + collisionDepth * 0.5f);
+        if (upper)
+        {
+            float originalBottom = box.offset.y - originalHeight * 0.5f;
+            box.offset = new Vector2(box.offset.x,
+                originalBottom + collisionDepth * 0.5f);
+        }
+        else
+        {
+            // У вертикальных стеллажей тонкий коллайдер проходит по центру
+            // толщины, чтобы обход с любой стороны оставался симметричным.
+            box.offset = new Vector2(box.offset.x, 0f);
+        }
     }
 
     private static Vector2 FindFreeGhostPosition(Vector2 preferredPosition, float radius)
     {
+        Physics2D.SyncTransforms();
         if (!OverlapsSolidWall(preferredPosition, radius))
             return preferredPosition;
 
@@ -794,7 +804,6 @@ public class RoomGenerator : MonoBehaviour
 
         Rigidbody2D body = ghost.AddComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
-        body.useFullKinematicContacts = true;
         body.gravityScale = 0f;
         body.freezeRotation = true;
 
