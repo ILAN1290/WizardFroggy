@@ -73,16 +73,6 @@ public class GhostAI : MonoBehaviour
     {
         if (body == null) return;
 
-        if (IsOverlappingWall())
-        {
-            GhostEnemy enemy = GetComponent<GhostEnemy>();
-            if (enemy != null)
-                enemy.DieFromWall();
-            else
-                Destroy(gameObject);
-            return;
-        }
-
         if (player == null && Time.time >= nextPlayerSearch)
         {
             player = FindPlayer();
@@ -326,23 +316,7 @@ public class GhostAI : MonoBehaviour
         return true;
     }
 
-    private bool IsOverlappingWall()
-    {
-        int count = Physics2D.OverlapCircleNonAlloc(
-            body.position, GetProbeRadius(), nearbyGhostBuffer, obstacleMask);
 
-        for (int i = 0; i < count; i++)
-        {
-            Collider2D obstacle = nearbyGhostBuffer[i];
-            if (obstacle == null || !IsRelevantObstacle(obstacle)) continue;
-
-            if (obstacle.CompareTag("Wall") ||
-                obstacle.GetComponent<RoguelikeGhostObstacle>() != null)
-                return true;
-        }
-
-        return false;
-    }
 
     private bool IsRelevantObstacle(Collider2D obstacle)
     {
