@@ -484,9 +484,9 @@ public class RoomGenerator : MonoBehaviour
         // Raise the lower wall another tile so its complete brickwork and door
         // remain visible inside the camera view.
         float wallBaseY = innerY + tileHeight * 2f;
-        // The inner/top edge of the lowest wall is the touch threshold for
-        // the dedicated 15px player movement hitbox.
-        lowerWallOcclusionY = wallBaseY;
+        // The solid lower-wall collider occupies the bottom row. Its top
+        // edge is where the 15px movement hitbox first touches the wall.
+        lowerWallOcclusionY = wallBaseY - tileHeight * 2f;
         hasLowerWallOcclusion = true;
 
         int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
