@@ -19,6 +19,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private Transform projectilesRoot;
     private Rigidbody2D body;
     private int attacksSinceSuper;
+    private float nextMeleeSuperTime;
     private bool superAttackInProgress;
 
     public void Initialize(RoguelikeSession owner, int floor, bool isMelee,
@@ -50,6 +51,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         ai.Initialize(player, melee, miniBoss);
 
         nextRadialShotTime = Time.time + 2.5f;
+        nextMeleeSuperTime = Time.time + 10f;
     }
 
     private IEnumerator Start()
@@ -110,33 +112,41 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         if (!ai.CanAttack || Time.time < nextAttackTime) return;
 
         Vector2 direction = ai.DirectionToPlayer;
-        attacksSinceSuper++;
 
-        if (miniBoss && attacksSinceSuper >= 4)
+        // Melee ghosts and the mini-boss dash on a 10-second cooldown,
+        // independently from the number of their regular attacks.
+        if ((melee || miniBoss) && Time.time >= nextMeleeSuperTime)
         {
-            attacksSinceSuper = 0;
-            nextAttackTime = Time.time + 3.2f;
-            StartCoroutine(PerformGroundSlam());
+            nextMeleeSuperTime = Time.time + 10f;
+            nextAttackTime = Time.time + 2.6f;
+            StartCoroutine(PerformMeleeDash(direction));
             return;
+        }
+
+        if (miniBoss)
+        {
+            attacksSinceSuper++;
+            if (attacksSinceSuper >= 4)
+            {
+                attacksSinceSuper = 0;
+                nextAttackTime = Time.time + 3.2f;
+                StartCoroutine(PerformGroundSlam());
+                return;
+            }
         }
 
         if (melee)
         {
-            if (attacksSinceSuper >= 4)
-            {
-                attacksSinceSuper = 0;
-                nextAttackTime = Time.time + 2.6f;
-                StartCoroutine(PerformMeleeDash(direction));
-                return;
-            }
-
             nextAttackTime = Time.time + 1.15f;
             StartCoroutine(PlayAttackAnimation(direction));
             if (playerHealth != null) playerHealth.TakeDamage(damage);
         }
         else
         {
-            if (attacksSinceSuper >= 4)
+            if (!miniBoss)
+                attacksSinceSuper++;
+
+            if (!miniBoss && attacksSinceSuper >= 4)
             {
                 attacksSinceSuper = 0;
                 nextAttackTime = Time.time + 2.7f;
@@ -350,34 +360,27 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private void ShootRadialBurst()
     {
         const int projectileCount = 8;
-        Color redTint = new Color(1f, 0.17f, 0.22f, 1f);
+        Color redTint = new Color(1f, 0.22f, 0.27f, 1f);
 
         for (int i = 0; i < projectileCount; i++)
         {
             float angle = i * (360f / projectileCount);
             Vector2 direction = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad),
                 Mathf.Sin(angle * Mathf.Deg2Rad));
-
-            GameObject bolt = CreateProjectile("Красный снаряд мини-босса",
-                transform.position, redTint, 0.17f);
-            BoxCollider2D hitbox = bolt.AddComponent<BoxCollider2D>();
-            hitbox.isTrigger = true;
-            hitbox.size = Vector2.one * 0.8f;
-
-            Rigidbody2D projectileBody = bolt.AddComponent<Rigidbody2D>();
-            projectileBody.bodyType = RigidbodyType2D.Kinematic;
-            projectileBody.gravityScale = 0f;
-
-            bolt.AddComponent<RoguelikeProjectile>().Initialize(
-                direction, 4.6f, damage * 0.65f, redTint, true);
+            Shoot(direction, redTint, damage * 0.65f);
         }
     }
 
     private void Shoot(Vector2 direction)
     {
-        Color blueTint = new Color(0.68f, 0.9f, 1f, 1f);
-        GameObject bolt = CreateProjectile("Призрачный снаряд", transform.position,
-            blueTint, 0.14f);
+        Shoot(direction, new Color(0.68f, 0.9f, 1f, 1f), damage);
+    }
+
+    private void Shoot(Vector2 direction, Color tint, float projectileDamage)
+    {
+        GameObject bolt = CreateProjectile(
+            miniBoss ? "Красный снаряд мини-босса" : "Призрачный снаряд",
+            transform.position, tint, 0.14f);
 
         BoxCollider2D collider = bolt.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
@@ -387,8 +390,9 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         projectileBody.bodyType = RigidbodyType2D.Kinematic;
         projectileBody.gravityScale = 0f;
 
-        bolt.AddComponent<RoguelikeProjectile>().Initialize(direction, 5.4f,
-            damage, blueTint);
+        // Same dimensions, collider, glow, speed and comet trail as the blue bolts.
+        bolt.AddComponent<RoguelikeProjectile>().Initialize(
+            direction, 5.4f, projectileDamage, tint);
     }
 
     private GameObject CreateProjectile(string objectName, Vector2 position,
