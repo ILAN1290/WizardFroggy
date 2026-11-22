@@ -132,7 +132,7 @@ public class RoomGenerator : MonoBehaviour
         // уходит за её внутреннюю линию, прозрачность меняется сразу у всей кладки
         // и у двери, а не только у отдельного тайла под ногами.
         bool playerBehindLowerWall = hasLowerWallOcclusion &&
-            cachedPlayerTransform.position.y < lowerWallOcclusionY;
+            playerBounds.center.y < lowerWallOcclusionY;
         for (int i = lowerWallOcclusionStates.Count - 1; i >= 0; i--)
         {
             OcclusionState state = lowerWallOcclusionStates[i];
@@ -737,6 +737,8 @@ public class RoomGenerator : MonoBehaviour
         GameObject fallbackShelf = CreateRect(root, objectName, position,
             new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), -2, true);
         fallbackShelf.tag = "Wall";
+        fallbackShelf.transform.localRotation = upper
+            ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
         foreach (Collider2D collider in fallbackShelf.GetComponents<Collider2D>())
             PrepareShelfCollider(collider, upper);
         foreach (SpriteRenderer renderer in fallbackShelf.GetComponentsInChildren<SpriteRenderer>())
