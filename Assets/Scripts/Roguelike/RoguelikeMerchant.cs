@@ -62,8 +62,8 @@ public class RoguelikeMerchant : MonoBehaviour
         EnsureStyles();
 
         // The panel covers roughly 60% of the screen area while remaining responsive.
-        float panelWidth = Mathf.Min(Screen.width * 0.78f, 1280f);
-        float panelHeight = Mathf.Min(Screen.height * 0.82f, 820f);
+        float panelWidth = Screen.width * 0.76f;
+        float panelHeight = Screen.height * 0.80f;
         panelWidth = Mathf.Min(panelWidth, Screen.width - 24f);
         panelHeight = Mathf.Min(panelHeight, Screen.height - 24f);
 
