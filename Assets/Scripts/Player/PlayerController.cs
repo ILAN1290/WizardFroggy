@@ -67,6 +67,11 @@ public class PlayerController : MonoBehaviour
     //Health
     private PlayerHealth playerHealth;
 
+    [Header("TEST")]
+    [SerializeField] private bool TEST_hp;
+    [SerializeField] private bool TEST_dmg;
+    [SerializeField] private bool TEST_mana;
+
 
     void Start()
     {
@@ -77,6 +82,18 @@ public class PlayerController : MonoBehaviour
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
         InitializeMovementHitbox();
+        StartCoroutine(ApplyTestSettings());
+    }
+
+    private IEnumerator ApplyTestSettings()
+    {
+        // Wait one frame so PlayerHealth and PlayerMana finish their own Start methods.
+        yield return null;
+
+        if (TEST_hp && playerHealth != null)
+            playerHealth.ApplyTestHealth();
+        if (TEST_mana && mana != null)
+            mana.ApplyTestMana();
     }
 
     private void InitializeMovementHitbox()
@@ -301,7 +318,7 @@ public class PlayerController : MonoBehaviour
             cooldownTimer = 0;
             PlayerRunData runData = PlayerRunData.EnsureInstance();
             mana.SpendMana(runData.ProjectileManaCost);
-            Vector3 spawnPosition = rb.position + Vector2.up * 0.5f;
+            Vector3 spawnPosition = rb.position + FacingDirection * 0.55f;
             Transform projectileParent = RoguelikeSession.ProjectileRoot;
             GameObject projectileObject = projectileParent != null
                 ? Instantiate(projectilePrefab, spawnPosition, Quaternion.identity, projectileParent)
@@ -309,7 +326,7 @@ public class PlayerController : MonoBehaviour
             Projectile projectile = projectileObject.GetComponent<Projectile>();
             PlayerEffects effects = GetComponent<PlayerEffects>();
             float damageMultiplier = effects != null ? effects.DamageMultiplier : 1f;
-            projectile.SetDamage(runData.StaffDamage * damageMultiplier);
+            projectile.SetDamage(TEST_dmg ? 10000f : runData.StaffDamage * damageMultiplier);
             projectile.Launch(FacingDirection, projectileForce);
         }
     }
