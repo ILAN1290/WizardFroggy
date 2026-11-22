@@ -1,14 +1,15 @@
 using UnityEngine;
 
 /// <summary>
-/// Lightweight projectile for roguelike ghosts.
-/// The glow sprite is shared; no temporary trail GameObjects are spawned.
+/// Lightweight projectile for roguelike ghosts with a short-lived square comet trail.
 /// </summary>
 public class RoguelikeProjectile : MonoBehaviour
 {
     private static Sprite glowSprite;
 
     private Vector2 direction;
+    private Color trailTint = Color.white;
+    private float nextTrailTime;
     private float speed;
     private float damage;
     private float life;
@@ -28,6 +29,8 @@ public class RoguelikeProjectile : MonoBehaviour
             ? targetDirection.normalized : Vector2.up;
         speed = Mathf.Max(0f, projectileSpeed);
         damage = Mathf.Max(0f, projectileDamage);
+        trailTint = tint;
+        nextTrailTime = Time.time;
         body = GetComponent<Rigidbody2D>();
 
         SpriteRenderer renderer = GetComponent<SpriteRenderer>();
@@ -70,8 +73,54 @@ public class RoguelikeProjectile : MonoBehaviour
             transform.position = nextPosition;
 
         life += Time.fixedDeltaTime;
+        if (Time.time >= nextTrailTime)
+        {
+            EmitCometTrail();
+            nextTrailTime = Time.time + 0.045f;
+        }
+
         if (life >= 5f)
             Destroy(gameObject);
+    }
+
+    private void EmitCometTrail()
+    {
+        Sprite squareSprite = RoomGenerator.WhiteSquareSprite;
+        if (squareSprite == null) return;
+
+        int count = Random.Range(1, 3);
+        for (int i = 0; i < count; i++)
+        {
+            GameObject square = new GameObject("Частица кометного следа");
+            Transform parent = transform.parent;
+            if (parent != null) square.transform.SetParent(parent, true);
+
+            square.transform.position = transform.position -
+                (Vector3)(direction * Random.Range(0.05f, 0.13f)) +
+                (Vector3)(Random.insideUnitCircle * 0.045f);
+            square.transform.rotation = Quaternion.Euler(
+                0f, 0f, Random.Range(0f, 360f));
+
+            SpriteRenderer renderer = square.AddComponent<SpriteRenderer>();
+            renderer.sprite = squareSprite;
+            float brightness = Random.Range(0.78f, 1.18f);
+            renderer.color = new Color(
+                Mathf.Clamp01(trailTint.r * brightness + 0.05f),
+                Mathf.Clamp01(trailTint.g * brightness + 0.05f),
+                Mathf.Clamp01(trailTint.b * brightness + 0.05f),
+                Random.Range(0.28f, 0.52f));
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = 7;
+
+            float size = Random.Range(0.035f, 0.075f);
+            square.transform.localScale = Vector3.one * size;
+
+            RoguelikeCometParticle particle =
+                square.AddComponent<RoguelikeCometParticle>();
+            Vector2 drift = -direction * Random.Range(0.3f, 0.9f) +
+                Random.insideUnitCircle * 0.7f;
+            particle.Initialize(renderer.color, drift, Random.Range(0.28f, 0.48f));
+        }
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -115,5 +164,48 @@ public class RoguelikeProjectile : MonoBehaviour
                 new Vector2(0.5f, 0.5f), size);
             return glowSprite;
         }
+    }
+}
+
+/// <summary>
+/// Fades and disperses one small square from a ghost projectile's comet trail.
+/// </summary>
+public sealed class RoguelikeCometParticle : MonoBehaviour
+{
+    private SpriteRenderer spriteRenderer;
+    private Color startColor;
+    private Vector2 drift;
+    private float lifetime;
+    private float age;
+    private float startSize;
+
+    public void Initialize(Color tint, Vector2 velocity, float duration)
+    {
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        startColor = tint;
+        drift = velocity;
+        lifetime = Mathf.Max(0.05f, duration);
+        startSize = transform.localScale.x;
+    }
+
+    private void Update()
+    {
+        age += Time.deltaTime;
+        float progress = Mathf.Clamp01(age / lifetime);
+        transform.position += (Vector3)(drift * Time.deltaTime);
+        transform.Rotate(0f, 0f, 90f * Time.deltaTime);
+
+        if (spriteRenderer != null)
+        {
+            Color color = startColor;
+            color.a *= 1f - progress;
+            spriteRenderer.color = color;
+        }
+
+        float size = startSize * Mathf.Lerp(1f, 0.12f, progress);
+        transform.localScale = Vector3.one * size;
+
+        if (age >= lifetime)
+            Destroy(gameObject);
     }
 }
