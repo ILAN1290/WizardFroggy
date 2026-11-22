@@ -214,6 +214,8 @@ public class PlayerController : MonoBehaviour
                 audioSource.loop = true;
                 audioSource.Play();
                 gameObject.layer = LayerMask.NameToLayer("Invincibility");
+                if (movementCollider != null)
+                    movementCollider.gameObject.layer = gameObject.layer;
                 isInvincible = true;
                 mana.isSpending = true;
                 animator.SetBool("Is Invincible", true);
@@ -225,6 +227,8 @@ public class PlayerController : MonoBehaviour
                 audioSource.volume = 1f;
                 audioSource.Stop();
                 gameObject.layer = LayerMask.NameToLayer("Player");
+                if (movementCollider != null)
+                    movementCollider.gameObject.layer = gameObject.layer;
                 isInvincible = false;
                 mana.isSpending = false;
                 animator.SetBool("Is Invincible", false);
