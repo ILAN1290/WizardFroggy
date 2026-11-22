@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -35,8 +36,23 @@ public class RoomGenerator : MonoBehaviour
     [SerializeField] private Sprite[] openedUpperDoorSprites = new Sprite[6];
 
     private Transform cachedPlayerTransform;
+    private SpriteRenderer cachedPlayerRenderer;
+    private Collider2D cachedPlayerCollider;
     private GameObject upperShelfPrefab;
     private GameObject lateralShelfPrefab;
+
+    [Header("Прозрачность перекрывающих объектов")]
+    [SerializeField, Range(0.1f, 0.9f)] private float occludedAlpha = 0.45f;
+
+    private sealed class OcclusionState
+    {
+        public SpriteRenderer Renderer;
+        public Color OriginalColor;
+        public int OriginalSortingOrder;
+    }
+
+    private readonly List<OcclusionState> occlusionStates =
+        new List<OcclusionState>();
 
     [Header("Миникарта")]
     [SerializeField] private Sprite minimapFrameSprite;
@@ -53,13 +69,67 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (cachedPlayerTransform == null)
+        {
+            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+            if (playerObject == null) return;
+            cachedPlayerTransform = playerObject.transform;
+            cachedPlayerRenderer = playerObject.GetComponent<SpriteRenderer>();
+            cachedPlayerCollider = playerObject.GetComponent<Collider2D>();
+        }
+
+        Bounds playerBounds = cachedPlayerCollider != null
+            ? cachedPlayerCollider.bounds
+            : new Bounds(cachedPlayerTransform.position, new Vector3(0.7f, 0.7f, 0.1f));
+        int playerSortingOrder = cachedPlayerRenderer != null
+            ? cachedPlayerRenderer.sortingOrder : 0;
+
+        for (int i = occlusionStates.Count - 1; i >= 0; i--)
+        {
+            OcclusionState state = occlusionStates[i];
+            SpriteRenderer renderer = state.Renderer;
+            if (renderer == null)
+            {
+                occlusionStates.RemoveAt(i);
+                continue;
+            }
+
+            bool overlapsPlayer = playerBounds.Intersects(renderer.bounds);
+            bool playerBehind = playerBounds.center.y > renderer.bounds.center.y;
+            Color color = state.OriginalColor;
+
+            if (overlapsPlayer)
+            {
+                renderer.sortingOrder = playerBehind
+                    ? Mathf.Max(state.OriginalSortingOrder, playerSortingOrder + 1)
+                    : Mathf.Min(state.OriginalSortingOrder, playerSortingOrder - 1);
+
+                if (playerBehind)
+                    color.a *= occludedAlpha;
+            }
+            else
+            {
+                renderer.sortingOrder = state.OriginalSortingOrder;
+            }
+
+            renderer.color = color;
+        }
+    }
+
     public int GenerateRoom(Transform environmentRoot, Transform enemiesRoot,
         Transform effectsRoot, Transform projectilesRoot, RoguelikeRoomData room,
         int floorNumber, int floorSeed, RoguelikeSession session)
     {
         Transform root = environmentRoot;
+        occlusionStates.Clear();
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
         cachedPlayerTransform = playerObject != null ? playerObject.transform : null;
+        cachedPlayerRenderer = playerObject != null
+            ? playerObject.GetComponent<SpriteRenderer>() : null;
+        cachedPlayerCollider = playerObject != null
+            ? playerObject.GetComponent<Collider2D>() : null;
 
         GetPlayableMetrics(out Vector2 roomCentre, out float roomWidth, out float roomHeight);
         RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
@@ -296,58 +366,112 @@ public class RoomGenerator : MonoBehaviour
         Transform doorsRoot, RoguelikeSession session, Vector2 centre,
         float width, float innerY, bool hasDoor)
     {
-        Sprite tile = bottomWallTileSprite;
-        if (tile == null) return;
+        // Нижняя стена повторяет верхнюю: три ряда каменной кладки,
+        // тот же рисунок из основных и мшистых тайлов и такая же арочная дверь.
+        Sprite baseTile = upperWallTileSprite != null
+            ? upperWallTileSprite : bottomWallTileSprite;
+        if (baseTile == null) return;
 
-        float tileWidth = Mathf.Max(0.001f, tile.bounds.size.x);
-        float tileHeight = Mathf.Max(0.001f, tile.bounds.size.y);
+        const int rows = 3;
+        const int doorWidthTiles = 3;
+        float tileWidth = Mathf.Max(0.001f, baseTile.bounds.size.x);
+        float tileHeight = Mathf.Max(0.001f, baseTile.bounds.size.y);
         int fullColumns = Mathf.Max(1, Mathf.FloorToInt(width / tileWidth));
         float coveredWidth = fullColumns * tileWidth;
         float left = centre.x - coveredWidth * 0.5f;
-        const int doorWidthTiles = 3;
         int centreColumn = fullColumns / 2;
         int firstDoorColumn = centreColumn - doorWidthTiles / 2;
         int lastDoorColumn = firstDoorColumn + doorWidthTiles - 1;
 
-        for (int column = 0; column < fullColumns; column++)
+        for (int row = 0; row < rows; row++)
         {
-            if (hasDoor && column >= firstDoorColumn && column <= lastDoorColumn)
-                continue;
+            for (int column = 0; column < fullColumns; column++)
+            {
+                bool insideDoor = hasDoor && row < 2 &&
+                    column >= firstDoorColumn && column <= lastDoorColumn;
+                if (insideDoor) continue;
 
-            CreateWallTile(tilesRoot, "Нижняя стена • тайл",
-                new Vector2(left + (column + 0.5f) * tileWidth, innerY - tileHeight * 0.5f),
-                tile, Color.white, 3);
+                Sprite tile = ChooseUpperWallTile(0, column, row);
+                SpriteRenderer renderer = CreateWallTile(tilesRoot,
+                    "Нижняя стена • тайл",
+                    new Vector2(left + (column + 0.5f) * tileWidth,
+                        innerY - (row + 0.5f) * tileHeight),
+                    tile, Color.white, 3);
+                RegisterOcclusion(renderer);
+            }
+
+            float remainder = width - coveredWidth;
+            if (remainder > 0.001f)
+            {
+                float partialWidth = remainder * 0.5f;
+                float rowY = innerY - (row + 0.5f) * tileHeight;
+                Sprite leftTile = ChooseUpperWallTile(0, -1, row);
+                Sprite rightTile = ChooseUpperWallTile(0, fullColumns, row);
+                SpriteRenderer leftRenderer = CreateWallTile(tilesRoot,
+                    "Нижняя стена • край",
+                    new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f, rowY),
+                    leftTile, Color.white, 3,
+                    new Vector2(partialWidth / tileWidth, 1f));
+                SpriteRenderer rightRenderer = CreateWallTile(tilesRoot,
+                    "Нижняя стена • край",
+                    new Vector2(centre.x + width * 0.5f - partialWidth * 0.5f, rowY),
+                    rightTile, Color.white, 3,
+                    new Vector2(partialWidth / tileWidth, 1f));
+                RegisterOcclusion(leftRenderer);
+                RegisterOcclusion(rightRenderer);
+            }
         }
 
-        float remainder = width - coveredWidth;
-        if (remainder > 0.001f)
-        {
-            float partialWidth = remainder * 0.5f;
-            CreateWallTile(tilesRoot, "Нижняя стена • край",
-                new Vector2(centre.x - width * 0.5f + partialWidth * 0.5f,
-                    innerY - tileHeight * 0.5f),
-                tile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
-            CreateWallTile(tilesRoot, "Нижняя стена • край",
-                new Vector2(centre.x + width * 0.5f - partialWidth * 0.5f,
-                    innerY - tileHeight * 0.5f),
-                tile, Color.white, 3, new Vector2(partialWidth / tileWidth, 1f));
-        }
-
+        // Коллайдер расположен по внешнему краю трёхрядной стены.
+        // Игрок может заходить за её спрайт, но не может выйти из комнаты
+        // в обход двери. Дверной блокиратор закрывает проход изнутри.
         CreateHorizontalWallColliders(collidersRoot, "Нижняя стена",
-            centre.x, innerY - tileHeight * 0.5f, width, tileHeight,
+            centre.x, innerY - tileHeight * 2.5f, width, tileHeight,
             hasDoor, doorWidthTiles * tileWidth);
 
         if (hasDoor)
         {
-            Color lockedTint = new Color(0.58f, 0.58f, 0.58f, 1f);
-            CreateWallTileDoor(doorsRoot, session, "Нижняя дверь",
+            Vector2 spawn = new Vector2(centre.x, innerY + 4.1f);
+            CreateBottomDoor(doorsRoot, session,
                 new Vector2(centre.x, innerY - tileHeight * 0.5f),
-                new Vector2(centre.x, innerY + 4.1f),
-                new Vector2(doorWidthTiles * tileWidth, tileHeight),
-                new Vector2(doorWidthTiles * tileWidth + 0.5f, tileHeight + 0.8f),
-                new Vector2(0f, 0.65f),
-                0, -1, tile, doorWidthTiles, 2, lockedTint);
+                spawn, doorWidthTiles * tileWidth, tileWidth, tileHeight);
         }
+    }
+
+    private void CreateBottomDoor(Transform doorsRoot, RoguelikeSession session,
+        Vector2 position, Vector2 spawnPosition, float width,
+        float tileWidth, float tileHeight)
+    {
+        GameObject door = CreateDoorRoot(doorsRoot, "Нижняя дверь", position);
+        BoxCollider2D blocker = door.AddComponent<BoxCollider2D>();
+        blocker.size = new Vector2(width, tileHeight);
+
+        BoxCollider2D sensor = door.AddComponent<BoxCollider2D>();
+        sensor.isTrigger = true;
+        sensor.size = new Vector2(width, tileHeight + 0.8f);
+        sensor.offset = new Vector2(0f, 0.65f);
+
+        SpriteRenderer[] renderers = new SpriteRenderer[6];
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            int column = i % 3;
+            int row = i / 3;
+            // Верхний ряд двери находится со стороны комнаты,
+            // нижний — уходит в нижнюю часть стены.
+            float y = row == 0 ? 0f : -tileHeight;
+            SpriteRenderer renderer = CreateDoorTile(door.transform,
+                "Нижняя дверь • тайл " + i,
+                new Vector2((column - 1) * tileWidth, y),
+                closedUpperDoorSprites != null && i < closedUpperDoorSprites.Length
+                    ? closedUpperDoorSprites[i] : null,
+                Color.white);
+            renderers[i] = renderer;
+            RegisterOcclusion(renderer);
+        }
+
+        door.AddComponent<RoguelikeRoomTransition>().Initialize(
+            session, 0, -1, spawnPosition, blocker, sensor, renderers,
+            closedUpperDoorSprites, openedUpperDoorSprites, Color.white, false);
     }
 
     private void CreateUpperDoor(Transform doorsRoot, RoguelikeSession session,
@@ -419,7 +543,7 @@ public class RoomGenerator : MonoBehaviour
         door.AddComponent<RoguelikeRoomTransition>().Initialize(
             session, directionX, directionY, spawnPosition,
             blocker, sensor, renderers, lockedSprites,
-            new Sprite[0], lockedTint, true);
+            new Sprite[0], lockedTint, false);
     }
 
     private static GameObject CreateDoorRoot(Transform parent, string name, Vector2 position)
@@ -445,11 +569,11 @@ public class RoomGenerator : MonoBehaviour
         return renderer;
     }
 
-    private static void CreateWallTile(Transform parent, string name,
+    private static SpriteRenderer CreateWallTile(Transform parent, string name,
         Vector2 position, Sprite sprite, Color tint, int sortingOrder,
         Vector2 scale = default)
     {
-        if (sprite == null) return;
+        if (sprite == null) return null;
         if (scale == default) scale = Vector2.one;
 
         GameObject tile = new GameObject(name);
@@ -461,6 +585,7 @@ public class RoomGenerator : MonoBehaviour
         renderer.sprite = sprite;
         renderer.color = tint;
         renderer.sortingOrder = sortingOrder;
+        return renderer;
     }
 
     private static void CreateHorizontalWallColliders(Transform parent,
@@ -516,6 +641,18 @@ public class RoomGenerator : MonoBehaviour
         collider.size = size;
     }
 
+    private void RegisterOcclusion(SpriteRenderer renderer)
+    {
+        if (renderer == null) return;
+
+        occlusionStates.Add(new OcclusionState
+        {
+            Renderer = renderer,
+            OriginalColor = renderer.color,
+            OriginalSortingOrder = renderer.sortingOrder
+        });
+    }
+
     private void CreateShelf(Transform root, string objectName, Vector2 position,
         bool upper, float scale)
     {
@@ -531,17 +668,47 @@ public class RoomGenerator : MonoBehaviour
             shelf.name = objectName;
             shelf.tag = "Wall";
             shelf.transform.localPosition = new Vector3(position.x, position.y, 0f);
-            shelf.transform.localRotation = Quaternion.identity;
-            // Enlarge room furniture uniformly so the source sprite proportions stay intact.
+            // Боковой стеллаж в исходной сцене стоит вертикально.
+            shelf.transform.localRotation = upper
+                ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
             shelf.transform.localScale = Vector3.one * (scale * 2f);
-            foreach (Collider2D collider in shelf.GetComponents<Collider2D>())
-                collider.enabled = true;
+
+            foreach (Collider2D collider in shelf.GetComponentsInChildren<Collider2D>(true))
+                PrepareShelfCollider(collider);
+
+            SpriteRenderer[] renderers = shelf.GetComponentsInChildren<SpriteRenderer>(true);
+            foreach (SpriteRenderer renderer in renderers)
+                RegisterOcclusion(renderer);
             return;
         }
 
         GameObject fallbackShelf = CreateRect(root, objectName, position,
-            new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), 2, true);
+            new Vector2(2.6f, 0.85f), new Color(0.3f, 0.2f, 0.16f), -2, true);
         fallbackShelf.tag = "Wall";
+        foreach (Collider2D collider in fallbackShelf.GetComponents<Collider2D>())
+            PrepareShelfCollider(collider);
+        foreach (SpriteRenderer renderer in fallbackShelf.GetComponentsInChildren<SpriteRenderer>())
+            RegisterOcclusion(renderer);
+    }
+
+    private static void PrepareShelfCollider(Collider2D collider)
+    {
+        if (collider == null) return;
+        collider.enabled = true;
+        collider.isTrigger = false;
+
+        BoxCollider2D box = collider as BoxCollider2D;
+        if (box == null) return;
+
+        // Оставляем коллизию узкой полосой у основания стеллажа.
+        // Верхняя часть рисунка остаётся проходимой, чтобы игрок мог зайти за неё.
+        box.usedByComposite = false;
+        float originalHeight = box.size.y;
+        float collisionDepth = Mathf.Min(originalHeight, 0.32f);
+        float originalBottom = box.offset.y - originalHeight * 0.5f;
+        box.size = new Vector2(box.size.x, collisionDepth);
+        box.offset = new Vector2(box.offset.x,
+            originalBottom + collisionDepth * 0.5f);
     }
 
     private void SpawnGhost(Transform root, Transform effectsRoot,
@@ -586,6 +753,7 @@ public class RoomGenerator : MonoBehaviour
 
         Rigidbody2D body = ghost.AddComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
+        body.useFullKinematicContacts = true;
         body.gravityScale = 0f;
         body.freezeRotation = true;
 
