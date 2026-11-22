@@ -61,38 +61,44 @@ public class Projectile : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // парирование не уничтожает снаряд — его развернёт Reflect()
+        if (other == null) return;
+
+        // Parrying is handled by Parry and must not consume the projectile.
         if (other.CompareTag("Parry")) return;
 
         if (projType == ProjectileType.EnemyProjectile)
         {
-            // вражеский кинжал пробивает всё, кроме игрока
+            // Enemy shots only affect the player; every other object is ignored.
             if (!other.CompareTag("Player")) return;
 
-            AudioManager.instance.PlaySoundFXClip(stubbingSound, transform, 0.5f);
-            PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
+            if (AudioManager.instance != null)
+                AudioManager.instance.PlaySoundFXClip(stubbingSound, transform, 0.5f);
+            PlayerHealth playerHealth = other.GetComponentInParent<PlayerHealth>();
             if (playerHealth != null) playerHealth.TakeDamage(damage);
             Destroy(gameObject);
             return;
         }
 
-        // снаряд игрока — поведение как раньше
-        if (other.CompareTag("Enemy"))
+        // Player shots pass through all triggers, pickups, traps and enemy shots.
+        // They are consumed only by an enemy or by an explicitly marked wall.
+        GhostEnemy ghost = other.GetComponentInParent<GhostEnemy>();
+        Boss boss = other.GetComponentInParent<Boss>();
+        if (other.CompareTag("Enemy") || ghost != null || boss != null)
         {
-            GhostEnemy ghost = other.GetComponentInParent<GhostEnemy>();
             if (ghost != null)
                 ghost.TakeDamage(damage);
-            else
+            else if (boss != null)
             {
-                Boss boss = other.GetComponentInParent<Boss>();
-                if (boss != null)
-                {
-                    boss.TakeDamage(damage);
-                    Debug.Log(boss.CurrentHealth);
-                }
+                boss.TakeDamage(damage);
+                Debug.Log(boss.CurrentHealth);
             }
+
+            Destroy(gameObject);
+            return;
         }
-        Destroy(gameObject);
+
+        if (other.CompareTag("Wall") && !other.isTrigger)
+            Destroy(gameObject);
     }
 
     public void Reflect(Vector2 reflectDirection, float force)
