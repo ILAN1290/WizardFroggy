@@ -22,6 +22,7 @@ public class GhostAI : MonoBehaviour
     private readonly RaycastHit2D[] hitBuffer = new RaycastHit2D[8];
 
     private Rigidbody2D body;
+    private CircleCollider2D bodyCollider;
     private Transform player;
     private bool melee;
     private bool miniBoss;
@@ -41,6 +42,7 @@ public class GhostAI : MonoBehaviour
     public void Initialize(Transform target, bool isMelee, bool isMiniBoss)
     {
         body = GetComponent<Rigidbody2D>();
+        bodyCollider = GetComponent<CircleCollider2D>();
         player = target != null ? target : FindPlayer();
         melee = isMelee;
         miniBoss = isMiniBoss;
@@ -55,6 +57,7 @@ public class GhostAI : MonoBehaviour
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
+        bodyCollider = GetComponent<CircleCollider2D>();
     }
 
     private void FixedUpdate()
@@ -107,8 +110,13 @@ public class GhostAI : MonoBehaviour
 
         if (cachedSteering.sqrMagnitude > 0.0001f)
         {
-            body.MovePosition(body.position +
-                cachedSteering * moveSpeed * Time.fixedDeltaTime);
+            Vector2 movementDirection = cachedSteering.normalized;
+            float requestedDistance = moveSpeed * Time.fixedDeltaTime;
+            float safeDistance = GetSafeMovementDistance(
+                movementDirection, requestedDistance);
+
+            if (safeDistance > 0.001f)
+                body.MovePosition(body.position + movementDirection * safeDistance);
         }
     }
 
@@ -173,7 +181,7 @@ public class GhostAI : MonoBehaviour
     {
         clearance = lookAheadDistance;
         int hitCount = Physics2D.CircleCastNonAlloc(
-            body.position, obstacleProbeRadius, direction,
+            body.position, GetProbeRadius(), direction,
             hitBuffer, lookAheadDistance, obstacleMask);
 
         bool blocked = false;
@@ -187,6 +195,36 @@ public class GhostAI : MonoBehaviour
         }
 
         return blocked;
+    }
+
+    private float GetProbeRadius()
+    {
+        if (bodyCollider == null) return obstacleProbeRadius;
+
+        Vector3 scale = transform.lossyScale;
+        float scaleFactor = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+        return Mathf.Max(obstacleProbeRadius, bodyCollider.radius * scaleFactor);
+    }
+
+    private float GetSafeMovementDistance(Vector2 direction, float distance)
+    {
+        if (distance <= 0f) return 0f;
+
+        // Steering can choose a detour, but every physics step is independently
+        // swept so a ghost cannot tunnel through a wall or a shelf.
+        int hitCount = Physics2D.CircleCastNonAlloc(
+            body.position, GetProbeRadius(), direction,
+            hitBuffer, distance + 0.03f, obstacleMask);
+
+        float safeDistance = distance;
+        for (int i = 0; i < hitCount; i++)
+        {
+            if (!IsRelevantObstacle(hitBuffer[i].collider)) continue;
+            safeDistance = Mathf.Min(safeDistance,
+                Mathf.Max(0f, hitBuffer[i].distance - 0.025f));
+        }
+
+        return safeDistance;
     }
 
     private bool HasLineOfSight()
