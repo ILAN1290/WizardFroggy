@@ -172,11 +172,14 @@ public class PlayerHealth : MonoBehaviour
         if (RoguelikeSession.Instance != null && RoguelikeSession.Instance.HandlePlayerDeath())
             return;
 
-        ShowDeathScreen();
         if (gameManager != null && !gameManager.isGoodEndingActive && !gameManager.isBadEndingActive)
         {
             gameManager.GameOver();
             gameManager.StartBadEnding();
+        }
+        else if (gameManager == null)
+        {
+            ShowDeathScreen();
         }
     }
 
