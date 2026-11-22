@@ -462,7 +462,7 @@ public class RoguelikeSession : MonoBehaviour
         if (merchant == null) return;
         activeMerchant = merchant;
         shopOpen = true;
-        ShowHint("Торговец: покупайте, продавайте и меняйте посох.");
+        ShowHint("Торговец: покупайте предметы и улучшайте посох с персонажем.");
     }
 
     public void CloseShop()
