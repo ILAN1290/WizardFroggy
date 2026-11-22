@@ -373,7 +373,10 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
     private void Shoot(Vector2 direction)
     {
-        Shoot(direction, new Color(0.68f, 0.9f, 1f, 1f), damage);
+        Color tint = miniBoss
+            ? new Color(1f, 0.22f, 0.27f, 1f)
+            : new Color(0.68f, 0.9f, 1f, 1f);
+        Shoot(direction, tint, damage);
     }
 
     private void Shoot(Vector2 direction, Color tint, float projectileDamage)
