@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 /// <summary>
 /// Creates tiled room boundaries, locked doors and the contents of the active room:
@@ -165,9 +166,10 @@ public class RoomGenerator : MonoBehaviour
             ? playerObject.GetComponent<SpriteRenderer>() : null;
         cachedPlayerCollider = playerObject != null
             ? playerObject.GetComponent<Collider2D>() : null;
-        // Player remains behind the foreground lower wall in render order.
+        // The player must render above the upper wall; the lower wall keeps
+        // its separate foreground sorting order and opacity behaviour.
         if (cachedPlayerRenderer != null)
-            cachedPlayerRenderer.sortingOrder = Mathf.Min(0, cachedPlayerRenderer.sortingOrder);
+            cachedPlayerRenderer.sortingOrder = Mathf.Max(4, cachedPlayerRenderer.sortingOrder);
 
         GetPlayableMetrics(out Vector2 roomCentre, out float roomWidth, out float roomHeight);
         RoguelikeRoomLayout layout = RoguelikeRoomLayoutGenerator.Create(
@@ -255,14 +257,24 @@ public class RoomGenerator : MonoBehaviour
         float top = centre.y + height * 0.5f;
         const float entryInset = 1.15f;
 
+        // Keep the wooden floor exactly between the inner faces of the side walls.
+        FitWoodenFloorToRoom(left, right, bottom, top);
+
+        float frameTileHeight = upperWallTileSprite != null
+            ? Mathf.Max(0.001f, upperWallTileSprite.bounds.size.y)
+            : bottomWallTileSprite != null
+                ? Mathf.Max(0.001f, bottomWallTileSprite.bounds.size.y) : 0f;
+        float sideWallBottom = bottom - 2f * frameTileHeight;
+        float sideWallTop = top + 3f * frameTileHeight;
+
         CreateUpperWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
             session, room, centre, width, height, top, hasUp);
         CreateVerticalWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
-            session, "Left", left - 0.5f, centre.y, height,
+            session, "Left", left - 0.5f, centre.y, sideWallBottom, sideWallTop,
             leftWallTileSprite, hasLeft, -1, 0,
             new Vector2(right - entryInset, centre.y));
         CreateVerticalWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
-            session, "Right", right + 0.5f, centre.y, height,
+            session, "Right", right + 0.5f, centre.y, sideWallBottom, sideWallTop,
             rightWallTileSprite, hasRight, 1, 0,
             new Vector2(left + entryInset, centre.y));
         CreateBottomWall(wallTilesRoot, wallCollidersRoot, doorsRoot,
@@ -362,43 +374,64 @@ public class RoomGenerator : MonoBehaviour
 
     private void CreateVerticalWall(Transform tilesRoot, Transform collidersRoot,
         Transform doorsRoot, RoguelikeSession session, string sideName,
-        float wallX, float centreY, float height, Sprite tileSprite,
+        float wallX, float centreY, float bottomY, float topY, Sprite tileSprite,
         bool hasDoor, int dx, int dy, Vector2 spawnPosition)
     {
         if (tileSprite == null) return;
 
         float tileWidth = Mathf.Max(0.001f, tileSprite.bounds.size.x);
         float tileHeight = Mathf.Max(0.001f, tileSprite.bounds.size.y);
-        int rows = Mathf.Max(2, Mathf.CeilToInt(height / tileHeight));
-        if (rows % 2 != 0) rows++;
-        int firstDoorRow = rows / 2 - 1;
-        int lastDoorRow = firstDoorRow + 1;
-        float coveredHeight = rows * tileHeight;
-        float bottom = centreY - coveredHeight * 0.5f;
+        float doorHeight = 2f * tileHeight;
+        float doorBottom = centreY - doorHeight * 0.5f;
+        float doorTop = centreY + doorHeight * 0.5f;
 
-        for (int row = 0; row < rows; row++)
+        // Tile the complete interval up to the upper wall and down to the
+        // lower wall. Partial end tiles are scaled only along Y to avoid gaps.
+        if (!hasDoor)
         {
-            if (hasDoor && row >= firstDoorRow && row <= lastDoorRow)
-                continue;
-
-            CreateWallTile(tilesRoot, sideName + " wall • tile",
-                new Vector2(wallX, bottom + (row + 0.5f) * tileHeight),
-                tileSprite, Color.white, 3);
+            CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
+                wallX, bottomY, topY, tileHeight, tileSprite, 3);
+        }
+        else
+        {
+            CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
+                wallX, bottomY, doorBottom, tileHeight, tileSprite, 3);
+            CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
+                wallX, doorTop, topY, tileHeight, tileSprite, 3);
         }
 
-        CreateVerticalWallColliders(collidersRoot, sideName + " wall",
-            wallX, centreY, height, tileWidth,
-            hasDoor, 2f * tileHeight);
+        CreateVerticalWallCollidersBetween(collidersRoot, sideName + " wall",
+            wallX, bottomY, topY, tileWidth, hasDoor, centreY, doorHeight);
 
         if (!hasDoor) return;
 
         Vector2 doorPosition = new Vector2(wallX, centreY);
         Color lockedTint = new Color(0.58f, 0.58f, 0.58f, 1f);
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
-            doorPosition, spawnPosition, new Vector2(tileWidth, 2f * tileHeight),
+            doorPosition, spawnPosition, new Vector2(tileWidth, doorHeight),
             new Vector2(1.0f, 1.2f),
             dx < 0 ? new Vector2(0.65f, 0f) : new Vector2(-0.65f, 0f),
             dx, dy, tileSprite, 1, 2, lockedTint);
+    }
+
+    private static void CreateVerticalWallTilesSegment(Transform parent,
+        string objectName, float x, float bottomY, float topY,
+        float tileHeight, Sprite tileSprite, int sortingOrder)
+    {
+        if (tileSprite == null || topY <= bottomY || tileHeight <= 0.001f) return;
+
+        int rows = Mathf.CeilToInt((topY - bottomY) / tileHeight);
+        for (int row = 0; row < rows; row++)
+        {
+            float rowBottom = bottomY + row * tileHeight;
+            float actualHeight = Mathf.Min(tileHeight, topY - rowBottom);
+            if (actualHeight <= 0.001f) continue;
+
+            CreateWallTile(parent, objectName,
+                new Vector2(x, rowBottom + actualHeight * 0.5f),
+                tileSprite, Color.white, sortingOrder,
+                new Vector2(1f, actualHeight / tileHeight));
+        }
     }
 
     private void CreateBottomWall(Transform tilesRoot, Transform collidersRoot,
@@ -724,24 +757,32 @@ public class RoomGenerator : MonoBehaviour
             new Vector2(segmentWidth, thickness));
     }
 
-    private static void CreateVerticalWallColliders(Transform parent,
-        string wallName, float x, float centreY, float totalHeight, float thickness,
-        bool hasDoor, float doorHeight)
+    private static void CreateVerticalWallCollidersBetween(Transform parent,
+        string wallName, float x, float bottomY, float topY, float thickness,
+        bool hasDoor, float doorCentreY, float doorHeight)
     {
-        if (!hasDoor || totalHeight <= doorHeight)
+        if (topY <= bottomY) return;
+
+        if (!hasDoor || topY - bottomY <= doorHeight)
         {
-            CreateWallCollider(parent, wallName, new Vector2(x, centreY),
-                new Vector2(thickness, totalHeight));
+            CreateWallCollider(parent, wallName, new Vector2(x, (bottomY + topY) * 0.5f),
+                new Vector2(thickness, topY - bottomY));
             return;
         }
 
-        float segmentHeight = (totalHeight - doorHeight) * 0.5f;
-        CreateWallCollider(parent, wallName + " • нижняя часть",
-            new Vector2(x, centreY - doorHeight * 0.5f - segmentHeight * 0.5f),
-            new Vector2(thickness, segmentHeight));
-        CreateWallCollider(parent, wallName + " • верхняя часть",
-            new Vector2(x, centreY + doorHeight * 0.5f + segmentHeight * 0.5f),
-            new Vector2(thickness, segmentHeight));
+        float doorBottom = doorCentreY - doorHeight * 0.5f;
+        float doorTop = doorCentreY + doorHeight * 0.5f;
+        float lowerHeight = Mathf.Max(0f, doorBottom - bottomY);
+        float upperHeight = Mathf.Max(0f, topY - doorTop);
+
+        if (lowerHeight > 0.01f)
+            CreateWallCollider(parent, wallName + " • нижняя часть",
+                new Vector2(x, bottomY + lowerHeight * 0.5f),
+                new Vector2(thickness, lowerHeight));
+        if (upperHeight > 0.01f)
+            CreateWallCollider(parent, wallName + " • верхняя часть",
+                new Vector2(x, doorTop + upperHeight * 0.5f),
+                new Vector2(thickness, upperHeight));
     }
 
     private static void CreateWallCollider(Transform parent, string name,
@@ -798,7 +839,8 @@ public class RoomGenerator : MonoBehaviour
             // Боковой стеллаж в исходной сцене стоит вертикально.
             shelf.transform.localRotation = upper
                 ? Quaternion.identity : Quaternion.Euler(0f, 0f, 90f);
-            shelf.transform.localScale = Vector3.one * (scale * 2f);
+            // The upright (lateral) shelf is twice its previous size.
+            shelf.transform.localScale = Vector3.one * (scale * (upper ? 2f : 4f));
 
             foreach (Collider2D collider in shelf.GetComponentsInChildren<Collider2D>(true))
                 PrepareShelfCollider(collider, upper);
@@ -823,33 +865,59 @@ public class RoomGenerator : MonoBehaviour
     private static void PrepareShelfCollider(Collider2D collider, bool upper)
     {
         if (collider == null) return;
-        collider.enabled = true;
-        collider.isTrigger = false;
 
         BoxCollider2D box = collider as BoxCollider2D;
-        if (box == null) return;
+        if (box == null)
+        {
+            collider.enabled = true;
+            collider.isTrigger = true;
+            return;
+        }
 
+        box.enabled = true;
         box.usedByComposite = false;
-        float originalHeight = box.size.y;
-        Vector3 scale = box.transform.lossyScale;
 
+        SpriteRenderer spriteRenderer = box.GetComponent<SpriteRenderer>();
+        Bounds spriteBounds = spriteRenderer != null && spriteRenderer.sprite != null
+            ? spriteRenderer.sprite.bounds
+            : new Bounds(box.offset, box.size);
+
+        // The trigger matches the complete shelf sprite. It can be used for
+        // interaction/overlap checks, but does not prevent the player walking
+        // behind the furniture.
+        box.size = spriteBounds.size;
+        box.offset = spriteBounds.center;
+        box.isTrigger = true;
+
+        // Only the narrow foot/base remains solid. This keeps the shelf
+        // physically grounded while leaving its full visual depth traversable.
+        Transform existingBlocker = box.transform.Find("Shelf Base Blocker");
+        if (existingBlocker != null) return;
+
+        GameObject blockerObject = new GameObject("Shelf Base Blocker");
+        blockerObject.tag = "Wall";
+        blockerObject.layer = box.gameObject.layer;
+        blockerObject.transform.SetParent(box.transform, false);
+
+        BoxCollider2D blocker = blockerObject.AddComponent<BoxCollider2D>();
+        blocker.isTrigger = false;
+        blocker.usedByComposite = false;
+
+        float baseDepth = Mathf.Min(0.32f,
+            upper ? spriteBounds.size.y : spriteBounds.size.x);
         if (upper)
         {
-            // Horizontal shelves: widen the collision span along local/world X.
-            float collisionDepth = Mathf.Min(originalHeight, 0.32f);
-            box.size = new Vector2(box.size.x * 1.25f, collisionDepth);
-            float originalBottom = box.offset.y - originalHeight * 0.5f;
-            box.offset = new Vector2(box.offset.x,
-                originalBottom + collisionDepth * 0.5f);
+            blocker.size = new Vector2(spriteBounds.size.x, baseDepth);
+            blocker.offset = new Vector2(spriteBounds.center.x,
+                spriteBounds.min.y + baseDepth * 0.5f);
         }
         else
         {
-            // Vertical shelves are rotated by 90 degrees, so local Y becomes
-            // world-horizontal. Give that narrow footprint a wider 0.7-unit span.
-            float horizontalScale = Mathf.Max(0.01f, Mathf.Abs(scale.y));
-            float horizontalDepth = Mathf.Min(originalHeight, 0.7f / horizontalScale);
-            box.size = new Vector2(box.size.x * 1.1f, horizontalDepth);
-            box.offset = new Vector2(box.offset.x, 0f);
+            // The lateral shelf is rotated by 90 degrees: local -X is its
+            // lower edge in world space.
+            blocker.size = new Vector2(baseDepth, spriteBounds.size.y);
+            blocker.offset = new Vector2(
+                spriteBounds.min.x + baseDepth * 0.5f, spriteBounds.center.y);
         }
     }
 
@@ -988,6 +1056,65 @@ public class RoomGenerator : MonoBehaviour
         }
     }
 
+    private static void FitWoodenFloorToRoom(
+        float left, float right, float bottom, float top)
+    {
+        GameObject floorObject = GameObject.Find("WoodenFloorTiles");
+        Tilemap floor = floorObject != null ? floorObject.GetComponent<Tilemap>() : null;
+        if (floor == null) return;
+
+        BoundsInt originalBounds = floor.cellBounds;
+        if (originalBounds.size.x <= 0 || originalBounds.size.y <= 0) return;
+
+        Vector3Int minCell = floor.WorldToCell(
+            new Vector3(left + 0.001f, bottom + 0.001f, 0f));
+        Vector3Int maxCell = floor.WorldToCell(
+            new Vector3(right - 0.001f, top - 0.001f, 0f));
+
+        int minX = minCell.x;
+        int maxX = maxCell.x;
+        int minY = minCell.y;
+        int maxY = maxCell.y;
+        if (maxX < minX || maxY < minY) return;
+
+        TileBase fallbackTile = null;
+        for (int y = originalBounds.yMin; y < originalBounds.yMax && fallbackTile == null; y++)
+        {
+            for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
+            {
+                fallbackTile = floor.GetTile(new Vector3Int(x, y, 0));
+                if (fallbackTile != null) break;
+            }
+        }
+        if (fallbackTile == null) return;
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            TileBase rowTile = null;
+            for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
+            {
+                rowTile = floor.GetTile(new Vector3Int(x, y, 0));
+                if (rowTile != null) break;
+            }
+            if (rowTile == null) rowTile = fallbackTile;
+
+            // Remove tiles beyond the room's side-wall inner faces.
+            for (int x = originalBounds.xMin; x < originalBounds.xMax; x++)
+            {
+                if (x < minX || x > maxX)
+                    floor.SetTile(new Vector3Int(x, y, 0), null);
+            }
+
+            // Fill gaps and extend the wooden floor exactly from wall to wall.
+            for (int x = minX; x <= maxX; x++)
+            {
+                Vector3Int cell = new Vector3Int(x, y, 0);
+                if (floor.GetTile(cell) == null)
+                    floor.SetTile(cell, rowTile);
+            }
+        }
+    }
+
     private static void GetPlayableMetrics(out Vector2 centre, out float width, out float height)
     {
         const float referenceWidth = 1920f;
@@ -996,6 +1123,7 @@ public class RoomGenerator : MonoBehaviour
         const float leftMargin = 90f;
         const float rightMargin = 90f;
         const float bottomMargin = 130f;
+        const float sideWallInsetPixels = 50f;
 
         Camera camera = Camera.main;
         float halfHeight = camera != null && camera.orthographic
@@ -1015,10 +1143,12 @@ public class RoomGenerator : MonoBehaviour
         float pixelsPerWorldUnitX = viewportWidth / Mathf.Max(0.01f, halfWidth * 2f);
         float pixelsPerWorldUnitY = viewportHeight / Mathf.Max(0.01f, halfHeight * 2f);
 
+        float sideWallInset = sideWallInsetPixels *
+            (viewportWidth / referenceWidth) / pixelsPerWorldUnitX;
         float leftInset = leftMargin * (viewportWidth / referenceWidth)
-            / pixelsPerWorldUnitX;
+            / pixelsPerWorldUnitX + sideWallInset;
         float rightInset = rightMargin * (viewportWidth / referenceWidth)
-            / pixelsPerWorldUnitX;
+            / pixelsPerWorldUnitX + sideWallInset;
         float topInset = topMargin * (viewportHeight / referenceHeight)
             / pixelsPerWorldUnitY;
         float bottomInset = bottomMargin * (viewportHeight / referenceHeight)
