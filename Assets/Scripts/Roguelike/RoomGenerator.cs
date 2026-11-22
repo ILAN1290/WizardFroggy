@@ -437,20 +437,11 @@ public class RoomGenerator : MonoBehaviour
         float doorBottom = centreY - doorHeight * 0.5f;
         float doorTop = centreY + doorHeight * 0.5f;
 
-        // Tile the complete interval up to the upper wall and down to the
-        // lower wall. Partial end tiles are scaled only along Y to avoid gaps.
-        if (!hasDoor)
-        {
-            CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
-                wallX, bottomY, topY, tileHeight, tileSprite, 3);
-        }
-        else
-        {
-            CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
-                wallX, bottomY, doorBottom, tileHeight, tileSprite, 3);
-            CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
-                wallX, doorTop, topY, tileHeight, tileSprite, 3);
-        }
+        // The wall texture continues behind the side door, so the wall
+        // never has a visible gap. The collider is still split at the doorway
+        // below, preserving the passage when the door unlocks.
+        CreateVerticalWallTilesSegment(tilesRoot, sideName + " wall • tile",
+            wallX, bottomY, topY, tileHeight, tileSprite, 3);
 
         CreateVerticalWallCollidersBetween(collidersRoot, sideName + " wall",
             wallX, bottomY, topY, tileWidth, hasDoor, centreY, doorHeight);
@@ -467,7 +458,7 @@ public class RoomGenerator : MonoBehaviour
         Vector2 doorPosition = new Vector2(
             wallX + inwardDirection * inwardOffset, centreY);
         Color lockedTint = new Color(0.32f, 0.32f, 0.32f, 1f);
-        Color openedTint = Color.white;
+        Color openedTint = Color.gray;
         CreateWallTileDoor(doorsRoot, session, sideName + " wall door",
             doorPosition, spawnPosition, new Vector2(tileWidth, doorHeight),
             new Vector2(1.0f, 1.2f),
@@ -1053,7 +1044,7 @@ public class RoomGenerator : MonoBehaviour
         solidHitbox.usedByComposite = false;
         solidHitbox.isTrigger = false;
 
-        Bounds spriteBounds = spriteRenderer.sprite.bounds;
+        Bounds spriteBounds = GetRendererBoundsInLocalSpace(spriteRenderer, solidHitbox.transform);
         Vector2 movableSize;
         Vector2 movableOffset;
 
@@ -1100,6 +1091,30 @@ public class RoomGenerator : MonoBehaviour
         movableHitbox.offset = movableOffset;
         movableHitbox.isTrigger = true;
         return movableHitbox;
+    }
+
+    private static Bounds GetRendererBoundsInLocalSpace(
+        SpriteRenderer renderer, Transform target)
+    {
+        Bounds worldBounds = renderer.bounds;
+        Vector3 min = worldBounds.min;
+        Vector3 max = worldBounds.max;
+
+        Vector3 firstCorner = target.InverseTransformPoint(
+            new Vector3(min.x, min.y, worldBounds.center.z));
+        Bounds localBounds = new Bounds(firstCorner, Vector3.zero);
+
+        // Convert all four world-space corners. This keeps collider dimensions
+        // aligned with the rendered texture even when the shelf is rotated,
+        // scaled by its room placement, or has a non-zero local offset.
+        localBounds.Encapsulate(target.InverseTransformPoint(
+            new Vector3(min.x, max.y, worldBounds.center.z)));
+        localBounds.Encapsulate(target.InverseTransformPoint(
+            new Vector3(max.x, min.y, worldBounds.center.z)));
+        localBounds.Encapsulate(target.InverseTransformPoint(
+            new Vector3(max.x, max.y, worldBounds.center.z)));
+
+        return localBounds;
     }
 
     private static float GetScreenPixelsPerWorldUnitX()
