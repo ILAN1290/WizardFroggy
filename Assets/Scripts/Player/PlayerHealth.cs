@@ -15,6 +15,8 @@ public class PlayerHealth : MonoBehaviour
     private Coroutine burnCoroutine;
     private PlayerEffects effects;
     private bool initialized;
+    private bool testHealthActive;
+    private bool deathHandled;
 
     public float CurrentHealth
     {
@@ -62,18 +64,30 @@ public class PlayerHealth : MonoBehaviour
         currentHealth = Mathf.Clamp(currentHealth + health, 0, maxHealth);
     }
 
+    public void ApplyTestHealth()
+    {
+        testHealthActive = true;
+        maxHealth = 10000f;
+        currentHealth = 10000f;
+    }
+
     public void ApplyMaximumHealthUpgrade()
     {
+        if (testHealthActive) return;
+
         float previousMaximum = maxHealth;
         maxHealth = PlayerRunData.EnsureInstance().MaximumHealth;
-        currentHealth = Mathf.Min(maxHealth,
-            currentHealth + Mathf.Max(0f, maxHealth - previousMaximum));
+        if (maxHealth >= previousMaximum)
+            currentHealth = Mathf.Min(maxHealth, currentHealth + maxHealth - previousMaximum);
+        else
+            currentHealth = Mathf.Min(currentHealth, maxHealth);
+
         if (initialized && PlayerRunData.Instance != null)
             PlayerRunData.Instance.SaveHealth(currentHealth);
     }
     public void TakeDamage(float damage)
     {
-        if (effects != null && effects.IsInvincible) return;
+        if (deathHandled || (effects != null && effects.IsInvincible)) return;
 
         float damageReduction = PlayerRunData.EnsureInstance().DamageReduction;
         float finalDamage = Mathf.Max(0f, damage * (1f - damageReduction));
@@ -139,12 +153,25 @@ public class PlayerHealth : MonoBehaviour
         burningAudioSource.Stop();
     }
 
+    public void ShowDeathScreen()
+    {
+        if (deathMenu == null)
+            deathMenu = GameObject.Find("DeathMenu");
+
+        if (deathMenu != null)
+            deathMenu.SetActive(true);
+    }
+
     private void Die()
     {
-        // In the roguelike, death ends the expedition and returns the player to the lobby.
+        if (deathHandled) return;
+        deathHandled = true;
+
+        // The roguelike uses the existing DeathMenu object from Roguelike.unity.
         if (RoguelikeSession.Instance != null && RoguelikeSession.Instance.HandlePlayerDeath())
             return;
 
+        ShowDeathScreen();
         if (gameManager != null && !gameManager.isGoodEndingActive && !gameManager.isBadEndingActive)
         {
             gameManager.GameOver();
