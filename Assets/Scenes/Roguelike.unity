@@ -18262,6 +18262,8 @@ MonoBehaviour:
   - {fileID: -6975971501963557229, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
   - {fileID: -7265388314283571386, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
   minimapFrameSprite: {fileID: 21300000, guid: 904b6e073fa111247b010f66b70ade39, type: 3}
+  groundSlamWarningTile: {fileID: 11400000, guid: 617d707935c566448b1e1624bba9cc4e, type: 2}
+  groundSlamFireTile: {fileID: 11400000, guid: 57d2116c91a40d74387409c8eb730a30, type: 2}
 
 --- !u!1 &179423098964445570
 GameObject:
