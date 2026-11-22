@@ -18217,6 +18217,8 @@ MonoBehaviour:
   lobbyPlayerPosition: {x: 0, y: -3}
   itemPickupSound: {fileID: 8300000, guid: d798a253eb5a8f64a825c979d1cf93a5, type: 3}
   merchantTextures:
+    vendorPanelBackground: {fileID: 0}
+    merchantPortrait: {fileID: 0}
     panelBackground: {fileID: 0}
     closeButton: {fileID: 0}
     itemSlotBackground: {fileID: 0}
