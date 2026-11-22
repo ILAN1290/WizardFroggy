@@ -607,10 +607,9 @@ public class RoomGenerator : MonoBehaviour
             RegisterLowerWallOcclusion(renderer);
         }
 
-        SetSensorToDoorSpriteBounds(sensor, renderers);
-
         BoxCollider2D movableHitbox = ConfigureLowerDoorHitboxes(
             door, blocker, renderers);
+        SetLowerDoorTransitionSensor(sensor, door.transform, renderers);
         foreach (SpriteRenderer renderer in renderers)
             RegisterOcclusion(renderer, movableHitbox);
 
@@ -618,6 +617,48 @@ public class RoomGenerator : MonoBehaviour
             session, 0, -1, spawnPosition, blocker, sensor, renderers,
             closedUpperDoorSprites, openedUpperDoorSprites,
             Color.white, Color.white, false);
+    }
+
+    private static void SetLowerDoorTransitionSensor(
+        BoxCollider2D sensor, Transform doorRoot, SpriteRenderer[] renderers)
+    {
+        if (sensor == null || doorRoot == null || renderers == null)
+            return;
+
+        bool foundBounds = false;
+        Bounds worldBounds = new Bounds();
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer renderer = renderers[i];
+            if (renderer == null || renderer.sprite == null) continue;
+
+            if (!foundBounds)
+            {
+                worldBounds = renderer.bounds;
+                foundBounds = true;
+            }
+            else
+            {
+                worldBounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        if (!foundBounds) return;
+
+        Vector3 lowerLeft = doorRoot.InverseTransformPoint(
+            new Vector3(worldBounds.min.x, worldBounds.min.y, doorRoot.position.z));
+        Vector3 upperRight = doorRoot.InverseTransformPoint(
+            new Vector3(worldBounds.max.x, worldBounds.max.y, doorRoot.position.z));
+        float width = upperRight.x - lowerLeft.x;
+        float height = upperRight.y - lowerLeft.y;
+        if (width <= 0.001f || height <= 0.001f) return;
+
+        float transitionHeight = height / 3f;
+        sensor.size = new Vector2(width, transitionHeight);
+        sensor.offset = new Vector2(
+            (lowerLeft.x + upperRight.x) * 0.5f,
+            lowerLeft.y + transitionHeight * 0.5f);
+        sensor.isTrigger = true;
     }
 
     private static BoxCollider2D ConfigureLowerDoorHitboxes(
@@ -1055,7 +1096,11 @@ public class RoomGenerator : MonoBehaviour
             float solidHeight = spriteBounds.size.y / 3f;
             float movableHeight = spriteBounds.size.y - solidHeight;
 
-            solidHitbox.size = new Vector2(spriteBounds.size.x, solidHeight);
+            float sideInsetWorld = 30f /
+                Mathf.Max(1f, GetScreenPixelsPerWorldUnitX());
+            float solidWidth = Mathf.Max(0.05f,
+                spriteBounds.size.x - sideInsetWorld * 2f);
+            solidHitbox.size = new Vector2(solidWidth, solidHeight);
             solidHitbox.offset = new Vector2(spriteBounds.center.x,
                 spriteBounds.min.y + solidHeight * 0.5f);
 
@@ -1070,7 +1115,11 @@ public class RoomGenerator : MonoBehaviour
             float solidDepth = spriteBounds.size.x * (2f / 3f);
             float movableDepth = spriteBounds.size.x - solidDepth;
 
-            solidHitbox.size = new Vector2(solidDepth, spriteBounds.size.y);
+            float sideInsetWorld = 30f /
+                Mathf.Max(1f, GetScreenPixelsPerWorldUnitX());
+            float solidWidth = Mathf.Max(0.05f,
+                spriteBounds.size.y - sideInsetWorld * 2f);
+            solidHitbox.size = new Vector2(solidDepth, solidWidth);
             solidHitbox.offset = new Vector2(
                 spriteBounds.min.x + solidDepth * 0.5f, spriteBounds.center.y);
 
@@ -1096,23 +1145,28 @@ public class RoomGenerator : MonoBehaviour
     private static Bounds GetRendererBoundsInLocalSpace(
         SpriteRenderer renderer, Transform target)
     {
-        Bounds worldBounds = renderer.bounds;
-        Vector3 min = worldBounds.min;
-        Vector3 max = worldBounds.max;
+        Bounds spriteBounds = renderer.sprite.bounds;
+        Vector3 min = spriteBounds.min;
+        Vector3 max = spriteBounds.max;
+        Vector3[] corners =
+        {
+            new Vector3(min.x, min.y, 0f),
+            new Vector3(min.x, max.y, 0f),
+            new Vector3(max.x, min.y, 0f),
+            new Vector3(max.x, max.y, 0f)
+        };
 
         Vector3 firstCorner = target.InverseTransformPoint(
-            new Vector3(min.x, min.y, worldBounds.center.z));
+            renderer.transform.TransformPoint(corners[0]));
         Bounds localBounds = new Bounds(firstCorner, Vector3.zero);
 
-        // Convert all four world-space corners. This keeps collider dimensions
-        // aligned with the rendered texture even when the shelf is rotated,
-        // scaled by its room placement, or has a non-zero local offset.
-        localBounds.Encapsulate(target.InverseTransformPoint(
-            new Vector3(min.x, max.y, worldBounds.center.z)));
-        localBounds.Encapsulate(target.InverseTransformPoint(
-            new Vector3(max.x, min.y, worldBounds.center.z)));
-        localBounds.Encapsulate(target.InverseTransformPoint(
-            new Vector3(max.x, max.y, worldBounds.center.z)));
+        // Convert the actual sprite corners rather than its enlarged world AABB.
+        // This remains exact for shelves rotated by 90 degrees.
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector3 worldCorner = renderer.transform.TransformPoint(corners[i]);
+            localBounds.Encapsulate(target.InverseTransformPoint(worldCorner));
+        }
 
         return localBounds;
     }
