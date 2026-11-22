@@ -265,7 +265,8 @@ public class RoomGenerator : MonoBehaviour
             CircleCollider2D trigger = merchant.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
             trigger.radius = 1.8f;
-            merchant.AddComponent<RoguelikeMerchant>().Initialize(session, session.MerchantTextures);
+            merchant.AddComponent<RoguelikeMerchant>().Initialize(
+                session, session.MerchantTextures, MushroomSprite);
             ApplyPlaceholder(merchant, merchantSprite, "ТОРГОВЕЦ", session);
         }
 
