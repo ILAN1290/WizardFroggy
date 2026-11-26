@@ -1,12 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 [DisallowMultipleComponent]
 public class TowerDefenceSceneController : MonoBehaviour
 {
     [Header("Персонажи")]
     [SerializeField] private Sprite grandpaSpriteAsset;
+    [SerializeField] private Sprite roadTileSprite;
     [SerializeField] private Sprite frogIcon;
 
     [Header("Положение персонажей")]
@@ -21,7 +23,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     private GameObject grandpaObject;
     private Texture2D solidTexture;
     private Sprite solidSprite;
-    private Material pathMaterial;
+    private Tile runtimeRoadTile;
 
     private void Awake()
     {
@@ -36,13 +38,32 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     private IEnumerator Start()
     {
+        // Дожидаемся завершения Awake у остальных объектов сцены.
+        yield return null;
+
+        if (dialogueManager == null)
+            dialogueManager = FindObjectOfType<DialogueManager>();
+        if (frog == null)
+        {
+            GameObject frogObject = GameObject.Find("Frog");
+            if (frogObject != null)
+                frog = frogObject.transform;
+        }
+        if (sceneCamera == null)
+            sceneCamera = Camera.main;
+
         CreateRoad();
         CreateCenterDoor();
         CreateGrandpa();
         ConfigureIntroDialogue();
 
-        if (dialogueManager != null)
-            dialogueManager.OnLineDisplayed += HandleLineDisplayed;
+        if (dialogueManager == null || frog == null)
+        {
+            Debug.LogError("Tower Defence: катсцена не запущена — не найдены Frog или DialogueManager.");
+            yield break;
+        }
+
+        dialogueManager.OnLineDisplayed += HandleLineDisplayed;
 
         FloorFadeTransition fade = GetComponent<FloorFadeTransition>();
         if (fade != null)
@@ -56,8 +77,8 @@ public class TowerDefenceSceneController : MonoBehaviour
         if (dialogueManager != null)
             dialogueManager.OnLineDisplayed -= HandleLineDisplayed;
 
-        if (pathMaterial != null)
-            Destroy(pathMaterial);
+        if (runtimeRoadTile != null)
+            Destroy(runtimeRoadTile);
         if (solidSprite != null)
             Destroy(solidSprite);
         if (solidTexture != null)
@@ -66,83 +87,125 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     private void CreateRoad()
     {
-        if (transform.Find("Tower Defence Paths") != null)
+        // Дорожка строится клетками Tilemap из контрастного красно-коричневого тайла.
+        if (roadTileSprite == null)
+        {
+            Debug.LogError("Tower Defence: не назначен тайл дорожки Tileset_48x48_9_15.");
             return;
+        }
+
+        Transform previousPath = transform.Find("Tower Defence Paths");
+        if (previousPath != null)
+            Destroy(previousPath.gameObject);
 
         GameObject pathRoot = new GameObject("Tower Defence Paths");
         pathRoot.transform.SetParent(transform, false);
 
-        Shader shader = Shader.Find("Sprites/Default");
-        if (shader == null)
+        Grid grid = pathRoot.AddComponent<Grid>();
+        grid.cellSize = Vector3.one;
+        grid.cellGap = Vector3.zero;
+
+        Tilemap tilemap = pathRoot.AddComponent<Tilemap>();
+        TilemapRenderer renderer = pathRoot.AddComponent<TilemapRenderer>();
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = -6; // Поверх пола (-10), под персонажами (0).
+
+        runtimeRoadTile = ScriptableObject.CreateInstance<Tile>();
+        runtimeRoadTile.name = "Runtime Tower Defence Road Tile";
+        runtimeRoadTile.sprite = roadTileSprite;
+        runtimeRoadTile.colliderType = Tile.ColliderType.None;
+
+        HashSet<Vector3Int> roadCells = new HashSet<Vector3Int>();
+
+        // Основной участок подходит к развилке с левой стороны.
+        int forkY = Random.Range(-6, -4);
+        AddRandomLaneSection(
+            roadCells,
+            new Vector2Int(-9, -5),
+            new Vector2Int(0, forkY),
+            -6,
+            -4,
+            0.45f);
+
+        // Верхняя и нижняя ветки каждый запуск получают свою случайную форму.
+        int upperY = Random.Range(-4, -2);
+        int lowerY = Random.Range(-7, -5);
+
+        AddRandomLaneSection(
+            roadCells,
+            new Vector2Int(0, forkY),
+            new Vector2Int(3, upperY),
+            -4,
+            -2,
+            0.35f);
+        AddRandomLaneSection(
+            roadCells,
+            new Vector2Int(3, upperY),
+            new Vector2Int(8, -5),
+            -4,
+            -2,
+            0.35f);
+
+        AddRandomLaneSection(
+            roadCells,
+            new Vector2Int(0, forkY),
+            new Vector2Int(3, lowerY),
+            -7,
+            -5,
+            0.35f);
+        AddRandomLaneSection(
+            roadCells,
+            new Vector2Int(3, lowerY),
+            new Vector2Int(8, -5),
+            -7,
+            -5,
+            0.35f);
+
+        foreach (Vector3Int cell in roadCells)
         {
-            Debug.LogError("Tower Defence: не найден шейдер Sprites/Default.");
-            return;
+            tilemap.SetTile(cell, runtimeRoadTile);
+
+            // Небольшая разница оттенков сохраняет фактуру и убирает визуальную монотонность.
+            float shade = Random.Range(0.92f, 1.04f);
+            tilemap.SetColor(cell, new Color(shade, shade, shade, 1f));
         }
-
-        pathMaterial = new Material(shader);
-        pathMaterial.name = "Tower Defence Path Material";
-
-        Color outline = new Color(0.20f, 0.12f, 0.075f, 1f);
-        Color ground = new Color(0.60f, 0.42f, 0.27f, 1f);
-
-        Vector3[] approach =
-        {
-            new Vector3(-8.2f, -4.35f, 0.15f),
-            new Vector3(-4.3f, -4.35f, 0.15f),
-            new Vector3(-1.5f, -3.65f, 0.15f),
-            new Vector3(0.35f, -3.65f, 0.15f)
-        };
-
-        Vector3[] upperBranch =
-        {
-            new Vector3(0.35f, -3.65f, 0.15f),
-            new Vector3(2.2f, -2.25f, 0.15f),
-            new Vector3(5.0f, -2.25f, 0.15f),
-            new Vector3(7.9f, -3.55f, 0.15f)
-        };
-
-        Vector3[] lowerBranch =
-        {
-            new Vector3(0.35f, -3.65f, 0.15f),
-            new Vector3(2.2f, -5.25f, 0.15f),
-            new Vector3(5.0f, -5.25f, 0.15f),
-            new Vector3(7.9f, -3.55f, 0.15f)
-        };
-
-        CreateRoadSegment(pathRoot.transform, "Main Path Border", approach, 0.92f, outline, -7);
-        CreateRoadSegment(pathRoot.transform, "Main Path Surface", approach, 0.66f, ground, -6);
-        CreateRoadSegment(pathRoot.transform, "Upper Path Border", upperBranch, 0.92f, outline, -7);
-        CreateRoadSegment(pathRoot.transform, "Upper Path Surface", upperBranch, 0.66f, ground, -6);
-        CreateRoadSegment(pathRoot.transform, "Lower Path Border", lowerBranch, 0.92f, outline, -7);
-        CreateRoadSegment(pathRoot.transform, "Lower Path Surface", lowerBranch, 0.66f, ground, -6);
     }
 
-    private void CreateRoadSegment(
-        Transform parent,
-        string objectName,
-        Vector3[] points,
-        float width,
-        Color color,
-        int sortingOrder)
+    private void AddRandomLaneSection(
+        HashSet<Vector3Int> cells,
+        Vector2Int start,
+        Vector2Int end,
+        int minY,
+        int maxY,
+        float variationChance)
     {
-        GameObject segment = new GameObject(objectName);
-        segment.transform.SetParent(parent, false);
+        int previousY = start.y;
+        int length = Mathf.Max(1, end.x - start.x);
 
-        LineRenderer line = segment.AddComponent<LineRenderer>();
-        line.useWorldSpace = true;
-        line.positionCount = points.Length;
-        line.SetPositions(points);
-        line.startWidth = width;
-        line.endWidth = width;
-        line.numCapVertices = 4;
-        line.numCornerVertices = 4;
-        line.alignment = LineAlignment.View;
-        line.textureMode = LineTextureMode.Stretch;
-        line.sharedMaterial = pathMaterial;
-        line.startColor = color;
-        line.endColor = color;
-        line.sortingLayerName = "Default";
-        line.sortingOrder = sortingOrder;
+        for (int x = start.x; x <= end.x; x++)
+        {
+            float t = (x - start.x) / (float)length;
+            int y = Mathf.RoundToInt(Mathf.Lerp(start.y, end.y, t));
+
+            if (x > start.x && x < end.x && Random.value < variationChance)
+                y += Random.Range(-1, 2);
+
+            if (x == start.x)
+                y = start.y;
+            else if (x == end.x)
+                y = end.y;
+            else
+                y = Mathf.Clamp(y, minY, maxY);
+
+            // Заполняем промежуточные ряды, чтобы повороты не оставляли дырок.
+            int lowerY = Mathf.Min(previousY, y);
+            int upperY = Mathf.Max(previousY, y);
+
+            for (int row = lowerY; row <= upperY + 1; row++)
+                cells.Add(new Vector3Int(x, row, 0));
+
+            previousY = y;
+        }
     }
 
     private void CreateCenterDoor()
@@ -297,8 +360,8 @@ public class TowerDefenceSceneController : MonoBehaviour
             yield break;
         }
 
-        if (InputManager.PlayerInput != null)
-            InputManager.PlayerInput.SwitchCurrentActionMap("Cutscene");
+        yield return new WaitUntil(() => InputManager.PlayerInput != null);
+        InputManager.PlayerInput.SwitchCurrentActionMap("Cutscene");
 
         Rigidbody2D body = frog.GetComponent<Rigidbody2D>();
         bool restoreSimulation = body != null && body.simulated;
