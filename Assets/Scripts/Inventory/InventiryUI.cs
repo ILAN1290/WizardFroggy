@@ -331,6 +331,7 @@ public class InventoryUI : MonoBehaviour
         {
             Inventory.Instance.Add(held.item, held.count);
             held.Clear();
+            heldFromSlotIndex = -1;
             Refresh();
         }
     }
