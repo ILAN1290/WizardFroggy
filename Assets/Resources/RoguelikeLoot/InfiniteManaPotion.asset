@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: InfiniteManaPotion
   m_EditorClassIdentifier: Assembly-CSharp::InfiniteManaPotion
   itemName: "\u0417\u0435\u043B\u044C\u0435 \u0411\u0435\u0441\u043A\u043E\u043D\u0435\u0447\u043D\u043E\u0439 \u041C\u0430\u043D\u044B"
-  icon: {fileID: -764198666118788341, guid: 6666184f67f10cd45ac698f37be30627, type: 3}
+  icon: {fileID: 7118253577375254742, guid: ad5ed51bf4ebfaa439e970fec78c8665, type: 3}
   maxStack: 64
   cooldown: 15
   drinkSound: {fileID: 0}
