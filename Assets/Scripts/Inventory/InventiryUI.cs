@@ -62,7 +62,8 @@ public class InventoryUI : MonoBehaviour
     {
         cachedWorldCamera = Camera.main;
         EnsureCanvasOnTop();
-        Inventory.Instance.Init(hotbarSlotCount + inventorySlotCount);
+        Inventory inventory = Inventory.EnsureInstance();
+        inventory.Init(hotbarSlotCount + inventorySlotCount);
 
         if (player == null)
         {
@@ -119,20 +120,46 @@ public class InventoryUI : MonoBehaviour
     private void BuildSlots(Transform root, int count, out SlotUI[] arr, GameObject prefab, int startIndex)
     {
         arr = new SlotUI[count];
+        if (root == null || prefab == null)
+        {
+            Debug.LogError("InventoryUI: не назначены корень или префаб слота.");
+            return;
+        }
+
         for (int i = 0; i < count; i++)
         {
-            var go = Instantiate(prefab, root);
+            GameObject go = Instantiate(prefab, root);
             arr[i] = go.GetComponent<SlotUI>();
-            arr[i].Setup(startIndex + i, this);
+            if (arr[i] != null)
+                arr[i].Setup(startIndex + i, this);
+            else
+                Debug.LogError("InventoryUI: на префабе слота отсутствует SlotUI.", go);
         }
     }
 
     private void Refresh()
     {
-        for (int i = 0; i < invSlots.Length; i++)
-            invSlots[i].UpdateView(Inventory.Instance.GetSlot(hotbarSlotCount + i), false);
-        for (int i = 0; i < hotSlots.Length; i++)
-            hotSlots[i].UpdateView(Inventory.Instance.GetSlot(i), i == selectedHotbar);
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
+
+        if (invSlots != null)
+        {
+            for (int i = 0; i < invSlots.Length; i++)
+            {
+                if (invSlots[i] != null)
+                    invSlots[i].UpdateView(inventory.GetSlot(hotbarSlotCount + i), false);
+            }
+        }
+
+        if (hotSlots != null)
+        {
+            for (int i = 0; i < hotSlots.Length; i++)
+            {
+                if (hotSlots[i] != null)
+                    hotSlots[i].UpdateView(inventory.GetSlot(i), i == selectedHotbar);
+            }
+        }
+
         UpdateCursor();
     }
 

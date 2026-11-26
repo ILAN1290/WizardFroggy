@@ -183,9 +183,8 @@ public class GhostAI : MonoBehaviour
     {
         if (miniBoss)
         {
-            // The mini-boss can fire from afar, but reserves its charged
-            // ground slam for the close-range window.
-            return distance <= 1.75f ||
+            // Keep a wider close-range attack window for the ground slam.
+            return distance <= 2.65f ||
                 (distance >= 3.0f && distance <= 8.5f);
         }
 
@@ -198,6 +197,15 @@ public class GhostAI : MonoBehaviour
     private Vector2 GetDesiredMovement(Vector2 towardPlayer, float distance)
     {
         Vector2 tangent = new Vector2(-towardPlayer.y, towardPlayer.x) * flankSide;
+
+        if (miniBoss)
+        {
+            // The stairs boss is also flagged as melee, so this rule must run
+            // before the generic melee movement logic.
+            if (distance > 2.35f) return towardPlayer;
+            if (distance < 1.4f) return -towardPlayer;
+            return (tangent + towardPlayer * 0.1f).normalized;
+        }
 
         if (melee)
         {

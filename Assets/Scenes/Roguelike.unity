@@ -18197,6 +18197,7 @@ MonoBehaviour:
   chestOpenSound: {fileID: 8300000, guid: f30a6390022a82b4eb8fe7a6bc48ce19, type: 3}
   doorCloseSound: {fileID: 8300000, guid: e242df4e898b91749952f443564a820e, type: 3}
   doorOpenSound: {fileID: 8300000, guid: ea7f532451b80734b9d836de0add5404, type: 3}
+  floorTransitionSound: {fileID: 8300000, guid: 647fc9474d5eb5b46a4b90a260c0ed90, type: 3}
   ambientVolume: 0.35
   soundEffectsVolume: 0.85
   merchantOpenSound: {fileID: 8300000, guid: ebe18f40001cb6f4887ead72973ac2eb, type: 3}

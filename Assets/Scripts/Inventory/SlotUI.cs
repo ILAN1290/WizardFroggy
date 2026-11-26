@@ -48,30 +48,54 @@ public class SlotUI : MonoBehaviour
     public void UpdateView(ItemStack stack, bool selected)
     {
         currentStack = stack;
+        bool hasItem = stack != null && !stack.IsEmpty;
 
-        if (stack.IsEmpty)
+        if (icon != null)
         {
-            icon.gameObject.SetActive(false);
-            countText.gameObject.SetActive(false);
-            if (cooldownFill != null)
-                cooldownFill.gameObject.SetActive(false);
+            icon.sprite = hasItem ? stack.item.icon : null;
+            icon.color = NormalColor;
+            bool hasIcon = hasItem && icon.sprite != null;
+            icon.enabled = hasIcon;
+            icon.gameObject.SetActive(hasIcon);
         }
-        else
+
+        if (countText != null)
         {
-            icon.gameObject.SetActive(true);
-            icon.sprite = stack.item.icon;
-            if (stack.count > 1)
+            if (!hasItem)
             {
-                countText.gameObject.SetActive(true);
-                countText.text = stack.count.ToString();
+                countText.gameObject.SetActive(false);
             }
-            else countText.gameObject.SetActive(false);
+            else if (stack.count > 1)
+            {
+                countText.text = stack.count.ToString();
+                countText.gameObject.SetActive(true);
+            }
+            else if (icon == null || icon.sprite == null)
+            {
+                // A missing sprite must not make the item disappear from the UI.
+                countText.text = stack.item.itemName;
+                countText.gameObject.SetActive(true);
+            }
+            else
+            {
+                countText.gameObject.SetActive(false);
+            }
         }
-        selectionHighlight.gameObject.SetActive(selected);
+
+        if (cooldownFill != null && !hasItem)
+            cooldownFill.gameObject.SetActive(false);
+
+        // Inventory SlotPrefab has no selection child; only use a highlight
+        // that actually belongs to this instantiated slot.
+        if (selectionHighlight != null &&
+            selectionHighlight.transform.IsChildOf(transform))
+            selectionHighlight.gameObject.SetActive(selected);
     }
 
     private void Update()
     {
+        if (icon == null) return;
+
         PlayerEffects effects = owner != null ? owner.Effects : null;
         if (effects == null)
         {
@@ -80,6 +104,10 @@ public class SlotUI : MonoBehaviour
                 Debug.LogWarning($"SlotUI ({name}): InventoryUI не отдал PlayerEffects!");
                 warnedNoEffects = true;
             }
+
+            icon.color = NormalColor;
+            if (cooldownFill != null)
+                cooldownFill.gameObject.SetActive(false);
             return;
         }
 
@@ -99,6 +127,7 @@ public class SlotUI : MonoBehaviour
 
     public void OnClick()
     {
-        owner.OnSlotClicked(index);
+        if (owner != null)
+            owner.OnSlotClicked(index);
     }
 }

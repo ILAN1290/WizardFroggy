@@ -55,6 +55,8 @@ public class RoguelikeSession : MonoBehaviour
     [SerializeField] private AudioClip doorCloseSound;
     [Tooltip("Звук открытия двери после зачистки комнаты.")]
     [SerializeField] private AudioClip doorOpenSound;
+    [Tooltip("Звук перехода на следующий этаж.")]
+    [SerializeField] private AudioClip floorTransitionSound;
     [SerializeField, Range(0f, 1f)] private float ambientVolume = 0.35f;
     [SerializeField, Range(0f, 1f)] private float soundEffectsVolume = 0.85f;
 
@@ -669,6 +671,7 @@ public class RoguelikeSession : MonoBehaviour
         int completedFloor = currentFloor.FloorNumber;
         PlayerRunData runData = PlayerRunData.EnsureInstance();
         runData.CompleteFloor(completedFloor);
+        PlayRoguelikeSound(floorTransitionSound);
 
         if (completedFloor < 3)
         {
