@@ -211,15 +211,13 @@ public static class TowerDefenceSceneBuilder
         GameObject gameManagerObject = FindInScene(scene, "Game Manager");
         if (gameManagerObject != null)
         {
+            // Disable every legacy Boss-flow behaviour on this object. The
+            // AudioSource stays enabled so shared audio assets remain available.
             foreach (MonoBehaviour behaviour in gameManagerObject.GetComponents<MonoBehaviour>())
             {
-                if (behaviour != null && behaviour.GetType().Name == "GameManager")
+                if (behaviour != null)
                     behaviour.enabled = false;
             }
-
-            // Keep the Game Manager object active because the copied scene may
-            // host shared audio or support components on it; only its Boss-flow
-            // GameManager behaviour is disabled above.
         }
     }
 
