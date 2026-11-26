@@ -61,7 +61,16 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private Texture2D deleteTexture;
     [SerializeField] private Texture2D selectedFrameTexture;
     [SerializeField] private Sprite merchantPortrait;
+
+    [Header("Main menu button textures (empty = keep scene sprite)")]
+    [SerializeField] private Sprite startMenuButtonTexture;
     [SerializeField] private Sprite loadButtonSprite;
+    [SerializeField] private Sprite optionsMenuButtonTexture;
+    [SerializeField] private Sprite exitMenuButtonTexture;
+
+    [Header("Three save slot textures (one texture per slot)")]
+    [SerializeField] private Texture2D[] emptySlotTextures = new Texture2D[3];
+    [SerializeField] private Texture2D[] occupiedSlotTextures = new Texture2D[3];
 
     public static SaveGameSystem Instance { get; private set; }
 
@@ -111,7 +120,14 @@ public class SaveGameSystem : MonoBehaviour
         if (source.deleteTexture != null) deleteTexture = source.deleteTexture;
         if (source.selectedFrameTexture != null) selectedFrameTexture = source.selectedFrameTexture;
         if (source.merchantPortrait != null) merchantPortrait = source.merchantPortrait;
+        if (source.startMenuButtonTexture != null) startMenuButtonTexture = source.startMenuButtonTexture;
         if (source.loadButtonSprite != null) loadButtonSprite = source.loadButtonSprite;
+        if (source.optionsMenuButtonTexture != null) optionsMenuButtonTexture = source.optionsMenuButtonTexture;
+        if (source.exitMenuButtonTexture != null) exitMenuButtonTexture = source.exitMenuButtonTexture;
+        if (source.emptySlotTextures != null && source.emptySlotTextures.Length == SlotCount)
+            emptySlotTextures = source.emptySlotTextures;
+        if (source.occupiedSlotTextures != null && source.occupiedSlotTextures.Length == SlotCount)
+            occupiedSlotTextures = source.occupiedSlotTextures;
         RefreshSprites();
     }
 
@@ -220,6 +236,11 @@ public class SaveGameSystem : MonoBehaviour
         }
         Transform options = menu.Find("Options Button");
 
+        ApplyMenuButtonTexture(start, startMenuButtonTexture);
+        ApplyMenuButtonTexture(load, loadButtonSprite);
+        ApplyMenuButtonTexture(options, optionsMenuButtonTexture);
+        ApplyMenuButtonTexture(exit, exitMenuButtonTexture);
+
         SetMenuRect(start, new Vector2(414.8f, -38f), new Vector2(500f, 100f));
         SetMenuRect(load, new Vector2(414.8f, -155f), new Vector2(500f, 100f));
         SetMenuRect(options, new Vector2(280f, -272f), new Vector2(250f, 88f));
@@ -265,6 +286,16 @@ public class SaveGameSystem : MonoBehaviour
         FieldInfo field = target.GetType().GetField(
             fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
         if (field != null) field.SetValue(target, value);
+    }
+
+    private static void ApplyMenuButtonTexture(Transform target, Sprite texture)
+    {
+        if (target == null || texture == null) return;
+        Image image = target.GetComponent<Image>();
+        if (image == null) return;
+        image.sprite = texture;
+        image.preserveAspect = true;
+        image.color = Color.white;
     }
 
     private static void SetMenuRect(Transform target, Vector2 position, Vector2 size)
@@ -439,10 +470,17 @@ public class SaveGameSystem : MonoBehaviour
         outline.effectColor = new Color(0.50f, 0.34f, 0.18f, 1f);
         outline.effectDistance = new Vector2(2f, -2f);
 
-        RectTransform iconRect = CreateRect("Slot icon frame", card,
-            new Vector2(132f, 132f), new Vector2(-610f, 0f));
+        // Each of the three save slots has its own inspector texture.
+        // If a per-slot texture is not assigned, reuse the shared merchant frame.
+        Texture2D slotTexture = GetSlotTexture(index, data.exists);
+        Sprite slotSprite = slotTexture != null
+            ? MakeSprite(slotTexture, null)
+            : (data.exists && selectedFrameSprite != null ? selectedFrameSprite : frameSprite);
+
+        RectTransform iconRect = CreateRect("Slot " + (index + 1) + " visual frame", card,
+            new Vector2(160f, 160f), new Vector2(-610f, 0f));
         Image icon = iconRect.gameObject.AddComponent<Image>();
-        icon.sprite = data.exists && selectedFrameSprite != null ? selectedFrameSprite : frameSprite;
+        icon.sprite = slotSprite;
         icon.color = Color.white;
         icon.preserveAspect = true;
         icon.raycastTarget = false;
@@ -497,6 +535,14 @@ public class SaveGameSystem : MonoBehaviour
                     new Vector2(475f, -55f), delegate { DeleteSlot(slotIndex); }, deleteSprite);
             }
         }
+    }
+
+    private Texture2D GetSlotTexture(int index, bool occupied)
+    {
+        Texture2D[] textures = occupied ? occupiedSlotTextures : emptySlotTextures;
+        if (textures != null && index >= 0 && index < textures.Length && textures[index] != null)
+            return textures[index];
+        return occupied ? selectedFrameTexture : frameTexture;
     }
 
     private string GetInventorySummary(List<InventoryEntry> entries)
