@@ -7,6 +7,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
+using TMPro;
 
 public class SaveGameSystem : MonoBehaviour
 {
@@ -72,6 +74,15 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private Sprite optionsMenuButtonTexture;
     [SerializeField] private Sprite exitMenuButtonTexture;
 
+    [Header("Main menu button positions")]
+    [SerializeField] private Vector2 startButtonPosition = new Vector2(414.8f, -38f);
+    [SerializeField] private Vector2 loadButtonPosition = new Vector2(414.8f, -155f);
+    [SerializeField] private Vector2 optionsButtonPosition = new Vector2(289.8f, -272f);
+    [SerializeField] private Vector2 exitButtonPosition = new Vector2(539.8f, -272f);
+
+    [Header("UI font")]
+    [SerializeField] private TMP_FontAsset menuFontAsset;
+
     [Header("Three save slot textures (one texture per slot)")]
     [SerializeField] private Texture2D[] emptySlotTextures = new Texture2D[3];
     [SerializeField] private Texture2D[] occupiedSlotTextures = new Texture2D[3];
@@ -90,6 +101,10 @@ public class SaveGameSystem : MonoBehaviour
     private Sprite frameSprite;
     private Sprite deleteSprite;
     private Sprite selectedFrameSprite;
+    private Button[] currentSlotButtons = new Button[SlotCount];
+    private int selectedSaveSlotIndex;
+
+    public TMP_FontAsset MenuFontAsset => menuFontAsset;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Bootstrap()
@@ -130,6 +145,11 @@ public class SaveGameSystem : MonoBehaviour
         if (source.loadButtonSprite != null) loadButtonSprite = source.loadButtonSprite;
         if (source.optionsMenuButtonTexture != null) optionsMenuButtonTexture = source.optionsMenuButtonTexture;
         if (source.exitMenuButtonTexture != null) exitMenuButtonTexture = source.exitMenuButtonTexture;
+        startButtonPosition = source.startButtonPosition;
+        loadButtonPosition = source.loadButtonPosition;
+        optionsButtonPosition = source.optionsButtonPosition;
+        exitButtonPosition = source.exitButtonPosition;
+        if (source.menuFontAsset != null) menuFontAsset = source.menuFontAsset;
         if (source.emptySlotTextures != null && source.emptySlotTextures.Length == SlotCount)
             emptySlotTextures = source.emptySlotTextures;
         if (source.occupiedSlotTextures != null && source.occupiedSlotTextures.Length == SlotCount)
@@ -141,12 +161,94 @@ public class SaveGameSystem : MonoBehaviour
     {
         RefreshSprites();
         EnsurePersistentEventSystem();
+        ApplyMenuFontToLoadedUI();
         if (uiAudioSource == null)
             uiAudioSource = gameObject.AddComponent<AudioSource>();
         uiAudioSource.playOnAwake = false;
         uiAudioSource.loop = false;
         uiAudioSource.spatialBlend = 0f;
         uiAudioSource.ignoreListenerPause = true;
+    }
+
+    private void Update()
+    {
+        if (overlayCanvas == null ||
+            (screenMode != ScreenMode.Load &&
+             screenMode != ScreenMode.SaveAfterRoguelike &&
+             screenMode != ScreenMode.SaveAfterTowerDefence))
+            return;
+
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null) return;
+
+        if (screenMode == ScreenMode.Load && keyboard.escapeKey.wasPressedThisFrame)
+        {
+            CloseScreen();
+            return;
+        }
+
+        if (keyboard.upArrowKey.wasPressedThisFrame)
+        {
+            MoveSelectedSaveSlot(-1);
+        }
+        else if (keyboard.downArrowKey.wasPressedThisFrame)
+        {
+            MoveSelectedSaveSlot(1);
+        }
+
+        if (keyboard.enterKey.wasPressedThisFrame ||
+            keyboard.numpadEnterKey.wasPressedThisFrame)
+        {
+            SubmitSelectedSaveSlot();
+        }
+    }
+
+    private void MoveSelectedSaveSlot(int direction)
+    {
+        selectedSaveSlotIndex = (selectedSaveSlotIndex + direction + SlotCount) % SlotCount;
+        SelectSaveSlot(selectedSaveSlotIndex);
+    }
+
+    private void SelectSaveSlot(int index)
+    {
+        selectedSaveSlotIndex = Mathf.Clamp(index, 0, SlotCount - 1);
+        if (currentSlotButtons == null || currentSlotButtons.Length != SlotCount)
+            return;
+
+        Button button = currentSlotButtons[selectedSaveSlotIndex];
+        if (button != null && EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(button.gameObject);
+    }
+
+    private void SubmitSelectedSaveSlot()
+    {
+        SaveSlotData data = ReadSlot(selectedSaveSlotIndex);
+        if (screenMode == ScreenMode.Load)
+        {
+            if (data.exists)
+                LoadSlot(selectedSaveSlotIndex);
+            return;
+        }
+
+        SaveTransitionToSlot(selectedSaveSlotIndex);
+    }
+
+    private IEnumerator ApplyMenuFontAfterSceneLoad()
+    {
+        yield return null;
+        ApplyMenuFontToLoadedUI();
+    }
+
+    private void ApplyMenuFontToLoadedUI()
+    {
+        if (menuFontAsset == null) return;
+
+        TMP_Text[] labels = FindObjectsOfType<TMP_Text>(true);
+        for (int i = 0; i < labels.Length; i++)
+        {
+            if (labels[i] != null)
+                labels[i].font = menuFontAsset;
+        }
     }
 
     private void PlayMenuOpenSound()
@@ -212,6 +314,7 @@ public class SaveGameSystem : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode loadMode)
     {
         EnsurePersistentEventSystem();
+        StartCoroutine(ApplyMenuFontAfterSceneLoad());
 
         if (pendingInventoryRestore != null)
             StartCoroutine(RestoreInventoryAfterSceneLoad());
@@ -266,12 +369,11 @@ public class SaveGameSystem : MonoBehaviour
         ApplyMenuButtonTexture(options, optionsMenuButtonTexture);
         ApplyMenuButtonTexture(exit, exitMenuButtonTexture);
 
-        SetMenuRect(start, new Vector2(414.8f, -38f), new Vector2(500f, 100f));
-        SetMenuRect(load, new Vector2(414.8f, -155f), new Vector2(500f, 100f));
-        // The lower shelf is exactly as wide as either upper shelf:
-        // two 250 px buttons meet at the centre without an extra gap.
-        SetMenuRect(options, new Vector2(289.8f, -272f), new Vector2(250f, 88f));
-        SetMenuRect(exit, new Vector2(539.8f, -272f), new Vector2(250f, 88f));
+        ApplyMenuFontToLoadedUI();
+        SetMenuRect(start, startButtonPosition, new Vector2(500f, 100f));
+        SetMenuRect(load, loadButtonPosition, new Vector2(500f, 100f));
+        SetMenuRect(options, optionsButtonPosition, new Vector2(250f, 88f));
+        SetMenuRect(exit, exitButtonPosition, new Vector2(250f, 88f));
 
         GameObject[] buttons = new GameObject[4];
         buttons[0] = start != null ? start.gameObject : null;
@@ -464,6 +566,7 @@ public class SaveGameSystem : MonoBehaviour
             portrait.raycastTarget = false;
         }
 
+        currentSlotButtons = new Button[SlotCount];
         for (int i = 0; i < SlotCount; i++)
             BuildSlotCard(panel, i);
 
@@ -485,12 +588,10 @@ public class SaveGameSystem : MonoBehaviour
                 new Vector2(0f, -410f), ContinueToNextStage, buttonSprite);
         }
 
-        if (EventSystem.current != null)
-        {
-            Button firstButton = canvasObject.GetComponentInChildren<Button>();
-            if (firstButton != null)
-                EventSystem.current.SetSelectedGameObject(firstButton.gameObject);
-        }
+        int initialSlot = screenMode == ScreenMode.Load
+            ? FindFirstExistingSaveSlot()
+            : (activeSlot >= 0 && activeSlot < SlotCount ? activeSlot : FindFirstEmptySaveSlot());
+        SelectSaveSlot(initialSlot);
     }
 
     private void BuildSlotCard(RectTransform panel, int index)
@@ -508,6 +609,7 @@ public class SaveGameSystem : MonoBehaviour
         // The whole shelf is clickable, not only the narrow action button on its edge.
         Button shelfButton = card.gameObject.AddComponent<Button>();
         shelfButton.targetGraphic = cardImage;
+        currentSlotButtons[slotIndex] = shelfButton;
         ColorBlock shelfColors = shelfButton.colors;
         shelfColors.normalColor = cardImage.color;
         shelfColors.highlightedColor = new Color(0.25f, 0.18f, 0.12f, 1f);
@@ -520,7 +622,8 @@ public class SaveGameSystem : MonoBehaviour
         shelfButton.navigation = shelfNavigation;
         if (screenMode == ScreenMode.Load)
         {
-            shelfButton.interactable = data.exists;
+            // Keep even empty shelves selectable so the player can browse all three.
+            shelfButton.interactable = true;
             if (data.exists)
                 shelfButton.onClick.AddListener(delegate { LoadSlot(slotIndex); });
         }
@@ -599,6 +702,22 @@ public class SaveGameSystem : MonoBehaviour
         }
     }
 
+    private int FindFirstExistingSaveSlot()
+    {
+        for (int i = 0; i < SlotCount; i++)
+            if (ReadSlot(i).exists)
+                return i;
+        return 0;
+    }
+
+    private int FindFirstEmptySaveSlot()
+    {
+        for (int i = 0; i < SlotCount; i++)
+            if (!ReadSlot(i).exists)
+                return i;
+        return 0;
+    }
+
     private Texture2D GetSlotTexture(int index, bool occupied)
     {
         Texture2D[] textures = occupied ? occupiedSlotTextures : emptySlotTextures;
@@ -663,20 +782,21 @@ public class SaveGameSystem : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
-    private Text CreateText(string objectName, Transform parent, string value,
+    private TextMeshProUGUI CreateText(string objectName, Transform parent, string value,
         Vector2 size, Vector2 position, int fontSize, TextAnchor alignment, FontStyle style)
     {
         RectTransform rect = CreateRect(objectName, parent, size, position);
-        Text label = rect.gameObject.AddComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        TextMeshProUGUI label = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        label.font = menuFontAsset != null ? menuFontAsset : TMP_Settings.defaultFontAsset;
         label.text = value;
         label.fontSize = fontSize;
-        label.fontStyle = style;
-        label.alignment = alignment;
+        label.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : FontStyles.Normal;
+        label.alignment = alignment == TextAnchor.MiddleLeft
+            ? TextAlignmentOptions.MidlineLeft
+            : TextAlignmentOptions.Center;
         label.color = new Color(0.97f, 0.91f, 0.78f, 1f);
-        label.horizontalOverflow = HorizontalWrapMode.Wrap;
-        label.verticalOverflow = VerticalWrapMode.Overflow;
-        label.supportRichText = false;
+        label.enableWordWrapping = true;
+        label.overflowMode = TextOverflowModes.Overflow;
         label.raycastTarget = false;
         return label;
     }
@@ -703,7 +823,7 @@ public class SaveGameSystem : MonoBehaviour
         navigation.mode = Navigation.Mode.Automatic;
         button.navigation = navigation;
 
-        Text buttonText = CreateText("Button label", rect, label,
+        TextMeshProUGUI buttonText = CreateText("Button label", rect, label,
             new Vector2(size.x - 12f, size.y - 8f), Vector2.zero, 25,
             TextAnchor.MiddleCenter, FontStyle.Bold);
         buttonText.color = Color.white;
