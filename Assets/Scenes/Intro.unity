@@ -8552,6 +8552,7 @@ MonoBehaviour:
   - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
   - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
   - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
+  menuOpenSound: {fileID: 8300000, guid: f6d9ab08a358aca4b900d23907d27065, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
