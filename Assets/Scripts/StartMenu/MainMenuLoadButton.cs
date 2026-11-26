@@ -22,6 +22,16 @@ public class MainMenuLoadButton : MonoBehaviour
         {
             tmpLabel.text = "Загрузить";
             tmpLabel.alignment = TextAlignmentOptions.Center;
+            tmpLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            tmpLabel.overflowMode = TextOverflowModes.Overflow;
+
+            // Use the full button width so the final character cannot wrap.
+            RectTransform labelRect = tmpLabel.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+
             if (SaveGameSystem.Instance != null && SaveGameSystem.Instance.MenuFontAsset != null)
                 tmpLabel.font = SaveGameSystem.Instance.MenuFontAsset;
         }
@@ -29,7 +39,11 @@ public class MainMenuLoadButton : MonoBehaviour
         {
             Text legacyLabel = GetComponentInChildren<Text>(true);
             if (legacyLabel != null)
+            {
                 legacyLabel.text = "Загрузить";
+                legacyLabel.resizeTextForBestFit = true;
+                legacyLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+            }
             else
                 CreateLabel();
         }
