@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: InvincibilityPotion
   m_EditorClassIdentifier: Assembly-CSharp::InvincibilityPotion
   itemName: "\u0417\u0435\u043B\u044C\u0435 \u041D\u0435\u0443\u044F\u0437\u0432\u0438\u043C\u043E\u0441\u0442\u0438"
-  icon: {fileID: -5850488071810988357, guid: d53312749b625c94ba9ccbf87e3d7a71, type: 3}
+  icon: {fileID: 8169654528089163657, guid: fbb78a88ae1b0d847b9f96bc49af620d, type: 3}
   maxStack: 64
   cooldown: 15
   drinkSound: {fileID: 0}

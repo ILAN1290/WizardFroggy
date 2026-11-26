@@ -9,9 +9,25 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Settings")]
     public float moveSpeed = 5f;
     private Vector2 movement;
+    private Vector2 externalVelocity;
+    private Vector2 pendingExternalForce;
+    private Vector2 windVelocity;
+    private Vector2 pendingWindForce;
     private Vector2 lookDirection = new Vector2(0, 1);  
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
+    private BoxCollider2D movementCollider;
+    private float speedPotionMultiplier = 1f;
+    private Coroutine speedPotionRoutine;
+    private PlayerRunData runData;
+    private Vector2 lastAnimatorDirection = new Vector2(float.NaN, float.NaN);
+    private float lastAnimatorSpeed = -1f;
+
+    /// <summary>
+    /// Thin collider at the bottom of the sprite, used for movement and
+    /// world-object occlusion. The original Player collider remains for hits.
+    /// </summary>
+    public Collider2D MovementCollider => movementCollider;
 
 
     [Header("Invincibility Settings")]
@@ -36,7 +52,6 @@ public class PlayerController : MonoBehaviour
     //Mana
     [Header("Mana")]
     [SerializeField] private PlayerMana mana;
-    [SerializeField] private float spendingManaByProjectile = 30f;
     [SerializeField] private float spendingManaByInvincibilityBySecond = 10f;
     [SerializeField] private float spendingManaByParry = 10f;
 
@@ -54,24 +69,166 @@ public class PlayerController : MonoBehaviour
 
     //Health
     private PlayerHealth playerHealth;
+    private SpriteRenderer playerSpriteRenderer;
+
+    [Header("TEST")]
+    [SerializeField] private bool TEST_hp;
+    [SerializeField] private bool TEST_dmg;
+    [SerializeField] private bool TEST_mana;
 
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        runData = PlayerRunData.EnsureInstance();
         parry = GetComponentInChildren<Parry>();
         animator = GetComponent<Animator>();
         cooldownTimer = projectileCooldown;
         audioSource = GetComponent<AudioSource>(); 
         playerHealth = GetComponent<PlayerHealth>();
+        playerSpriteRenderer = GetComponent<SpriteRenderer>();
+        InitializeMovementHitbox();
+        StartCoroutine(ApplyTestSettings());
+    }
+
+    private IEnumerator ApplyTestSettings()
+    {
+        // Wait one frame so PlayerHealth and PlayerMana finish their own Start methods.
+        yield return null;
+
+        if (TEST_hp && playerHealth != null)
+            playerHealth.ApplyTestHealth();
+        if (TEST_mana && mana != null)
+            mana.ApplyTestMana();
+    }
+
+    private void InitializeMovementHitbox()
+    {
+        // The original Player-tagged collider remains enabled for projectiles,
+        // attacks and doorway triggers, but no longer blocks physical movement.
+        Collider2D hitReactionCollider = GetComponent<Collider2D>();
+        if (hitReactionCollider != null)
+            hitReactionCollider.isTrigger = true;
+
+        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            SpriteRenderer[] childRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+            float largestArea = 0f;
+            for (int i = 0; i < childRenderers.Length; i++)
+            {
+                SpriteRenderer candidate = childRenderers[i];
+                if (candidate == null || candidate.sprite == null || !candidate.enabled)
+                    continue;
+
+                float area = candidate.bounds.size.x * candidate.bounds.size.y;
+                if (area > largestArea)
+                {
+                    largestArea = area;
+                    spriteRenderer = candidate;
+                }
+            }
+        }
+
+        if (spriteRenderer == null || spriteRenderer.sprite == null)
+            return;
+
+        Bounds spriteBounds = spriteRenderer.bounds;
+        Camera camera = Camera.main;
+        float pixelsPerWorldUnitY = camera != null && camera.orthographic
+            ? (camera.pixelHeight > 0 ? camera.pixelHeight : Mathf.Max(1, Screen.height)) /
+                Mathf.Max(0.01f, camera.orthographicSize * 2f)
+            : Mathf.Max(1, Screen.height) / 12f;
+
+        const float movementHitboxHeightPixels = 10f;
+        const float movementHitboxWidthRatio = 0.82f;
+        const float movementHitboxDownOffsetPixels = 1.5f;
+        float movementHitboxHeight = movementHitboxHeightPixels /
+            Mathf.Max(1f, pixelsPerWorldUnitY);
+        float movementHitboxWidth = spriteBounds.size.x * movementHitboxWidthRatio;
+
+        Vector3 worldCentre = new Vector3(
+            spriteBounds.center.x,
+            spriteBounds.min.y + movementHitboxHeight * 0.5f -
+                movementHitboxDownOffsetPixels / Mathf.Max(1f, pixelsPerWorldUnitY),
+            transform.position.z);
+        Vector3 localCentre = transform.InverseTransformPoint(worldCentre);
+        Vector3 parentScale = transform.lossyScale;
+
+        GameObject movementHitboxObject = new GameObject("Movement Hitbox • 10px");
+        movementHitboxObject.layer = gameObject.layer;
+        movementHitboxObject.transform.SetParent(transform, false);
+        movementHitboxObject.transform.localPosition = localCentre;
+        movementHitboxObject.transform.localRotation = Quaternion.identity;
+
+        movementCollider = movementHitboxObject.AddComponent<BoxCollider2D>();
+        movementCollider.size = new Vector2(
+            movementHitboxWidth / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
+            movementHitboxHeight / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)));
+        movementCollider.isTrigger = false;
     }
 
     private void Shoot()
     {
-        if(canShoot && !isInvincible && mana.CurrentMana >= spendingManaByProjectile && InputManager.instance.ShootInput)
-        {
+        if (!canShoot || isInvincible || mana == null ||
+            InputManager.instance == null || !InputManager.instance.ShootInput)
+            return;
+
+        if (runData == null)
+            runData = PlayerRunData.EnsureInstance();
+
+        if (mana.CurrentMana >= runData.ProjectileManaCost)
             Launch();
+    }
+
+    public void ApplySpeedPotion(float multiplier, float duration)
+    {
+        if (speedPotionRoutine != null)
+            StopCoroutine(speedPotionRoutine);
+
+        speedPotionRoutine = StartCoroutine(
+            SpeedPotionRoutine(multiplier, duration));
+    }
+
+    private IEnumerator SpeedPotionRoutine(float multiplier, float duration)
+    {
+        speedPotionMultiplier = Mathf.Max(1f, multiplier);
+        yield return new WaitForSeconds(Mathf.Max(0.01f, duration));
+        speedPotionMultiplier = 1f;
+        speedPotionRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (speedPotionRoutine != null)
+        {
+            StopCoroutine(speedPotionRoutine);
+            speedPotionRoutine = null;
         }
+        speedPotionMultiplier = 1f;
+    }
+
+    // Adds physics forces without letting the movement controller erase them
+    // on the next FixedUpdate (used by wind, knockback and boss abilities).
+    public void AddExternalForce(Vector2 force)
+    {
+        pendingExternalForce += force * Time.deltaTime;
+    }
+
+    // Wind is bounded so it pushes strongly without taking permanent control from input.
+    public void AddWindForce(Vector2 force)
+    {
+        pendingWindForce += force * Time.deltaTime;
+    }
+
+    // Boss wind is a temporary external force. Clear both accumulated and pending
+    // values when the attack ends so the player does not keep drifting afterwards.
+    public void ClearWindForce()
+    {
+        windVelocity = Vector2.zero;
+        pendingWindForce = Vector2.zero;
     }
 
     private void Parry()
@@ -89,9 +246,21 @@ public class PlayerController : MonoBehaviour
             lookDirection = movement; 
         }
 
-        animator.SetFloat("MoveX", lookDirection.x);
-        animator.SetFloat("MoveY", lookDirection.y);
-        animator.SetFloat("Speed", movement.magnitude);
+        if (animator == null) return;
+
+        float movementSpeed = movement.magnitude;
+        if (lookDirection != lastAnimatorDirection)
+        {
+            animator.SetFloat("MoveX", lookDirection.x);
+            animator.SetFloat("MoveY", lookDirection.y);
+            lastAnimatorDirection = lookDirection;
+        }
+
+        if (!Mathf.Approximately(movementSpeed, lastAnimatorSpeed))
+        {
+            animator.SetFloat("Speed", movementSpeed);
+            lastAnimatorSpeed = movementSpeed;
+        }
 
     }
     private void Invincibility()
@@ -106,6 +275,8 @@ public class PlayerController : MonoBehaviour
                 audioSource.loop = true;
                 audioSource.Play();
                 gameObject.layer = LayerMask.NameToLayer("Invincibility");
+                if (movementCollider != null)
+                    movementCollider.gameObject.layer = gameObject.layer;
                 isInvincible = true;
                 mana.isSpending = true;
                 animator.SetBool("Is Invincible", true);
@@ -117,6 +288,8 @@ public class PlayerController : MonoBehaviour
                 audioSource.volume = 1f;
                 audioSource.Stop();
                 gameObject.layer = LayerMask.NameToLayer("Player");
+                if (movementCollider != null)
+                    movementCollider.gameObject.layer = gameObject.layer;
                 isInvincible = false;
                 mana.isSpending = false;
                 animator.SetBool("Is Invincible", false);
@@ -142,15 +315,28 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!isInvincible)
+        externalVelocity += pendingExternalForce / Mathf.Max(0.01f, rb.mass);
+        pendingExternalForce = Vector2.zero;
+
+        // External impulses decay naturally, but remain additive to player input.
+        externalVelocity *= Mathf.Exp(-1.5f * Time.fixedDeltaTime);
+        externalVelocity = Vector2.ClampMagnitude(externalVelocity, 6f);
+
+        windVelocity += pendingWindForce / Mathf.Max(0.01f, rb.mass);
+        pendingWindForce = Vector2.zero;
+        windVelocity *= Mathf.Exp(-3.5f * Time.fixedDeltaTime);
+        windVelocity = Vector2.ClampMagnitude(windVelocity, Mathf.Max(0f, moveSpeed * 0.75f));
+
+        Vector2 controlledVelocity = movement.normalized *
+            moveSpeed * speedPotionMultiplier;
+        if (isInvincible)
         {
-            rb.linearVelocity = movement.normalized * moveSpeed;
-        }
-        else
-        {
-            rb.linearVelocity = movement.normalized * moveSpeed * speedMultiplier;
+            controlledVelocity *= speedMultiplier;
             mana.SpendMana(spendingManaByInvincibilityBySecond * Time.fixedDeltaTime);
         }
+
+        if (rb != null)
+            rb.linearVelocity = controlledVelocity + externalVelocity + windVelocity;
     }
     private void  Launch()
     {
@@ -158,10 +344,20 @@ public class PlayerController : MonoBehaviour
         {
             AudioManager.instance.PlaySoundFXClip(chargeSound, transform, 0.1f);
             cooldownTimer = 0;
-            mana.SpendMana(spendingManaByProjectile);
-            GameObject projectileObject = Instantiate(projectilePrefab, rb.position + Vector2.up * 0.5f, Quaternion.identity);
+            PlayerRunData runData = PlayerRunData.EnsureInstance();
+            mana.SpendMana(runData.ProjectileManaCost);
+            Vector3 spawnPosition = playerSpriteRenderer != null
+                ? playerSpriteRenderer.bounds.center
+                : rb.worldCenterOfMass;
+            Transform projectileParent = RoguelikeSession.ProjectileRoot;
+            GameObject projectileObject = projectileParent != null
+                ? Instantiate(projectilePrefab, spawnPosition, Quaternion.identity, projectileParent)
+                : Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
             Projectile projectile = projectileObject.GetComponent<Projectile>();
-            projectile.Launch(projectileDirection, projectileForce);
+            PlayerEffects effects = GetComponent<PlayerEffects>();
+            float damageMultiplier = effects != null ? effects.DamageMultiplier : 1f;
+            projectile.SetDamage(TEST_dmg ? 10000f : runData.StaffDamage * damageMultiplier);
+            projectile.Launch(FacingDirection, projectileForce);
         }
     }
 }

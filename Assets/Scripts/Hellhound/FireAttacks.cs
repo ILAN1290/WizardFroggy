@@ -38,6 +38,11 @@ public class FireAttacks : BossAttack
     [SerializeField] private Vector2 gridOffset = Vector2.zero;
     [SerializeField] private float cellSize = 1f;
 
+    [Header("Атака 0 — Доступная игровая зона")]
+    [SerializeField] private bool useCustomFloorArea = false;
+    [SerializeField] private Vector2 floorAreaCenter = new Vector2(-0.04f, -2.28f);
+    [SerializeField] private Vector2 floorAreaSize = new Vector2(16.67f, 7.27f);
+
     [Header("Атака 0 — Спрайты (режим Sprites)")]
     [SerializeField] private Sprite attentionSprite;
     [SerializeField] private Sprite fireSprite;
@@ -316,6 +321,7 @@ public class FireAttacks : BossAttack
         if (activeTilemap != null) Destroy(activeTilemap.gameObject);
         activeTilemap = Instantiate(f.attentionMap, gridTransform);
         activeTilemap.transform.localPosition = Vector3.zero;
+        TrimTilemapToPlayableArea(activeTilemap);
         yield return new WaitForSeconds(attentionDuration);
 
         if (activeTilemap != null) Destroy(activeTilemap.gameObject);
@@ -324,14 +330,26 @@ public class FireAttacks : BossAttack
         boss.Sfx(fireSound, 0.3f, 2f);
         activeTilemap = Instantiate(f.fireMap, gridTransform);
         activeTilemap.transform.localPosition = Vector3.zero;
-        CollectHotCells(activeTilemap);   // только для углей, урон делает FireZone на префабе
+        TrimTilemapToPlayableArea(activeTilemap);
+        CollectHotCells(activeTilemap);
 
+        // Prefab floors do not contain a FireZone damage component in this project.
+        // Apply damage from the same occupied cells used by the visual map.
         float t = 0f;
+        float damageTick = 0f;
         while (t < fireFloorDuration)
         {
             float dt = Time.deltaTime;
             t += dt;
+            damageTick -= dt;
+
             if (embersEnabled) UpdateEmbers(dt);
+            if (damageTick <= 0f && PlayerInFire())
+            {
+                boss.Burn(burnDps, burnTime);
+                damageTick = 0.5f;
+            }
+
             yield return null;
         }
 
@@ -435,13 +453,101 @@ public class FireAttacks : BossAttack
         return fallbackFireTile;
     }
 
+    private void ResolveGridLayout()
+    {
+        if (paintGrid == null && gridTransform != null)
+            paintGrid = gridTransform.GetComponent<Grid>();
+
+        activeCellSize = paintGrid != null
+            ? Mathf.Max(0.1f, paintGrid.cellSize.x)
+            : Mathf.Max(0.2f, cellSize);
+
+        if (useCustomFloorArea)
+        {
+            Vector2 half = floorAreaSize * 0.5f;
+            Vector2 worldMin = floorAreaCenter + gridOffset - half;
+            Vector2 worldMax = floorAreaCenter + gridOffset + half;
+
+            if (paintGrid != null)
+            {
+                // Include only cells whose centres are inside the playable rectangle.
+                // This prevents a row of fire tiles from spilling under the boundary flames.
+                Vector3 cellSizeWorld = paintGrid.cellSize;
+                Vector2 halfCell = new Vector2(
+                    Mathf.Abs(cellSizeWorld.x) * 0.5f,
+                    Mathf.Abs(cellSizeWorld.y) * 0.5f);
+                cellOrigin = paintGrid.WorldToCell(worldMin + halfCell);
+                Vector3Int maxCell = paintGrid.WorldToCell(
+                    worldMax - halfCell - Vector2.one * 0.001f);
+                gridCols = Mathf.Max(1, maxCell.x - cellOrigin.x + 1);
+                gridRows = Mathf.Max(1, maxCell.y - cellOrigin.y + 1);
+            }
+            else
+            {
+                // Fallback grid is aligned by tile centres, just like Unity's Grid.
+                int minX = Mathf.CeilToInt(worldMin.x / activeCellSize - 0.5f);
+                int minY = Mathf.CeilToInt(worldMin.y / activeCellSize - 0.5f);
+                int maxX = Mathf.FloorToInt(worldMax.x / activeCellSize - 0.5f);
+                int maxY = Mathf.FloorToInt(worldMax.y / activeCellSize - 0.5f);
+                cellOrigin = new Vector3Int(minX, minY, 0);
+                gridCols = Mathf.Max(1, maxX - minX + 1);
+                gridRows = Mathf.Max(1, maxY - minY + 1);
+            }
+        }
+        else if (floorReference != null && paintGrid != null)
+        {
+            // Use the complete reference Tilemap bounds. Do not center a smaller
+            // 16x8 grid inside the much larger source map.
+            BoundsInt bounds = floorReference.cellBounds;
+            cellOrigin = bounds.min;
+            gridCols = Mathf.Max(1, bounds.size.x);
+            gridRows = Mathf.Max(1, bounds.size.y);
+        }
+        else if (boss != null)
+        {
+            Vector2 half = boss.ArenaSize * 0.5f;
+            Vector2 worldMin = boss.Center + gridOffset - half;
+            Vector2 worldMax = boss.Center + gridOffset + half;
+
+            if (paintGrid != null)
+            {
+                cellOrigin = paintGrid.WorldToCell(worldMin);
+                Vector3Int maxCell = paintGrid.WorldToCell(
+                    worldMax - Vector2.one * 0.001f);
+                gridCols = Mathf.Max(1, maxCell.x - cellOrigin.x + 1);
+                gridRows = Mathf.Max(1, maxCell.y - cellOrigin.y + 1);
+            }
+            else
+            {
+                cellOrigin = new Vector3Int(
+                    Mathf.FloorToInt(worldMin.x / activeCellSize),
+                    Mathf.FloorToInt(worldMin.y / activeCellSize), 0);
+                gridCols = Mathf.Max(1, Mathf.CeilToInt(boss.ArenaSize.x / activeCellSize));
+                gridRows = Mathf.Max(1, Mathf.CeilToInt(boss.ArenaSize.y / activeCellSize));
+            }
+        }
+        else
+        {
+            gridCols = Mathf.Max(2, columns);
+            gridRows = Mathf.Max(2, rows);
+            cellOrigin = ArenaOrigin();
+        }
+
+        if (!useCustomFloorArea && floorReference == null)
+        {
+            cellOrigin += new Vector3Int(
+                Mathf.RoundToInt(gridOffset.x / activeCellSize),
+                Mathf.RoundToInt(gridOffset.y / activeCellSize), 0);
+        }
+    }
+
     private void BuildPaintMap()
     {
         ClearPaint();
         ClearCells();
 
         paintGrid = gridTransform != null ? gridTransform.GetComponent<Grid>() : null;
-        activeCellSize = paintGrid != null ? Mathf.Max(0.1f, paintGrid.cellSize.x) : Mathf.Max(0.2f, cellSize);
+        ResolveGridLayout();
 
         paintRoot = new GameObject("FireFloorTiles");
         if (gridTransform != null) paintRoot.transform.SetParent(gridTransform, false);
@@ -451,31 +557,6 @@ public class FireAttacks : BossAttack
         tr.sortingLayerID = LayerId();
         tr.sortingOrder = sortingOrder;
 
-        gridCols = Mathf.Max(2, columns);
-        gridRows = Mathf.Max(2, rows);
-
-        bool anchored = false;
-        if (floorReference != null && paintGrid != null)
-        {
-            BoundsInt b = floorReference.cellBounds;
-            if (b.size.x >= 2 && b.size.y >= 2)
-            {
-                gridCols = Mathf.Clamp(gridCols, 2, b.size.x);
-                gridRows = Mathf.Clamp(gridRows, 2, b.size.y);
-                cellOrigin = new Vector3Int(
-                    b.xMin + (b.size.x - gridCols) / 2,
-                    b.yMin + (b.size.y - gridRows) / 2,
-                    0);
-                anchored = true;
-            }
-        }
-        if (!anchored) cellOrigin = ArenaOrigin();
-
-        cellOrigin += new Vector3Int(
-            Mathf.RoundToInt(gridOffset.x / activeCellSize),
-            Mathf.RoundToInt(gridOffset.y / activeCellSize),
-            0);
-
         int n = gridCols * gridRows;
         cellPos = new Vector2[n];
         burning = new bool[n];
@@ -484,10 +565,12 @@ public class FireAttacks : BossAttack
         for (int r = 0; r < gridRows; r++)
             for (int c = 0; c < gridCols; c++)
             {
-                Vector3Int cc = new Vector3Int(cellOrigin.x + c, cellOrigin.y + r, 0);
+                Vector3Int cell = new Vector3Int(
+                    cellOrigin.x + c, cellOrigin.y + r, 0);
                 cellPos[r * gridCols + c] = paintGrid != null
-                    ? (Vector2)paintGrid.GetCellCenterWorld(cc)
-                    : new Vector2(cc.x, cc.y);
+                    ? (Vector2)paintGrid.GetCellCenterWorld(cell)
+                    : new Vector2((cell.x + 0.5f) * activeCellSize,
+                        (cell.y + 0.5f) * activeCellSize);
             }
 
         floorRoot = new GameObject("FireFloorFx");
@@ -567,6 +650,31 @@ public class FireAttacks : BossAttack
             }
     }
 
+    private void TrimTilemapToPlayableArea(Tilemap map)
+    {
+        if (map == null || !useCustomFloorArea) return;
+
+        Vector2 center = floorAreaCenter + gridOffset;
+        Vector2 half = floorAreaSize * 0.5f;
+        Vector2 min = center - half;
+        Vector2 max = center + half;
+
+        BoundsInt bounds = map.cellBounds;
+        foreach (Vector3Int cell in bounds.allPositionsWithin)
+        {
+            if (!map.HasTile(cell)) continue;
+
+            Vector3 world = map.GetCellCenterWorld(cell);
+            if (world.x < min.x || world.x >= max.x ||
+                world.y < min.y || world.y >= max.y)
+            {
+                map.SetTile(cell, null);
+            }
+        }
+
+        map.CompressBounds();
+    }
+
     private void CollectHotCells(Tilemap map)
     {
         hotCells.Clear();
@@ -576,7 +684,7 @@ public class FireAttacks : BossAttack
         foreach (Vector3Int p in map.cellBounds.allPositionsWithin)
         {
             if (!map.HasTile(p)) continue;
-            hotCells.Add(g != null ? (Vector2)g.GetCellCenterWorld(p) : new Vector2(p.x, p.y));
+            hotCells.Add(map.GetCellCenterWorld(p));
         }
     }
 
@@ -647,13 +755,41 @@ public class FireAttacks : BossAttack
 
     private bool PlayerInFire()
     {
-        if (hotCells.Count == 0) return false;
-        Vector2 p = boss.PlayerPos;
-        float half = activeCellSize * 0.5f;
+        if (hotCells.Count == 0 || boss == null || boss.Player == null)
+            return false;
+
+        Collider2D playerCollider = boss.Player.GetComponent<Collider2D>();
+        if (playerCollider == null)
+            playerCollider = boss.Player.GetComponentInChildren<Collider2D>();
+
+        if (playerCollider != null)
+        {
+            Bounds playerBounds = playerCollider.bounds;
+            float halfCell = activeCellSize * 0.5f;
+
+            for (int i = 0; i < hotCells.Count; i++)
+            {
+                Vector2 cell = hotCells[i];
+                bool overlapsX = playerBounds.min.x <= cell.x + halfCell &&
+                    playerBounds.max.x >= cell.x - halfCell;
+                bool overlapsY = playerBounds.min.y <= cell.y + halfCell &&
+                    playerBounds.max.y >= cell.y - halfCell;
+                if (overlapsX && overlapsY)
+                    return true;
+            }
+
+            return false;
+        }
+
+        Vector2 playerPosition = boss.PlayerPos;
+        float positionHalfCell = activeCellSize * 0.5f;
         for (int i = 0; i < hotCells.Count; i++)
         {
-            if (Mathf.Abs(p.x - hotCells[i].x) <= half && Mathf.Abs(p.y - hotCells[i].y) <= half) return true;
+            if (Mathf.Abs(playerPosition.x - hotCells[i].x) <= positionHalfCell &&
+                Mathf.Abs(playerPosition.y - hotCells[i].y) <= positionHalfCell)
+                return true;
         }
+
         return false;
     }
 
@@ -711,9 +847,8 @@ public class FireAttacks : BossAttack
         ClearCells();
         ClearPaint();
 
-        gridCols = Mathf.Max(2, columns);
-        gridRows = Mathf.Max(2, rows);
-        activeCellSize = Mathf.Max(0.2f, cellSize);
+        paintGrid = gridTransform != null ? gridTransform.GetComponent<Grid>() : null;
+        ResolveGridLayout();
 
         floorRoot = new GameObject("FireFloorGrid");
         floorRoot.transform.position = Vector3.zero;
@@ -723,19 +858,21 @@ public class FireAttacks : BossAttack
         cellPos = new Vector2[n];
         burning = new bool[n];
 
-        Vector2 size = new Vector2(gridCols * activeCellSize, gridRows * activeCellSize);
-        Vector2 origin = boss.Center + gridOffset - size * 0.5f + Vector2.one * activeCellSize * 0.5f;
-
         for (int r = 0; r < gridRows; r++)
             for (int c = 0; c < gridCols; c++)
             {
                 int i = r * gridCols + c;
-                Vector2 p = origin + new Vector2(c * activeCellSize, r * activeCellSize);
-                cellPos[i] = p;
+                Vector3Int cell = new Vector3Int(
+                    cellOrigin.x + c, cellOrigin.y + r, 0);
+                Vector2 position = paintGrid != null
+                    ? (Vector2)paintGrid.GetCellCenterWorld(cell)
+                    : new Vector2((cell.x + 0.5f) * activeCellSize,
+                        (cell.y + 0.5f) * activeCellSize);
+                cellPos[i] = position;
 
                 GameObject go = new GameObject("Cell" + i);
                 go.transform.SetParent(floorRoot.transform, false);
-                go.transform.position = p;
+                go.transform.position = position;
                 go.transform.localScale = Vector3.one * activeCellSize * 0.94f;
 
                 SpriteRenderer sr = go.AddComponent<SpriteRenderer>();

@@ -12,7 +12,7 @@ public class StoryTelling : MonoBehaviour
     [SerializeField] private float fadeDuration = 1f;
     [SerializeField] private AudioClip leafletSound;
 
-    [SerializeField] private string MAIN_SCENE = "MainScene";
+    [SerializeField] private string MAIN_SCENE = "Roguelike";
     private int currentIndex = 0;
     private void OnEnable()
     {

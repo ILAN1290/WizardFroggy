@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ManaPotion
   m_EditorClassIdentifier: Assembly-CSharp::ManaPotion
   itemName: "\u0417\u0435\u043B\u044C\u0435 \u041C\u0430\u043D\u044B"
-  icon: {fileID: -227398099809153907, guid: f511773cb6f20ca41a1c4550d6e49598, type: 3}
+  icon: {fileID: -8095065642318054293, guid: 5beb2fc049da4224c99446581bf4eb89, type: 3}
   maxStack: 64
   cooldown: 15
   drinkSound: {fileID: 0}

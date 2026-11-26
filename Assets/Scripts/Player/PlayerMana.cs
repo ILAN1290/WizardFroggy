@@ -8,6 +8,7 @@ public class PlayerMana : MonoBehaviour
 
     private float currentManaValue;
     private PlayerEffects effects;
+    private bool initialized;
 
     public float CurrentMana { get { return currentManaValue; } }
     public float MaxMana { get { return maxManaValue; } }
@@ -15,7 +16,14 @@ public class PlayerMana : MonoBehaviour
     private void Start()
     {
         effects = GetComponent<PlayerEffects>();
-        currentManaValue = maxManaValue;
+        currentManaValue = PlayerRunData.EnsureInstance().LoadMana(maxManaValue);
+        initialized = true;
+    }
+
+    public void ApplyTestMana()
+    {
+        maxManaValue = 10000f;
+        currentManaValue = 10000f;
     }
 
     public void SpendMana(float value)
@@ -29,6 +37,18 @@ public class PlayerMana : MonoBehaviour
         currentManaValue = Mathf.Clamp(currentManaValue + value, 0, maxManaValue);
     }
 
+    private void OnDisable()
+    {
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveMana(currentManaValue);
+    }
+
+    private void OnDestroy()
+    {
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveMana(currentManaValue);
+    }
+
     private void Update()
     {
         if (effects != null && effects.IsInfiniteMana)
@@ -39,7 +59,9 @@ public class PlayerMana : MonoBehaviour
 
         if (currentManaValue != maxManaValue && !isSpending)
         {
-            currentManaValue = Mathf.Clamp(currentManaValue + fillingSpeed * Time.deltaTime, 0, maxManaValue);
+            float regeneration = PlayerRunData.EnsureInstance().ManaRegeneration;
+            currentManaValue = Mathf.Clamp(
+                currentManaValue + regeneration * Time.deltaTime, 0, maxManaValue);
         }
     }
 }

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: HealingPotion
   m_EditorClassIdentifier: Assembly-CSharp::HealingPotion
   itemName: "\u0417\u0435\u043B\u044C\u0435 \u0418\u0441\u0446\u0435\u043B\u0435\u043D\u0438\u044F"
-  icon: {fileID: 8145951374611147372, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  icon: {fileID: 1839067703924079421, guid: fb05fbafe19d61b4eae917836e169a4f, type: 3}
   maxStack: 64
   cooldown: 15
   drinkSound: {fileID: 0}

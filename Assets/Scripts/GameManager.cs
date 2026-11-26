@@ -116,6 +116,13 @@ public class GameManager : MonoBehaviour
         mopsStage = mops.GetComponent<WindAttacks>();
         chihStage = chih.GetComponent<FireAttacks>();
         bulStage = bul.GetComponent<PortalAttacks>();
+
+        // Scene files can retain the hidden running state if saved during Play Mode.
+        // Reset all heads before the tutorial starts so CastOld() is never ignored.
+        if (mopsStage != null) mopsStage.Stop();
+        if (chihStage != null) chihStage.Stop();
+        if (bulStage != null) bulStage.Stop();
+
         hasCompletedTutorial = PlayerPrefs.GetInt("HasCompletedTutorial", 0) == 1;
         mainThemeSource = GetComponent<AudioSource>();
         if(hasCompletedTutorial)
