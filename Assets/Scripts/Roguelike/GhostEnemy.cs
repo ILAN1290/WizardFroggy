@@ -20,6 +20,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private Rigidbody2D body;
     private int attacksSinceSuper;
     private float nextMeleeSuperTime;
+    private float nextMiniBossSpecialTime;
     private float nextGhostVoiceTime;
     private bool superAttackInProgress;
 
@@ -52,9 +53,9 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         ai.Initialize(player, melee, miniBoss);
 
         nextRadialShotTime = Time.time + 2.5f;
-        // Independent timers keep both dashes and ambient ghost voices from
-        // happening in sync when several enemies spawn together.
+        // Independent timers keep attacks from synchronizing between enemies.
         nextMeleeSuperTime = Time.time + Random.Range(8f, 12f);
+        nextMiniBossSpecialTime = Time.time + Random.Range(5f, 7f);
         nextGhostVoiceTime = Time.time + Random.Range(5f, 13f);
     }
 
@@ -140,13 +141,15 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
         Vector2 direction = ai.DirectionToPlayer;
 
-        if (miniBoss && attacksSinceSuper >= 3)
+        if (miniBoss && Time.time >= nextMiniBossSpecialTime)
         {
-            attacksSinceSuper = 0;
+            // Specials have their own cooldown and do not depend on normal
+            // attack count, which is especially important because the boss
+            // is also configured as a melee enemy.
+            nextMiniBossSpecialTime = Time.time + Random.Range(7f, 9f);
             nextAttackTime = Time.time + 3.2f;
 
-            // Pick the special attack from the player's distance:
-            // slam at close range, spiral projectiles while the player is far away.
+            // Slam when the player is near; use the spiral volley at range.
             if (ai.DistanceToPlayer <= 2.65f)
             {
                 StartCoroutine(PerformGroundSlam());
@@ -159,11 +162,10 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             return;
         }
 
-        // At range, the mini-boss fires ordinary aimed shots and stores one
-        // charge per attack. Once charged, its special is selected by distance.
-        if (miniBoss && ai.DistanceToPlayer > 1.75f)
+        // Between special attacks, the mini-boss uses ordinary aimed shots
+        // at a distance and melee strikes when the player closes in.
+        if (miniBoss && ai.DistanceToPlayer > 2.65f)
         {
-            attacksSinceSuper = Mathf.Min(attacksSinceSuper + 1, 3);
             nextAttackTime = Time.time + 1.8f;
             if (session != null) session.PlayGhostAttackSound(false);
             StartCoroutine(PlayAttackAnimation(direction));
