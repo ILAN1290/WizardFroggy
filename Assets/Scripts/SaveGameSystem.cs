@@ -471,7 +471,7 @@ public class SaveGameSystem : MonoBehaviour
             new Vector2(190f, 38f), new Vector2(-455f, 58f), 25,
             TextAnchor.MiddleLeft, FontStyle.Bold);
         CreateText("Slot details", card, details,
-            new Vector2(950f, 156f), new Vector2(-5f, -6f), 18,
+            new Vector2(790f, 156f), new Vector2(-85f, -6f), 18,
             TextAnchor.MiddleLeft, FontStyle.Normal);
 
         int slotIndex = index;
@@ -721,6 +721,7 @@ public class SaveGameSystem : MonoBehaviour
         string sceneToLoad = nextScene;
         nextScene = "";
         Time.timeScale = 1f;
+        transitionPaused = false;
         CloseCanvasOnly();
         screenMode = ScreenMode.None;
         SceneManager.LoadScene(sceneToLoad);
