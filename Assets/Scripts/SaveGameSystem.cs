@@ -508,6 +508,13 @@ public class SaveGameSystem : MonoBehaviour
         // The whole shelf is clickable, not only the narrow action button on its edge.
         Button shelfButton = card.gameObject.AddComponent<Button>();
         shelfButton.targetGraphic = cardImage;
+        ColorBlock shelfColors = shelfButton.colors;
+        shelfColors.normalColor = cardImage.color;
+        shelfColors.highlightedColor = new Color(0.25f, 0.18f, 0.12f, 1f);
+        shelfColors.selectedColor = shelfColors.highlightedColor;
+        shelfColors.pressedColor = new Color(0.10f, 0.07f, 0.05f, 1f);
+        shelfColors.disabledColor = new Color(0.12f, 0.09f, 0.07f, 0.65f);
+        shelfButton.colors = shelfColors;
         Navigation shelfNavigation = new Navigation();
         shelfNavigation.mode = Navigation.Mode.None;
         shelfButton.navigation = shelfNavigation;
@@ -685,6 +692,12 @@ public class SaveGameSystem : MonoBehaviour
 
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
+        ColorBlock buttonColors = button.colors;
+        buttonColors.normalColor = image.color;
+        buttonColors.highlightedColor = Color.Lerp(image.color, Color.white, 0.16f);
+        buttonColors.selectedColor = buttonColors.highlightedColor;
+        buttonColors.pressedColor = Color.Lerp(image.color, Color.black, 0.16f);
+        button.colors = buttonColors;
         button.onClick.AddListener(action);
         Navigation navigation = new Navigation();
         navigation.mode = Navigation.Mode.Automatic;
