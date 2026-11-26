@@ -445,19 +445,38 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         yield return new WaitForSeconds(0.15f);
         if (dialogueManager.dialogues == null ||
-            dialogueManager.dialogues.Count == 0)
+            dialogueManager.dialogues.Count == 0 ||
+            dialogueManager.dialogues[0] == null ||
+            dialogueManager.dialogues[0].dialogueLines == null ||
+            dialogueManager.dialogues[0].dialogueLines.Count == 0)
         {
             Debug.LogError("Tower Defence: список реплик пуст, диалог не запущен.");
             yield break;
         }
 
         dialogueManager.dialogues[0].isPassed = false;
-        dialogueManager.StartDialogue(0);
+        if (!dialogueManager.TryStartDialogue(0))
+        {
+            Debug.LogError("Tower Defence: вступительный диалог не удалось открыть. Этап не будет запускаться.");
+            yield break;
+        }
 
         yield return new WaitUntil(
             () => dialogueManager == null ||
-                (dialogueManager.dialogues.Count > 0 &&
-                 dialogueManager.dialogues[0].isPassed));
+                dialogueManager.dialogues == null ||
+                dialogueManager.dialogues.Count == 0 ||
+                dialogueManager.dialogues[0] == null ||
+                dialogueManager.dialogues[0].isPassed);
+
+        if (dialogueManager == null ||
+            dialogueManager.dialogues == null ||
+            dialogueManager.dialogues.Count == 0 ||
+            dialogueManager.dialogues[0] == null ||
+            !dialogueManager.dialogues[0].isPassed)
+        {
+            Debug.LogError("Tower Defence: вступительный диалог не завершился. Запуск волн отменён.");
+            yield break;
+        }
 
         if (InputManager.PlayerInput != null)
             InputManager.PlayerInput.SwitchCurrentActionMap("Player");
