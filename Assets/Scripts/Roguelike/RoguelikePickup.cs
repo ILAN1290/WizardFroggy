@@ -14,9 +14,10 @@ public class RoguelikePickup : MonoBehaviour
         pickupSound = sound;
     }
 
-    public void SetupCurrency(int amount)
+    public void SetupCurrency(int amount, AudioClip sound = null)
     {
         currency = Mathf.Max(1, amount);
+        pickupSound = sound;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -28,6 +29,8 @@ public class RoguelikePickup : MonoBehaviour
             PlayerRunData.EnsureInstance().AddMushrooms(currency);
             if (RoguelikeSession.Instance != null)
                 RoguelikeSession.Instance.ShowHint("Получено грибочков: " + currency);
+            if (pickupSound != null)
+                AudioSource.PlayClipAtPoint(pickupSound, transform.position, 0.55f);
             Destroy(gameObject);
             return;
         }
