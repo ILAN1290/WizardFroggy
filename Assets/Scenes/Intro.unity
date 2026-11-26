@@ -8536,21 +8536,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 80e0c0c51550e074d8c520b2bd1ad6ce, type: 2}
   - {fileID: 11400000, guid: 04ad346f22c014e448f5316d5c0fde9c, type: 2}
   buttonTexture: {fileID: 2800000, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
-  frameTexture: {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
   deleteTexture: {fileID: 2800000, guid: bbc611a95e0ee3545bbaed3f3ab0dc29, type: 3}
-  selectedFrameTexture: {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
   loadButtonSprite: {fileID: 0}
   startMenuButtonTexture: {fileID: 0}
   optionsMenuButtonTexture: {fileID: 0}
   exitMenuButtonTexture: {fileID: 0}
-  emptySlotTextures:
-  - {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
-  - {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
-  - {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
-  occupiedSlotTextures:
-  - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
-  - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
-  - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
   menuOpenSound: {fileID: 8300000, guid: f6d9ab08a358aca4b900d23907d27065, type: 3}
   startButtonPosition: {x: 414.8, y: -38}
   loadButtonPosition: {x: 414.8, y: -155}
