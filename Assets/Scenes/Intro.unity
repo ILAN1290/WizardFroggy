@@ -8557,7 +8557,6 @@ MonoBehaviour:
   optionsButtonPosition: {x: 289.8, y: -272}
   exitButtonPosition: {x: 539.8, y: -272}
   menuFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
-  slotPlaceholderSprite: {fileID: 21300000, guid: 21c97ae3a919c984888d3d1323155b1c, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
