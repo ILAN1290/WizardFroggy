@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 public class SaveGameSystem : MonoBehaviour
 {
@@ -195,6 +196,18 @@ public class SaveGameSystem : MonoBehaviour
         Transform menu = menuObject.transform;
         Transform start = menu.Find("Start Button");
         Transform load = menu.Find("Load Game Button");
+        if (load == null && exit != null)
+        {
+            GameObject loadObject = Instantiate(exit.gameObject, exit.parent);
+            loadObject.name = "Load Game Button";
+            load = loadObject.transform;
+            Button loadButtonComponent = loadObject.GetComponent<Button>();
+            if (loadButtonComponent != null)
+                loadButtonComponent.onClick.RemoveAllListeners();
+            MainMenuLoadButton loadHandler = loadObject.GetComponent<MainMenuLoadButton>();
+            if (loadHandler == null)
+                loadObject.AddComponent<MainMenuLoadButton>();
+        }
         Transform options = menu.Find("Options Button");
         Transform exit = menu.Find("Exit Button");
 
@@ -386,6 +399,7 @@ public class SaveGameSystem : MonoBehaviour
 
         if (screenMode == ScreenMode.Load)
         {
+            SetMainMenuEnabled(false);
             CreateButton(panel, "Назад", new Vector2(280f, 74f),
                 new Vector2(0f, -410f), CloseScreen, deleteSprite);
         }
@@ -519,6 +533,7 @@ public class SaveGameSystem : MonoBehaviour
         RectTransform rect = CreateRect(objectName, parent, size, position);
         Text label = rect.gameObject.AddComponent<Text>();
         label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        label.text = value;
         label.fontSize = fontSize;
         label.fontStyle = style;
         label.alignment = alignment;
@@ -692,6 +707,26 @@ public class SaveGameSystem : MonoBehaviour
         {
             Time.timeScale = previousTimeScale;
             transitionPaused = false;
+        }
+        SetMainMenuEnabled(true);
+    }
+
+    private void SetMainMenuEnabled(bool enabled)
+    {
+        GameObject menuObject = GameObject.Find("MainMenuAndLogo");
+        if (menuObject == null) return;
+        ButtonSelectionManager manager = menuObject.GetComponent<ButtonSelectionManager>();
+        if (manager != null) manager.enabled = enabled;
+        Transform menu = menuObject.transform;
+        string[] names = { "Start Button", "Load Game Button", "Options Button", "Exit Button" };
+        for (int i = 0; i < names.Length; i++)
+        {
+            Transform item = menu.Find(names[i]);
+            if (item == null) continue;
+            Button button = item.GetComponent<Button>();
+            if (button != null) button.interactable = enabled;
+            ButtonSelectionController selector = item.GetComponent<ButtonSelectionController>();
+            if (selector != null) selector.enabled = enabled;
         }
     }
 
