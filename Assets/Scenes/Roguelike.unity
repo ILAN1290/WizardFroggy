@@ -2854,7 +2854,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: 4, y: -7, z: 0}
@@ -17995,7 +17995,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.75100005}
-  m_AnchoredPosition: {x: 0, y: 251.00003}
+  m_AnchoredPosition: {x: 0, y: 251.00005}
   m_SizeDelta: {x: 702.98, y: -126.52}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2065789568
@@ -18188,6 +18188,17 @@ MonoBehaviour:
   lobbyEnvironmentName: Library Environment
   lobbyPlayerPosition: {x: 0, y: -3}
   itemPickupSound: {fileID: 8300000, guid: d798a253eb5a8f64a825c979d1cf93a5, type: 3}
+  ambientSound: {fileID: 8300000, guid: e70c6713316288f47a5eeb50e51c8721, type: 3}
+  ghostMeleeAttackSound: {fileID: 8300000, guid: 48b38569ea402044b81745e53eb96749, type: 3}
+  ghostRangedAttackSound: {fileID: 8300000, guid: 7b9ef384061ef4b4686c1b0b7c240e35, type: 3}
+  ghostVoiceSounds: []
+  groundFireStepSound: {fileID: 0}
+  miniBossGroundSlamSound: {fileID: 8300000, guid: 0de50439b0026634db1ab246a454928c, type: 3}
+  chestOpenSound: {fileID: 8300000, guid: f30a6390022a82b4eb8fe7a6bc48ce19, type: 3}
+  doorCloseSound: {fileID: 8300000, guid: e242df4e898b91749952f443564a820e, type: 3}
+  doorOpenSound: {fileID: 8300000, guid: ea7f532451b80734b9d836de0add5404, type: 3}
+  ambientVolume: 0.35
+  soundEffectsVolume: 0.85
   merchantTextures:
     panelBackground: {fileID: 0}
     vendorPanelBackground: {fileID: 0}
