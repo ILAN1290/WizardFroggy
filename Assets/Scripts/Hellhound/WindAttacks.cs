@@ -7,7 +7,7 @@ public class WindAttacks : BossAttack
     [Header("Атака 0 — Порывы")]
     public GameObject wind;
     [SerializeField] private float windForce = 5500f;
-    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.00008f;
+    [SerializeField, Range(0f, 0.1f)] private float playerForceScale = 0.0008f;
     [SerializeField] private float windDuration = 20f;
     [SerializeField] private float directionChangeInterval = 3f;
     [SerializeField] private float rechargeTime = 1f;
@@ -81,6 +81,11 @@ public class WindAttacks : BossAttack
         if (stunRoutine != null) { StopCoroutine(stunRoutine); stunRoutine = null; }
         EndStun();
         if (tornadoVisual != null) tornadoVisual.SetActive(false);
+        if (boss != null && boss.Player != null)
+        {
+            PlayerController controller = boss.Player.GetComponent<PlayerController>();
+            if (controller != null) controller.ClearWindForce();
+        }
     }
 
     // ================= 0: порывы =================

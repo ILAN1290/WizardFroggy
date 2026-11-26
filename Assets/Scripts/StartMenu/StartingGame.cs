@@ -21,6 +21,8 @@ public class StartingGame : MonoBehaviour
     private bool isTransitioning = false;
     public void StartTheGame()
     {
+        if (SaveGameSystem.Instance != null)
+            SaveGameSystem.Instance.BeginNewGame();
         if(!isTransitioning)
         {
             StartCoroutine(StartStory());

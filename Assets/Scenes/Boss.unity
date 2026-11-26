@@ -1582,12 +1582,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FireAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 1175110945}
+  attackDuration: 20
   isRunning: 0
   currentAttack: -1
   mode: 0
-  countOfFireFloors: 3
+  countOfFireFloors: 4
   attentionDuration: 1.5
-  fireFloorDuration: 4
+  fireFloorDuration: 3.5
   fireSound: {fileID: 8300000, guid: 14f41eb0c546a144c808bb3abfc9fd13, type: 3}
   gridTransform: {fileID: 884039660}
   activeTilemap: {fileID: 0}
@@ -1627,7 +1628,7 @@ MonoBehaviour:
   sortingOrder: 2
   embersEnabled: 1
   emberCount: 28
-  meteorDuration: 12
+  meteorDuration: 16.85
   meteorInterval: 1
   meteorTelegraph: 1
   meteorRadius: 1.5
@@ -1639,7 +1640,7 @@ MonoBehaviour:
   aimLead: 0.35
   boomSound: {fileID: 8300000, guid: 1fd31868d68903d4f9e2c4a3b7ef98f3, type: 3}
   tileFirePool: 1
-  meteorSprite: {fileID: 8961090413319157468, guid: b06f487bd18f49f42bb06f1f5f532d6c, type: 3}
+  meteorSprite: {fileID: 3972488667177137343, guid: fc7a331f097948f4fafabdbc3eea029b, type: 3}
   meteorSize: 1.3
   fallHeight: 9
   fallAngle: 22
@@ -1666,10 +1667,10 @@ MonoBehaviour:
   beamLength: 15
   beamHalfAngle: 5
   sweepAngle: 130
-  sweepTime: 2.6
+  sweepTime: 3.2
   beamTelegraph: 1
   beamPause: 0.8
-  sweepCount: 3
+  sweepCount: 4
   beamDamage: 10
   beamTickInterval: 0.45
   beamSound: {fileID: 8300000, guid: 7b9ef384061ef4b4686c1b0b7c240e35, type: 3}
@@ -1902,6 +1903,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PortalAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 57743860}
+  attackDuration: 20
   isRunning: 0
   currentAttack: -1
   portal: {fileID: 1502566175}
@@ -1918,10 +1920,10 @@ MonoBehaviour:
   - {x: -9, y: 1, z: 0}
   portalSound: {fileID: 8300000, guid: 647fc9474d5eb5b46a4b90a260c0ed90, type: 3}
   shootInterval: 1
-  shooterDuration: 15
+  shooterDuration: 20
   singleKnifeSpeed: 11
   knifeFlySound: {fileID: 8300000, guid: 33a64212605933445aa26a9de908ad5c, type: 3}
-  orbitPortalSprite: {fileID: 9095485781221239215, guid: d365efc6cd100a64ea2254c0aa09bd5f, type: 3}
+  orbitPortalSprite: {fileID: 5835527079520390318, guid: 54acb96315ea39f4381e03ada6ec5a9f, type: 3}
   orbitPortal: {fileID: 0}
   orbitPortalSize: 1.6
   orbitPortalSpin: 180
@@ -1931,7 +1933,7 @@ MonoBehaviour:
   projectilePrefab: {fileID: 3979557818278388149, guid: 9cec3c692063b074ab20488a1772b08a, type: 3}
   spawnOffset: 0.3
   knifeLifetime: 8
-  volleyDuration: 14
+  volleyDuration: 20
   portalCount: 3
   volleyTelegraph: 0.9
   volleyPause: 1.2
@@ -1945,7 +1947,7 @@ MonoBehaviour:
   aimLineAlpha: 0.16
   mainLineAlpha: 0.28
   aimLineColor: {r: 1, g: 0.55, b: 0.95, a: 1}
-  spiralDuration: 14
+  spiralDuration: 20
   orbitRadius: 4.5
   orbitSpeed: 70
   spiralShootInterval: 0.22
@@ -3434,7 +3436,7 @@ MonoBehaviour:
   arenaSize: {x: 18, y: 10}
   mopsAttacksEnabled: 1
   chihAttacksEnabled: 1
-  bulAttacksEnabled: 0
+  bulAttacksEnabled: 1
 --- !u!1001 &507733656
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4018,11 +4020,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WindAttacks
   boss: {fileID: 490827560}
   fireAboveHead: {fileID: 1526103856}
+  attackDuration: 20
   isRunning: 0
   currentAttack: -1
   wind: {fileID: 1099201128}
-  windForce: 20000
-  playerForceScale: 0.1
+  windForce: 10000
+  playerForceScale: 0.0008
   windDuration: 20
   directionChangeInterval: 5
   rechargeTime: 1
@@ -4031,7 +4034,7 @@ MonoBehaviour:
   placeholderIfEmpty: 1
   visualSpin: 0
   placeholderColor: {r: 0.7, g: 0.92, b: 1, a: 0.7}
-  vortexDuration: 14
+  vortexDuration: 20
   vortexRadius: 10
   pullForce: 10000
   swirlFactor: 0.5
@@ -4039,12 +4042,12 @@ MonoBehaviour:
   deadZone: 0.2
   vortexMoveSpeed: 2.5
   waveSource: {fileID: 490827559}
-  waveCount: 4
+  waveCount: 5
   waveTelegraph: 0.9
   waveSpeed: 8
   waveMaxRadius: 14
   waveThickness: 0.7
-  wavePause: 1.1
+  wavePause: 1.4
   waveSound: {fileID: 8300000, guid: 30caf41edd75048a49992f32542aaac3, type: 3}
   hitFlash: 1
   respectInvincibility: 1

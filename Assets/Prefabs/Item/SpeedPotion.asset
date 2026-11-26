@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SpeedPotion
   m_EditorClassIdentifier: Assembly-CSharp::SpeedPotion
   itemName: "\u0417\u0435\u043B\u044C\u0435 \u0421\u043A\u043E\u0440\u043E\u0441\u0442\u0438"
-  icon: {fileID: 7552522462588475143, guid: 3028b2123bd13b249a004724237716c8, type: 3}
+  icon: {fileID: -8299898714851431168, guid: a2818d6b38ef40d4bbd8506ab7db101f, type: 3}
   maxStack: 64
   cooldown: 15
   drinkSound: {fileID: 0}

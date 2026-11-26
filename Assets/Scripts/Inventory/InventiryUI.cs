@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
 
 public class InventoryUI : MonoBehaviour
 {
@@ -26,15 +27,45 @@ public class InventoryUI : MonoBehaviour
     private int inventorySlotCount = 16;
     private int hotbarSlotCount = 4;
     private ItemStack held = new ItemStack();
+    private int heldFromSlotIndex = -1;
     private GameObject cursorItem;
     private Image cursorIcon;
     private TextMeshProUGUI cursorCount;
     private RectTransform cursorRectTransform;
     private bool hotbarVisible = true;
 
+    [Header("Прозрачность инвентаря при перекрытии игроком")]
+    [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.38f;
+    private CanvasGroup inventoryVisibilityGroup;
+    private CanvasGroup inventoryOcclusionGroup;
+    private CanvasGroup hotbarCanvasGroup;
+    private float hotbarBaseAlpha = 1f;
+    private SpriteRenderer playerRenderer;
+    private Camera cachedWorldCamera;
+    private readonly Vector3[] playerWorldCorners = new Vector3[4];
+    private readonly Vector3[] inventoryWorldCorners = new Vector3[4];
+    private readonly Vector3[] hotbarWorldCorners = new Vector3[4];
+
+    private void Awake()
+    {
+        EnsureCanvasOnTop();
+    }
+
+    private void EnsureCanvasOnTop()
+    {
+        if (mainCanvas == null) return;
+
+        // Keep the inventory and cursor above every world sprite and other canvas.
+        mainCanvas.overrideSorting = true;
+        mainCanvas.sortingOrder = short.MaxValue;
+    }
+
     private void Start()
     {
-        Inventory.Instance.Init(hotbarSlotCount + inventorySlotCount);
+        cachedWorldCamera = Camera.main;
+        EnsureCanvasOnTop();
+        Inventory inventory = Inventory.EnsureInstance();
+        inventory.Init(hotbarSlotCount + inventorySlotCount);
 
         if (player == null)
         {
@@ -48,7 +79,13 @@ public class InventoryUI : MonoBehaviour
             Effects = player.GetComponent<PlayerEffects>();
             if (Effects == null)
                 Debug.LogError("InventoryUI: на player нет компонента PlayerEffects!");
+
+            playerRenderer = player.GetComponent<SpriteRenderer>();
+            if (playerRenderer == null)
+                playerRenderer = player.GetComponentInChildren<SpriteRenderer>(true);
         }
+
+        InitializeInventoryCanvasGroups();
 
         if (testItem != null)
         {
@@ -62,6 +99,7 @@ public class InventoryUI : MonoBehaviour
         if (cursorItemPrefab != null && mainCanvas != null)
         {
             cursorItem = Instantiate(cursorItemPrefab, mainCanvas.transform);
+            cursorItem.transform.SetAsLastSibling();
             cursorItem.SetActive(false);
             cursorIcon = cursorItem.GetComponent<Image>();
             cursorCount = cursorItem.GetComponentInChildren<TextMeshProUGUI>();
@@ -84,20 +122,46 @@ public class InventoryUI : MonoBehaviour
     private void BuildSlots(Transform root, int count, out SlotUI[] arr, GameObject prefab, int startIndex)
     {
         arr = new SlotUI[count];
+        if (root == null || prefab == null)
+        {
+            Debug.LogError("InventoryUI: не назначены корень или префаб слота.");
+            return;
+        }
+
         for (int i = 0; i < count; i++)
         {
-            var go = Instantiate(prefab, root);
+            GameObject go = Instantiate(prefab, root);
             arr[i] = go.GetComponent<SlotUI>();
-            arr[i].Setup(startIndex + i, this);
+            if (arr[i] != null)
+                arr[i].Setup(startIndex + i, this);
+            else
+                Debug.LogError("InventoryUI: на префабе слота отсутствует SlotUI.", go);
         }
     }
 
     private void Refresh()
     {
-        for (int i = 0; i < invSlots.Length; i++)
-            invSlots[i].UpdateView(Inventory.Instance.GetSlot(hotbarSlotCount + i), false);
-        for (int i = 0; i < hotSlots.Length; i++)
-            hotSlots[i].UpdateView(Inventory.Instance.GetSlot(i), i == selectedHotbar);
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
+
+        if (invSlots != null)
+        {
+            for (int i = 0; i < invSlots.Length; i++)
+            {
+                if (invSlots[i] != null)
+                    invSlots[i].UpdateView(inventory.GetSlot(hotbarSlotCount + i), false);
+            }
+        }
+
+        if (hotSlots != null)
+        {
+            for (int i = 0; i < hotSlots.Length; i++)
+            {
+                if (hotSlots[i] != null)
+                    hotSlots[i].UpdateView(inventory.GetSlot(i), i == selectedHotbar);
+            }
+        }
+
         UpdateCursor();
     }
 
@@ -124,8 +188,12 @@ public class InventoryUI : MonoBehaviour
     public void OnSlotClicked(int index)
     {
         if (!ControlGate.HasControl) return;
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
 
-        var slot = Inventory.Instance.GetSlot(index);
+        ItemStack slot = inventory.GetSlot(index);
+        if (slot == null) return;
+
         if (held.IsEmpty)
         {
             if (!slot.IsEmpty)
@@ -137,30 +205,107 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            if (slot.IsEmpty)
+            MoveHeldIntoSlot(slot);
+        }
+
+        if (held.IsEmpty)
+            heldFromSlotIndex = -1;
+        inventory.NotifyChanged();
+    }
+
+    public void BeginSlotDrag(int index)
+    {
+        if (!ControlGate.HasControl || !held.IsEmpty) return;
+
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
+
+        ItemStack source = inventory.GetSlot(index);
+        if (source == null || source.IsEmpty) return;
+
+        held.item = source.item;
+        held.count = source.count;
+        source.Clear();
+        heldFromSlotIndex = index;
+        inventory.NotifyChanged();
+    }
+
+    public void DropHeldItemIntoSlot(int index)
+    {
+        if (!ControlGate.HasControl || held.IsEmpty) return;
+
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
+
+        ItemStack target = inventory.GetSlot(index);
+        if (target == null) return;
+
+        MoveHeldIntoSlot(target);
+        if (held.IsEmpty)
+            heldFromSlotIndex = -1;
+
+        inventory.NotifyChanged();
+    }
+
+    private void MoveHeldIntoSlot(ItemStack target)
+    {
+        if (target.IsEmpty)
+        {
+            target.item = held.item;
+            target.count = held.count;
+            held.Clear();
+        }
+        else if (target.item == held.item && target.count < target.item.maxStack)
+        {
+            int toAdd = Mathf.Min(target.item.maxStack - target.count, held.count);
+            target.count += toAdd;
+            held.count -= toAdd;
+            if (held.count <= 0)
+                held.Clear();
+        }
+        else
+        {
+            Item previousItem = target.item;
+            int previousCount = target.count;
+            target.item = held.item;
+            target.count = held.count;
+            held.item = previousItem;
+            held.count = previousCount;
+        }
+    }
+
+    public void EndSlotDrag()
+    {
+        if (held.IsEmpty)
+        {
+            heldFromSlotIndex = -1;
+            Refresh();
+            return;
+        }
+
+        Inventory inventory = Inventory.Instance;
+        if (inventory != null && heldFromSlotIndex >= 0)
+        {
+            ItemStack source = inventory.GetSlot(heldFromSlotIndex);
+            if (source != null && source.IsEmpty)
             {
-                slot.item = held.item;
-                slot.count = held.count;
+                source.item = held.item;
+                source.count = held.count;
                 held.Clear();
             }
-            else if (slot.item == held.item && slot.count < slot.item.maxStack)
+            else if (inventory.CanAdd(held.item, held.count))
             {
-                int toAdd = Mathf.Min(slot.item.maxStack - slot.count, held.count);
-                slot.count += toAdd;
-                held.count -= toAdd;
-                if (held.count <= 0) held.Clear();
-            }
-            else
-            {
-                var tmpItem = slot.item;
-                var tmpCount = slot.count;
-                slot.item = held.item;
-                slot.count = held.count;
-                held.item = tmpItem;
-                held.count = tmpCount;
+                inventory.Add(held.item, held.count);
+                held.Clear();
             }
         }
-        Inventory.Instance.NotifyChanged();
+
+        if (held.IsEmpty)
+            heldFromSlotIndex = -1;
+
+        if (inventory != null)
+            inventory.NotifyChanged();
+        Refresh();
     }
 
     public void UseItem(int slotIndex)
@@ -186,12 +331,147 @@ public class InventoryUI : MonoBehaviour
         {
             Inventory.Instance.Add(held.item, held.count);
             held.Clear();
+            heldFromSlotIndex = -1;
             Refresh();
         }
     }
 
+    private void InitializeInventoryCanvasGroups()
+    {
+        if (inventoryRoot != null)
+        {
+            // This original CanvasGroup belongs to InventoryToggle. Never change
+            // its alpha: it is zero while the inventory panel is closed.
+            inventoryVisibilityGroup = inventoryRoot.GetComponent<CanvasGroup>();
+            if (inventoryVisibilityGroup == null)
+                inventoryVisibilityGroup = inventoryRoot.gameObject.AddComponent<CanvasGroup>();
+
+            RectTransform sourceRect = inventoryRoot as RectTransform;
+            if (sourceRect != null)
+            {
+                Transform originalParent = inventoryRoot.parent;
+                int originalSibling = inventoryRoot.GetSiblingIndex();
+
+                GameObject wrapper = new GameObject(
+                    "Inventory Occlusion Group",
+                    typeof(RectTransform), typeof(CanvasGroup));
+                RectTransform wrapperRect = wrapper.GetComponent<RectTransform>();
+                wrapperRect.SetParent(originalParent, false);
+                wrapperRect.anchorMin = sourceRect.anchorMin;
+                wrapperRect.anchorMax = sourceRect.anchorMax;
+                wrapperRect.anchoredPosition = sourceRect.anchoredPosition;
+                wrapperRect.sizeDelta = sourceRect.sizeDelta;
+                wrapperRect.pivot = sourceRect.pivot;
+                wrapperRect.localRotation = sourceRect.localRotation;
+                wrapperRect.localScale = sourceRect.localScale;
+                wrapperRect.SetSiblingIndex(originalSibling);
+
+                sourceRect.SetParent(wrapperRect, false);
+                sourceRect.anchorMin = Vector2.zero;
+                sourceRect.anchorMax = Vector2.one;
+                sourceRect.offsetMin = Vector2.zero;
+                sourceRect.offsetMax = Vector2.zero;
+                sourceRect.localRotation = Quaternion.identity;
+                sourceRect.localScale = Vector3.one;
+
+                inventoryOcclusionGroup = wrapper.GetComponent<CanvasGroup>();
+                inventoryOcclusionGroup.alpha = 1f;
+            }
+        }
+
+        if (hotbarRoot != null)
+        {
+            hotbarCanvasGroup = hotbarRoot.GetComponent<CanvasGroup>();
+            if (hotbarCanvasGroup == null)
+                hotbarCanvasGroup = hotbarRoot.gameObject.AddComponent<CanvasGroup>();
+            hotbarBaseAlpha = hotbarCanvasGroup.alpha;
+        }
+    }
+
+    private void UpdateInventoryOcclusion()
+    {
+        // Inventory and hotbar are faded independently.
+        bool inventoryOpen = inventoryVisibilityGroup != null &&
+            inventoryVisibilityGroup.alpha > 0.01f &&
+            inventoryVisibilityGroup.blocksRaycasts &&
+            inventoryVisibilityGroup.interactable;
+
+        if (player == null ||
+            (inventoryOcclusionGroup == null && hotbarCanvasGroup == null))
+            return;
+
+        if (cachedWorldCamera == null) cachedWorldCamera = Camera.main;
+        Camera worldCamera = cachedWorldCamera;
+        if (worldCamera == null) return;
+
+        Bounds worldBounds = playerRenderer != null
+            ? playerRenderer.bounds
+            : new Bounds(player.transform.position, new Vector3(0.5f, 0.8f, 0.1f));
+
+        Vector3 min = worldBounds.min;
+        Vector3 max = worldBounds.max;
+        playerWorldCorners[0] = new Vector3(min.x, min.y, worldBounds.center.z);
+        playerWorldCorners[1] = new Vector3(min.x, max.y, worldBounds.center.z);
+        playerWorldCorners[2] = new Vector3(max.x, min.y, worldBounds.center.z);
+        playerWorldCorners[3] = new Vector3(max.x, max.y, worldBounds.center.z);
+
+        Vector2 screenMin = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+        Vector2 screenMax = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+        for (int i = 0; i < playerWorldCorners.Length; i++)
+        {
+            Vector3 screen = worldCamera.WorldToScreenPoint(playerWorldCorners[i]);
+            screenMin = Vector2.Min(screenMin, screen);
+            screenMax = Vector2.Max(screenMax, screen);
+        }
+
+        Rect playerScreenBounds = Rect.MinMaxRect(
+            screenMin.x, screenMin.y, screenMax.x, screenMax.y);
+
+        Camera uiCamera = mainCanvas != null &&
+            mainCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? mainCanvas.worldCamera : null;
+        bool overlapsInventory = OverlapsUiRect(
+            inventoryRoot, playerScreenBounds, uiCamera, inventoryWorldCorners);
+        bool overlapsHotbar = OverlapsUiRect(
+            hotbarRoot, playerScreenBounds, uiCamera, hotbarWorldCorners);
+
+        float inventoryAlpha = inventoryOpen && overlapsInventory ? overlapAlpha : 1f;
+        if (inventoryOcclusionGroup != null &&
+            Mathf.Abs(inventoryOcclusionGroup.alpha - inventoryAlpha) > 0.001f)
+            inventoryOcclusionGroup.alpha = inventoryAlpha;
+
+        float hotbarAlpha = hotbarBaseAlpha * (overlapsHotbar ? overlapAlpha : 1f);
+        if (hotbarCanvasGroup != null &&
+            Mathf.Abs(hotbarCanvasGroup.alpha - hotbarAlpha) > 0.001f)
+            hotbarCanvasGroup.alpha = hotbarAlpha;
+    }
+
+    private static bool OverlapsUiRect(
+        Transform root, Rect screenBounds, Camera uiCamera, Vector3[] corners)
+    {
+        RectTransform rectTransform = root as RectTransform;
+        if (rectTransform == null || !root.gameObject.activeInHierarchy)
+            return false;
+
+        rectTransform.GetWorldCorners(corners);
+
+        Vector2 minimum = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+        Vector2 maximum = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector2 screen = RectTransformUtility.WorldToScreenPoint(uiCamera, corners[i]);
+            minimum = Vector2.Min(minimum, screen);
+            maximum = Vector2.Max(maximum, screen);
+        }
+
+        Rect uiBounds = Rect.MinMaxRect(
+            minimum.x, minimum.y, maximum.x, maximum.y);
+        return screenBounds.Overlaps(uiBounds, true);
+    }
+
     private void Update()
     {
+        UpdateInventoryOcclusion();
         bool control = ControlGate.HasControl;
 
         if (control != hotbarVisible)

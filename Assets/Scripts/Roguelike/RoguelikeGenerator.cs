@@ -2,14 +2,15 @@ using System;
 using System.Collections.Generic;
 
 /// <summary>
-/// Builds a connected room graph for one of the three library floors.
-/// This file contains level topology and room-type generation only.
+/// Builds a sparse, fully connected room graph inside a 4x4 map grid.
+/// Empty grid cells are null and are not valid destinations.
 /// </summary>
 public enum RoguelikeRoomType
 {
     Combat,
     Chest,
-    Merchant
+    Merchant,
+    Stairs
 }
 
 [Serializable]
@@ -23,6 +24,7 @@ public class RoguelikeRoomData
     public bool IsCleared;
     public bool IsVisited;
     public bool IsExit;
+    public bool IsStartRoom;
 }
 
 [Serializable]
@@ -32,6 +34,7 @@ public class RoguelikeFloorData
     public int Seed;
     public int Width;
     public int Height;
+    public int StartRoomIndex;
     public List<RoguelikeRoomData> Rooms = new List<RoguelikeRoomData>();
 
     public RoguelikeRoomData GetRoom(int index)
@@ -60,88 +63,180 @@ public static class RoguelikeGenerator
     public static RoguelikeFloorData GenerateFloor(int floorNumber, int seed = -1)
     {
         const int width = 4;
-        const int height = 3;
+        const int height = 4;
+        const int cellCount = width * height;
         int actualSeed = seed < 0 ? Environment.TickCount ^ (floorNumber * 7919) : seed;
         System.Random random = new System.Random(actualSeed);
+
+        // Nine to eleven rooms occupy a 4x4 grid. A randomized frontier growth
+        // keeps every generated room reachable without filling the entire map.
+        int roomCount = random.Next(9, 12);
+        const int startX = 0;
+        const int startY = 0;
+        int startIndex = startY * width + startX;
+
+        HashSet<int> selected = new HashSet<int>();
+        Dictionary<int, int> parentRoom = new Dictionary<int, int>();
+        selected.Add(startIndex);
+        parentRoom[startIndex] = -1;
+
+        while (selected.Count < roomCount)
+        {
+            List<int> frontier = new List<int>();
+            for (int index = 0; index < cellCount; index++)
+            {
+                if (selected.Contains(index)) continue;
+                int x = index % width;
+                int y = index / width;
+                bool touchesSelected =
+                    (x > 0 && selected.Contains(index - 1)) ||
+                    (x < width - 1 && selected.Contains(index + 1)) ||
+                    (y > 0 && selected.Contains(index - width)) ||
+                    (y < height - 1 && selected.Contains(index + width));
+
+                if (touchesSelected) frontier.Add(index);
+            }
+
+            if (frontier.Count == 0) break;
+
+            int nextRoom = frontier[random.Next(frontier.Count)];
+            int nextX = nextRoom % width;
+            int nextY = nextRoom / width;
+            List<int> possibleParents = new List<int>();
+            if (nextX > 0 && selected.Contains(nextRoom - 1)) possibleParents.Add(nextRoom - 1);
+            if (nextX < width - 1 && selected.Contains(nextRoom + 1)) possibleParents.Add(nextRoom + 1);
+            if (nextY > 0 && selected.Contains(nextRoom - width)) possibleParents.Add(nextRoom - width);
+            if (nextY < height - 1 && selected.Contains(nextRoom + width)) possibleParents.Add(nextRoom + width);
+
+            selected.Add(nextRoom);
+            parentRoom[nextRoom] = possibleParents[random.Next(possibleParents.Count)];
+        }
 
         RoguelikeFloorData floor = new RoguelikeFloorData
         {
             FloorNumber = floorNumber,
             Seed = actualSeed,
             Width = width,
-            Height = height
+            Height = height,
+            StartRoomIndex = startIndex
         };
 
-        for (int y = 0; y < height; y++)
+        // Preserve grid indices: empty cells remain null so map coordinates and
+        // room indices never drift apart.
+        for (int i = 0; i < cellCount; i++)
+            floor.Rooms.Add(null);
+
+        foreach (int index in selected)
         {
-            for (int x = 0; x < width; x++)
+            int x = index % width;
+            int y = index / width;
+            floor.Rooms[index] = new RoguelikeRoomData
             {
-                int index = y * width + x;
-                RoguelikeRoomType type;
-
-                if (index == 0)
-                    type = RoguelikeRoomType.Combat;
-                else if (index == width * height - 1)
-                    type = RoguelikeRoomType.Combat;
-                else
-                    type = RollRoomType(random);
-
-                floor.Rooms.Add(new RoguelikeRoomData
-                {
-                    Index = index,
-                    X = x,
-                    Y = y,
-                    Type = type,
-                    IsCleared = false,
-                    IsExit = index == width * height - 1
-                });
-            }
+                Index = index,
+                X = x,
+                Y = y,
+                Type = RoguelikeRoomType.Combat,
+                IsCleared = index == startIndex,
+                IsStartRoom = index == startIndex
+            };
         }
 
-        // Every adjacent grid cell is connected. The player can explore and backtrack.
-        foreach (RoguelikeRoomData room in floor.Rooms)
+        // Keep a tree-shaped route graph. Every room is reachable, and the
+        // tree always has dead ends so the stairs can be placed at a true leaf.
+        foreach (KeyValuePair<int, int> link in parentRoom)
         {
-            if (room.X > 0) room.Neighbours.Add(room.Index - 1);
-            if (room.X < width - 1) room.Neighbours.Add(room.Index + 1);
-            if (room.Y > 0) room.Neighbours.Add(room.Index - width);
-            if (room.Y < height - 1) room.Neighbours.Add(room.Index + width);
+            if (link.Value < 0) continue;
+            floor.GetRoom(link.Key).Neighbours.Add(link.Value);
+            floor.GetRoom(link.Value).Neighbours.Add(link.Key);
         }
 
-        EnsureSpecialRooms(floor, random);
+        AssignSpecialRooms(floor, random);
         return floor;
     }
 
-    private static RoguelikeRoomType RollRoomType(System.Random random)
+    private static void AssignSpecialRooms(RoguelikeFloorData floor, System.Random random)
     {
-        int roll = random.Next(0, 100);
-        if (roll < 74) return RoguelikeRoomType.Combat;
-        if (roll < 90) return RoguelikeRoomType.Chest;
-        return RoguelikeRoomType.Merchant;
-    }
+        int start = floor.StartRoomIndex;
+        int[] distances = new int[floor.Width * floor.Height];
+        for (int i = 0; i < distances.Length; i++) distances[i] = -1;
 
-    private static void EnsureSpecialRooms(RoguelikeFloorData floor, System.Random random)
-    {
-        bool hasChest = false;
-        bool hasMerchant = false;
+        Queue<int> queue = new Queue<int>();
+        distances[start] = 0;
+        queue.Enqueue(start);
 
-        for (int i = 1; i < floor.Rooms.Count - 1; i++)
+        // BFS finds a distant dead-end for the stairs. The stairs room is
+        // always reachable and has only one entrance.
+        while (queue.Count > 0)
         {
-            hasChest |= floor.Rooms[i].Type == RoguelikeRoomType.Chest;
-            hasMerchant |= floor.Rooms[i].Type == RoguelikeRoomType.Merchant;
+            int current = queue.Dequeue();
+            RoguelikeRoomData room = floor.GetRoom(current);
+            if (room == null) continue;
+
+            for (int i = 0; i < room.Neighbours.Count; i++)
+            {
+                int next = room.Neighbours[i];
+                if (distances[next] >= 0) continue;
+                distances[next] = distances[current] + 1;
+                queue.Enqueue(next);
+            }
         }
 
-        if (!hasChest)
-            floor.Rooms[random.Next(1, floor.Rooms.Count - 1)].Type = RoguelikeRoomType.Chest;
-
-        if (!hasMerchant)
+        int stairsIndex = -1;
+        int farthestDistance = -1;
+        for (int i = 0; i < floor.Rooms.Count; i++)
         {
-            List<int> candidates = new List<int>();
-            for (int i = 1; i < floor.Rooms.Count - 1; i++)
-                if (floor.Rooms[i].Type == RoguelikeRoomType.Combat)
-                    candidates.Add(i);
+            RoguelikeRoomData room = floor.Rooms[i];
+            if (room == null || room.Index == start || room.Neighbours.Count != 1)
+                continue;
 
-            if (candidates.Count > 0)
-                floor.Rooms[candidates[random.Next(candidates.Count)]].Type = RoguelikeRoomType.Merchant;
+            if (distances[room.Index] > farthestDistance)
+            {
+                farthestDistance = distances[room.Index];
+                stairsIndex = room.Index;
+            }
+        }
+
+        if (stairsIndex < 0)
+        {
+            for (int i = 0; i < floor.Rooms.Count; i++)
+            {
+                RoguelikeRoomData room = floor.Rooms[i];
+                if (room == null || room.Index == start) continue;
+                if (distances[room.Index] > farthestDistance)
+                {
+                    farthestDistance = distances[room.Index];
+                    stairsIndex = room.Index;
+                }
+            }
+        }
+
+        RoguelikeRoomData stairs = floor.GetRoom(stairsIndex);
+        if (stairs != null)
+        {
+            stairs.Type = RoguelikeRoomType.Stairs;
+            stairs.IsExit = true;
+        }
+
+        List<int> specialCandidates = new List<int>();
+        for (int i = 0; i < floor.Rooms.Count; i++)
+        {
+            RoguelikeRoomData room = floor.Rooms[i];
+            if (room == null || room.Index == start || room.Index == stairsIndex)
+                continue;
+            specialCandidates.Add(room.Index);
+        }
+
+        if (specialCandidates.Count > 0)
+        {
+            int chestPick = random.Next(specialCandidates.Count);
+            floor.GetRoom(specialCandidates[chestPick]).Type = RoguelikeRoomType.Chest;
+            specialCandidates.RemoveAt(chestPick);
+        }
+
+        if (specialCandidates.Count > 0)
+        {
+            int merchantPick = random.Next(specialCandidates.Count);
+            floor.GetRoom(specialCandidates[merchantPick]).Type = RoguelikeRoomType.Merchant;
         }
     }
 }

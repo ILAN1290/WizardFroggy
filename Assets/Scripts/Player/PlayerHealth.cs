@@ -15,6 +15,8 @@ public class PlayerHealth : MonoBehaviour
     private Coroutine burnCoroutine;
     private PlayerEffects effects;
     private bool initialized;
+    private bool testHealthActive;
+    private bool deathHandled;
 
     public float CurrentHealth
     {
@@ -32,11 +34,14 @@ public class PlayerHealth : MonoBehaviour
     }
 
     public float MaxHealth { get { return maxHealth; } }
+    public bool IsDead => deathHandled;
     void Start()
     {
         playerController = GetComponent<PlayerController>();
         effects = GetComponent<PlayerEffects>();
-        currentHealth = PlayerRunData.EnsureInstance().LoadHealth(maxHealth);
+        PlayerRunData runData = PlayerRunData.EnsureInstance();
+        maxHealth = runData.MaximumHealth;
+        currentHealth = runData.LoadHealth(maxHealth);
         initialized = true;
     }
     private void Update()
@@ -59,15 +64,38 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = Mathf.Clamp(currentHealth + health, 0, maxHealth);
     }
+
+    public void ApplyTestHealth()
+    {
+        testHealthActive = true;
+        maxHealth = 10000f;
+        currentHealth = 10000f;
+    }
+
+    public void ApplyMaximumHealthUpgrade()
+    {
+        if (testHealthActive) return;
+
+        float previousMaximum = maxHealth;
+        maxHealth = PlayerRunData.EnsureInstance().MaximumHealth;
+        if (maxHealth >= previousMaximum)
+            currentHealth = Mathf.Min(maxHealth, currentHealth + maxHealth - previousMaximum);
+        else
+            currentHealth = Mathf.Min(currentHealth, maxHealth);
+
+        if (initialized && PlayerRunData.Instance != null)
+            PlayerRunData.Instance.SaveHealth(currentHealth);
+    }
     public void TakeDamage(float damage)
     {
-        if (effects != null && effects.IsInvincible) return;
-        currentHealth -= damage;
-        Debug.Log($"����� ������� {damage} �����. ������� ��������: {currentHealth}");
-        if (currentHealth <= 0)
-        {
+        if (deathHandled || (effects != null && effects.IsInvincible)) return;
+
+        float damageReduction = PlayerRunData.EnsureInstance().DamageReduction;
+        float finalDamage = Mathf.Max(0f, damage * (1f - damageReduction));
+        currentHealth -= finalDamage;
+        Debug.Log($"Получено урона {finalDamage} единиц. Текущее здоровье: {currentHealth}");
+        if (currentHealth <= 0f)
             Die();
-        }
     }
 
     public void StartBurning(float burnDamage, float duration, string color)
@@ -126,9 +154,21 @@ public class PlayerHealth : MonoBehaviour
         burningAudioSource.Stop();
     }
 
+    public void ShowDeathScreen()
+    {
+        if (deathMenu == null)
+            deathMenu = GameObject.Find("DeathMenu");
+
+        if (deathMenu != null)
+            deathMenu.SetActive(true);
+    }
+
     private void Die()
     {
-        // In the roguelike, death ends the expedition and returns the player to the lobby.
+        if (deathHandled) return;
+        deathHandled = true;
+
+        // The roguelike uses the existing DeathMenu object from Roguelike.unity.
         if (RoguelikeSession.Instance != null && RoguelikeSession.Instance.HandlePlayerDeath())
             return;
 
@@ -137,17 +177,21 @@ public class PlayerHealth : MonoBehaviour
             gameManager.GameOver();
             gameManager.StartBadEnding();
         }
+        else if (gameManager == null)
+        {
+            ShowDeathScreen();
+        }
     }
 
     private void OnDisable()
     {
-        if (initialized && PlayerRunData.Instance != null)
+        if (initialized && !deathHandled && PlayerRunData.Instance != null)
             PlayerRunData.Instance.SaveHealth(currentHealth);
     }
 
     private void OnDestroy()
     {
-        if (initialized && PlayerRunData.Instance != null)
+        if (initialized && !deathHandled && PlayerRunData.Instance != null)
             PlayerRunData.Instance.SaveHealth(currentHealth);
     }
 }

@@ -20,6 +20,12 @@ public class PlayerMana : MonoBehaviour
         initialized = true;
     }
 
+    public void ApplyTestMana()
+    {
+        maxManaValue = 10000f;
+        currentManaValue = 10000f;
+    }
+
     public void SpendMana(float value)
     {
         if (effects != null && effects.IsInfiniteMana) return;
@@ -53,7 +59,9 @@ public class PlayerMana : MonoBehaviour
 
         if (currentManaValue != maxManaValue && !isSpending)
         {
-            currentManaValue = Mathf.Clamp(currentManaValue + fillingSpeed * Time.deltaTime, 0, maxManaValue);
+            float regeneration = PlayerRunData.EnsureInstance().ManaRegeneration;
+            currentManaValue = Mathf.Clamp(
+                currentManaValue + regeneration * Time.deltaTime, 0, maxManaValue);
         }
     }
 }

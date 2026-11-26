@@ -38,6 +38,7 @@ public class Boss : MonoBehaviour
 
     private float currentHealth;
     private int invincibleLayer = -1;
+    private SpriteRenderer[] bossRenderers;
 
     public Transform Player { get; private set; }
     public Rigidbody2D PlayerRb { get; private set; }
@@ -56,6 +57,28 @@ public class Boss : MonoBehaviour
         if (mops != null) mops.boss = this;
         if (chih != null) chih.boss = this;
         if (bul != null) bul.boss = this;
+
+        // Keep the boss above floor fire, ground decals and other arena effects.
+        bossRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        ApplyBossRenderOrder();
+    }
+
+    private void LateUpdate()
+    {
+        // Animators may write sprite sorting values during Update, so restore the
+        // foreground order after animation has evaluated for this frame.
+        ApplyBossRenderOrder();
+    }
+
+    private void ApplyBossRenderOrder()
+    {
+        if (bossRenderers == null) return;
+        foreach (SpriteRenderer spriteRenderer in bossRenderers)
+        {
+            if (spriteRenderer == null) continue;
+            spriteRenderer.sortingLayerName = "Default";
+            spriteRenderer.sortingOrder = Mathf.Max(50, spriteRenderer.sortingOrder);
+        }
     }
 
     // ---------- здоровье ----------
@@ -208,6 +231,7 @@ public abstract class BossAttack : MonoBehaviour
 
     public Boss boss;
     public GameObject fireAboveHead;
+    [SerializeField, Min(0.1f)] private float attackDuration = 20f;
 
     [HideInInspector] public bool isRunning;
     [HideInInspector] public int currentAttack = -1;
@@ -234,18 +258,31 @@ public abstract class BossAttack : MonoBehaviour
     public void Stop()
     {
         StopAllCoroutines();
-        OnForceStop();
         Finish();
     }
 
     private IEnumerator Wrap(int index)
     {
-        yield return Attack(index);
+        // All three boss heads share one fixed attack window. The attack logic may
+        // finish early, but its controller remains active until the common deadline.
+        bool bodyFinished = false;
+        Coroutine body = StartCoroutine(RunAttack(index, () => bodyFinished = true));
+        yield return new WaitForSeconds(Mathf.Max(0.1f, attackDuration));
+
+        if (!bodyFinished && body != null)
+            StopCoroutine(body);
         Finish();
+    }
+
+    private IEnumerator RunAttack(int index, System.Action onFinished)
+    {
+        yield return Attack(index);
+        onFinished?.Invoke();
     }
 
     private void Finish()
     {
+        OnForceStop();
         isRunning = false;
         currentAttack = -1;
         Cleanup();

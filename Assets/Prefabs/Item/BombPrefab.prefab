@@ -173,6 +173,7 @@ MonoBehaviour:
   fuse: 2
   radius: 2.5
   damage: 50
+  ghostDamage: 100
   hitMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -184,3 +185,4 @@ MonoBehaviour:
   explosionSound: {fileID: 8300000, guid: 0de50439b0026634db1ab246a454928c, type: 3}
   soundVolume: 1
   pulse: 1
+  sizeInPixels: 70

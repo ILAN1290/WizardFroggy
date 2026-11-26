@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: StrengthPotion
   m_EditorClassIdentifier: Assembly-CSharp::StrengthPotion
   itemName: "\u0417\u0435\u043B\u044C\u0435 \u0421\u0438\u043B\u044B"
-  icon: {fileID: 8393895198962170332, guid: 12a57b9dec2407c4e8dc399386a0ccc2, type: 3}
+  icon: {fileID: 7323618183155861857, guid: 1b9d976f07436294eaf6095d0ba872aa, type: 3}
   maxStack: 64
   cooldown: 15
   drinkSound: {fileID: 0}

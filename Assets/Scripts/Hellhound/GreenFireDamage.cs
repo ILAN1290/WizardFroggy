@@ -107,6 +107,10 @@ public class GreenFireDamage : MonoBehaviour
         if (health == null || Time.time < nextDamageTime) return;
 
         nextDamageTime = Time.time + Mathf.Max(0.05f, damageInterval);
-        health.TakeDamage(Mathf.Max(0f, damage));
+        // Green fire uses the same PlayerHealth burn pipeline as the red floor fire,
+        // so both the damage-over-time and the green burning animation are applied.
+        float interval = Mathf.Max(0.05f, damageInterval);
+        float burnDps = Mathf.Max(0f, damage) / interval;
+        health.StartBurning(burnDps, interval * 1.25f, "Green");
     }
 }
