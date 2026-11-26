@@ -7,6 +7,7 @@ public class BombProjectile : MonoBehaviour
     [Min(0.1f)] public float fuse = 2f;
     [Min(0.1f)] public float radius = 2.5f;
     public float damage = 50f;
+    [Min(0f)] public float ghostDamage = 100f;
     public LayerMask hitMask = ~0;
 
     [Header("Размер")]
@@ -119,8 +120,17 @@ public class BombProjectile : MonoBehaviour
 
             if (target.CompareTag("Enemy"))
             {
-                Boss boss = target.GetComponentInParent<Boss>();
-                if (boss != null) boss.TakeDamage(damage);
+                IDamageable damageable = target.GetComponentInParent<IDamageable>();
+                if (damageable != null)
+                {
+                    GhostEnemy ghost = damageable as GhostEnemy;
+                    damageable.TakeDamage(ghost != null ? ghostDamage : damage);
+                }
+                else
+                {
+                    Boss boss = target.GetComponentInParent<Boss>();
+                    if (boss != null) boss.TakeDamage(damage);
+                }
             }
             else if (damagePlayer && target.CompareTag("Player"))
             {

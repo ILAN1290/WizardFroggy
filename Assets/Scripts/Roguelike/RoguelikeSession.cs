@@ -98,6 +98,8 @@ public class RoguelikeSession : MonoBehaviour
     private bool inLobby = true;
     private bool shopOpen;
     private bool deathScreenShown;
+    private readonly Dictionary<int, Item[]> merchantOffersByFloorSeed =
+        new Dictionary<int, Item[]>();
     private RoguelikeMerchant activeMerchant;
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
     private GUIStyle minimapMarkerStyle;
@@ -246,6 +248,10 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         currentFloor = RoguelikeGenerator.GenerateFloor(floorNumber);
+        // A newly generated floor gets a fresh merchant assortment. Re-entering
+        // rooms on this floor reuses the cached array with already-sold items removed.
+        merchantOffersByFloorSeed.Remove(currentFloor.Seed);
+        InitializeMerchantOffersForCurrentFloor();
         currentRoomIndex = currentFloor.StartRoomIndex;
         inLobby = false;
         shopOpen = false;
@@ -643,6 +649,50 @@ public class RoguelikeSession : MonoBehaviour
         return true;
     }
 
+    public bool IsShopOpen => shopOpen;
+
+    private void InitializeMerchantOffersForCurrentFloor()
+    {
+        if (currentFloor == null) return;
+
+        Item[] available = GetAvailableItems();
+        List<Item> shuffled = new List<Item>();
+        if (available != null)
+        {
+            for (int i = 0; i < available.Length; i++)
+                if (available[i] != null)
+                    shuffled.Add(available[i]);
+        }
+
+        for (int i = shuffled.Count - 1; i > 0; i--)
+        {
+            int swapIndex = Random.Range(0, i + 1);
+            Item temporary = shuffled[i];
+            shuffled[i] = shuffled[swapIndex];
+            shuffled[swapIndex] = temporary;
+        }
+
+        Item[] offers = new Item[3];
+        for (int i = 0; i < offers.Length && i < shuffled.Count; i++)
+            offers[i] = shuffled[i];
+
+        merchantOffersByFloorSeed[currentFloor.Seed] = offers;
+    }
+
+    public Item[] GetCachedMerchantOffersForCurrentFloor()
+    {
+        if (currentFloor == null) return null;
+        return merchantOffersByFloorSeed.TryGetValue(currentFloor.Seed, out Item[] offers)
+            ? offers
+            : null;
+    }
+
+    public void CacheMerchantOffersForCurrentFloor(Item[] offers)
+    {
+        if (currentFloor == null || offers == null) return;
+        merchantOffersByFloorSeed[currentFloor.Seed] = offers;
+    }
+
     public void OpenShop(RoguelikeMerchant merchant)
     {
         if (merchant == null || deathScreenShown) return;
@@ -712,6 +762,8 @@ public class RoguelikeSession : MonoBehaviour
         if (completedFloor < 3)
         {
             currentFloor = RoguelikeGenerator.GenerateFloor(completedFloor + 1);
+            merchantOffersByFloorSeed.Remove(currentFloor.Seed);
+            InitializeMerchantOffersForCurrentFloor();
             currentRoomIndex = currentFloor.StartRoomIndex;
             inLobby = false;
             shopOpen = false;
@@ -723,16 +775,18 @@ public class RoguelikeSession : MonoBehaviour
             return;
         }
 
-        // TowerDefence is intentionally supplied by the other developer.
-        // Do not create a fake scene or attempt to load it until it is in Build Settings.
-        if (Application.CanStreamedLevelBeLoaded("TowerDefence"))
+        if (SaveGameSystem.Instance != null)
+        {
+            SaveGameSystem.Instance.ShowRoguelikeTransition();
+        }
+        else if (Application.CanStreamedLevelBeLoaded("TowerDefence"))
         {
             SceneManager.LoadScene("TowerDefence");
         }
         else
         {
             ReturnToLobby();
-            ShowHint("Все три этажа пройдены. Добавьте TowerDefence в Build Settings перед Boss.");
+            ShowHint("Сцена TowerDefence не добавлена в Build Settings.");
         }
     }
 

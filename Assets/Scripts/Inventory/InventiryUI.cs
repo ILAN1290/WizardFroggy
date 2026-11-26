@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
 
 public class InventoryUI : MonoBehaviour
 {
@@ -26,6 +27,7 @@ public class InventoryUI : MonoBehaviour
     private int inventorySlotCount = 16;
     private int hotbarSlotCount = 4;
     private ItemStack held = new ItemStack();
+    private int heldFromSlotIndex = -1;
     private GameObject cursorItem;
     private Image cursorIcon;
     private TextMeshProUGUI cursorCount;
@@ -186,8 +188,12 @@ public class InventoryUI : MonoBehaviour
     public void OnSlotClicked(int index)
     {
         if (!ControlGate.HasControl) return;
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
 
-        var slot = Inventory.Instance.GetSlot(index);
+        ItemStack slot = inventory.GetSlot(index);
+        if (slot == null) return;
+
         if (held.IsEmpty)
         {
             if (!slot.IsEmpty)
@@ -199,30 +205,107 @@ public class InventoryUI : MonoBehaviour
         }
         else
         {
-            if (slot.IsEmpty)
+            MoveHeldIntoSlot(slot);
+        }
+
+        if (held.IsEmpty)
+            heldFromSlotIndex = -1;
+        inventory.NotifyChanged();
+    }
+
+    public void BeginSlotDrag(int index)
+    {
+        if (!ControlGate.HasControl || !held.IsEmpty) return;
+
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
+
+        ItemStack source = inventory.GetSlot(index);
+        if (source == null || source.IsEmpty) return;
+
+        held.item = source.item;
+        held.count = source.count;
+        source.Clear();
+        heldFromSlotIndex = index;
+        inventory.NotifyChanged();
+    }
+
+    public void DropHeldItemIntoSlot(int index)
+    {
+        if (!ControlGate.HasControl || held.IsEmpty) return;
+
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null) return;
+
+        ItemStack target = inventory.GetSlot(index);
+        if (target == null) return;
+
+        MoveHeldIntoSlot(target);
+        if (held.IsEmpty)
+            heldFromSlotIndex = -1;
+
+        inventory.NotifyChanged();
+    }
+
+    private void MoveHeldIntoSlot(ItemStack target)
+    {
+        if (target.IsEmpty)
+        {
+            target.item = held.item;
+            target.count = held.count;
+            held.Clear();
+        }
+        else if (target.item == held.item && target.count < target.item.maxStack)
+        {
+            int toAdd = Mathf.Min(target.item.maxStack - target.count, held.count);
+            target.count += toAdd;
+            held.count -= toAdd;
+            if (held.count <= 0)
+                held.Clear();
+        }
+        else
+        {
+            Item previousItem = target.item;
+            int previousCount = target.count;
+            target.item = held.item;
+            target.count = held.count;
+            held.item = previousItem;
+            held.count = previousCount;
+        }
+    }
+
+    public void EndSlotDrag()
+    {
+        if (held.IsEmpty)
+        {
+            heldFromSlotIndex = -1;
+            Refresh();
+            return;
+        }
+
+        Inventory inventory = Inventory.Instance;
+        if (inventory != null && heldFromSlotIndex >= 0)
+        {
+            ItemStack source = inventory.GetSlot(heldFromSlotIndex);
+            if (source != null && source.IsEmpty)
             {
-                slot.item = held.item;
-                slot.count = held.count;
+                source.item = held.item;
+                source.count = held.count;
                 held.Clear();
             }
-            else if (slot.item == held.item && slot.count < slot.item.maxStack)
+            else if (inventory.CanAdd(held.item, held.count))
             {
-                int toAdd = Mathf.Min(slot.item.maxStack - slot.count, held.count);
-                slot.count += toAdd;
-                held.count -= toAdd;
-                if (held.count <= 0) held.Clear();
-            }
-            else
-            {
-                var tmpItem = slot.item;
-                var tmpCount = slot.count;
-                slot.item = held.item;
-                slot.count = held.count;
-                held.item = tmpItem;
-                held.count = tmpCount;
+                inventory.Add(held.item, held.count);
+                held.Clear();
             }
         }
-        Inventory.Instance.NotifyChanged();
+
+        if (held.IsEmpty)
+            heldFromSlotIndex = -1;
+
+        if (inventory != null)
+            inventory.NotifyChanged();
+        Refresh();
     }
 
     public void UseItem(int slotIndex)
@@ -248,6 +331,7 @@ public class InventoryUI : MonoBehaviour
         {
             Inventory.Instance.Add(held.item, held.count);
             held.Clear();
+            heldFromSlotIndex = -1;
             Refresh();
         }
     }

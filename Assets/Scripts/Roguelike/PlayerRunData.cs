@@ -57,6 +57,61 @@ public class PlayerRunData : MonoBehaviour
     private float savedHealth = -1f;
     private float savedMana = -1f;
 
+    public float StoredHealth => savedHealth;
+    public float StoredMana => savedMana;
+
+    public void ResetForNewRun()
+    {
+        Mushrooms = 0;
+        HighestUnlockedFloor = 1;
+        RoguelikeCompleted = false;
+        StaffDamageLevel = 0;
+        ManaConsumptionLevel = 0;
+        ManaRegenerationLevel = 0;
+        MaximumHealthLevel = 0;
+        DefenseLevel = 0;
+        savedHealth = -1f;
+        savedMana = -1f;
+
+        string[] keys =
+        {
+            MushroomsKey, HealthKey, ManaKey, HighestFloorKey, CompletedKey,
+            StaffDamageLevelKey, ManaConsumptionLevelKey, ManaRegenerationLevelKey,
+            MaximumHealthLevelKey, DefenseLevelKey, CombinedManaLevelKey,
+            CombinedVitalityLevelKey
+        };
+        for (int i = 0; i < keys.Length; i++)
+            PlayerPrefs.DeleteKey(keys[i]);
+        SaveUpgradeLevels();
+        PlayerPrefs.Save();
+    }
+
+    public void RestoreRunData(int mushrooms, int highestFloor, bool roguelikeCompleted,
+        int staffDamage, int manaConsumption, int manaRegeneration,
+        int maximumHealth, int defense, float health, float mana)
+    {
+        Mushrooms = Mathf.Max(0, mushrooms);
+        HighestUnlockedFloor = Mathf.Clamp(highestFloor, 1, 4);
+        RoguelikeCompleted = roguelikeCompleted;
+        StaffDamageLevel = Mathf.Clamp(staffDamage, 0, 10);
+        ManaConsumptionLevel = Mathf.Clamp(manaConsumption, 0, 10);
+        ManaRegenerationLevel = Mathf.Clamp(manaRegeneration, 0, 10);
+        MaximumHealthLevel = Mathf.Clamp(maximumHealth, 0, 10);
+        DefenseLevel = Mathf.Clamp(defense, 0, 10);
+        savedHealth = health;
+        savedMana = mana;
+
+        PlayerPrefs.SetInt(MushroomsKey, Mushrooms);
+        PlayerPrefs.SetInt(HighestFloorKey, HighestUnlockedFloor);
+        PlayerPrefs.SetInt(CompletedKey, RoguelikeCompleted ? 1 : 0);
+        if (savedHealth >= 0f) PlayerPrefs.SetFloat(HealthKey, savedHealth);
+        else PlayerPrefs.DeleteKey(HealthKey);
+        if (savedMana >= 0f) PlayerPrefs.SetFloat(ManaKey, savedMana);
+        else PlayerPrefs.DeleteKey(ManaKey);
+        SaveUpgradeLevels();
+        PlayerPrefs.Save();
+    }
+
     public static PlayerRunData EnsureInstance()
     {
         if (Instance != null) return Instance;

@@ -173,6 +173,7 @@ MonoBehaviour:
   fuse: 2
   radius: 2.5
   damage: 50
+  ghostDamage: 100
   hitMask:
     serializedVersion: 2
     m_Bits: 4294967295
