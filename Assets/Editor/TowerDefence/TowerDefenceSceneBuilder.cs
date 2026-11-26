@@ -190,8 +190,8 @@ public static class TowerDefenceSceneBuilder
             controllerObject.AddComponent<TowerDefenceSceneController>();
 
         controllerObject.AddComponent<FloorFadeTransition>();
-        controllerObject.AddComponent<TowerDefenceManager>();
         controllerObject.AddComponent<TowerDefenceWaveSpawner>();
+        controllerObject.AddComponent<TowerDefenceManager>();
         ConfigureSceneReferences(controllerObject);
 
         if (FindInScene(targetScene, "Frog") == null)
@@ -235,10 +235,11 @@ public static class TowerDefenceSceneBuilder
             controllerObject.AddComponent<TowerDefenceSceneController>();
         if (controllerObject.GetComponent<FloorFadeTransition>() == null)
             controllerObject.AddComponent<FloorFadeTransition>();
-        if (controllerObject.GetComponent<TowerDefenceManager>() == null)
-            controllerObject.AddComponent<TowerDefenceManager>();
+        // The manager caches the wave spawner in Awake.
         if (controllerObject.GetComponent<TowerDefenceWaveSpawner>() == null)
             controllerObject.AddComponent<TowerDefenceWaveSpawner>();
+        if (controllerObject.GetComponent<TowerDefenceManager>() == null)
+            controllerObject.AddComponent<TowerDefenceManager>();
 
         ConfigureSceneReferences(controllerObject);
         EditorSceneManager.MarkSceneDirty(scene);
