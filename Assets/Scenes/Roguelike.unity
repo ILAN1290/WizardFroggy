@@ -18187,6 +18187,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoguelikeSession
   lobbyEnvironmentName: Library Environment
   lobbyPlayerPosition: {x: 0, y: -3}
+  startingFloor: 1
+  showMiniMap: 1
   itemPickupSound: {fileID: 8300000, guid: d798a253eb5a8f64a825c979d1cf93a5, type: 3}
   ambientSound: {fileID: 8300000, guid: e70c6713316288f47a5eeb50e51c8721, type: 3}
   ghostMeleeAttackSound: {fileID: 8300000, guid: 48b38569ea402044b81745e53eb96749, type: 3}
