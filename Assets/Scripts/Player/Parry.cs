@@ -19,6 +19,8 @@ public class Parry : MonoBehaviour
     private Vector3 maxScale = Vector3.one;
     private float timer;
     private bool isActive = false;
+
+    public bool IsActive => isActive;
     
     private void Awake()
     {
@@ -50,7 +52,7 @@ public class Parry : MonoBehaviour
             return;
         }
 
-        // Плавное изменение размера по кривой
+        // ГЏГ«Г ГўГ­Г®ГҐ ГЁГ§Г¬ГҐГ­ГҐГ­ГЁГҐ Г°Г Г§Г¬ГҐГ°Г  ГЇГ® ГЄГ°ГЁГўГ®Г©
         float t = timer / activeDuration;
         float scale = scaleCurve.Evaluate(t);
         transform.localScale = maxScale * scale;
@@ -62,16 +64,33 @@ public class Parry : MonoBehaviour
     }
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (!isActive) return;
+        if (!isActive || other == null) return;
 
         Projectile projectile = other.GetComponent<Projectile>();
         if (projectile != null)
         {
             Vector2 direction = (projectile.transform.position - transform.position).normalized;
             projectile.Reflect(direction, reflectionForce);
-            playerHealth.Healing(healingByParry);
-            healingAnimator.SetTrigger("Healing");
+            ApplyParryReward();
+            return;
         }
+
+        RoguelikeProjectile ghostProjectile = other.GetComponent<RoguelikeProjectile>();
+        if (ghostProjectile != null)
+        {
+            Vector2 direction = (ghostProjectile.transform.position - transform.position).normalized;
+            ghostProjectile.Reflect(direction, reflectionForce);
+            ApplyParryReward();
+        }
+    }
+
+    private void ApplyParryReward()
+    {
+        if (playerHealth != null)
+            playerHealth.Healing(healingByParry);
+
+        if (healingAnimator != null)
+            healingAnimator.SetTrigger("Healing");
     }
 
     

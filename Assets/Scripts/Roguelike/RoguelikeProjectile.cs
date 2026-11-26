@@ -15,6 +15,7 @@ public class RoguelikeProjectile : MonoBehaviour
     private float life;
     private Rigidbody2D body;
     private bool initialized;
+    private bool reflected;
 
     public void Initialize(Vector2 targetDirection, float projectileSpeed, float projectileDamage)
     {
@@ -36,6 +37,7 @@ public class RoguelikeProjectile : MonoBehaviour
         speed = Mathf.Max(0f, projectileSpeed);
         damage = Mathf.Max(0f, projectileDamage);
         trailTint = tint;
+        reflected = false;
         nextTrailTime = Time.time;
         body = GetComponent<Rigidbody2D>();
 
@@ -66,6 +68,39 @@ public class RoguelikeProjectile : MonoBehaviour
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 7;
         glow.transform.localScale = Vector3.one * 2.6f;
+    }
+
+    /// <summary>
+    /// Turns an incoming ghost bolt back toward the ghost it came from.
+    /// </summary>
+    public void Reflect(Vector2 reflectDirection, float force)
+    {
+        if (!initialized || reflected)
+            return;
+
+        if (reflectDirection.sqrMagnitude <= 0.0001f)
+            reflectDirection = Vector2.up;
+
+        direction = reflectDirection.normalized;
+        reflected = true;
+
+        // A reflected bolt travels faster than the original shot.
+        speed = Mathf.Max(speed, 7.5f + Mathf.Clamp(force / 1000f, 0f, 2f));
+        trailTint = new Color(0.72f, 1f, 0.78f, 1f);
+
+        SpriteRenderer renderer = GetComponent<SpriteRenderer>();
+        if (renderer != null)
+            renderer.color = trailTint;
+
+        Transform glow = transform.Find("Свечение снаряда");
+        SpriteRenderer glowRenderer = glow != null
+            ? glow.GetComponent<SpriteRenderer>() : null;
+        if (glowRenderer != null)
+            glowRenderer.color = new Color(trailTint.r, trailTint.g, trailTint.b, 0.48f);
+
+        // Reset the short lifetime so the returned bolt has enough time
+        // to travel back through the room.
+        life = 0f;
     }
 
     private void FixedUpdate()
@@ -134,6 +169,44 @@ public class RoguelikeProjectile : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other == null) return;
+
+        // After reflection, ghost projectiles become player-owned:
+        // they can damage ghosts but must never hurt the player again.
+        if (reflected)
+        {
+            GhostEnemy ghost = other.GetComponentInParent<GhostEnemy>();
+            if (ghost == null) return;
+
+            ghost.TakeDamage(damage);
+            Destroy(gameObject);
+            return;
+        }
+
+        // Let the Parry component handle its own child trigger.
+        Parry parryHitbox = other.GetComponent<Parry>();
+        if (parryHitbox != null)
+        {
+            if (parryHitbox.IsActive)
+                Reflect((Vector2)transform.position - (Vector2)parryHitbox.transform.position, 1000f);
+            return;
+        }
+
+        // The player body collider may enter on the same physics step as
+        // the parry trigger. Check the active hitbox here as a fallback.
+        PlayerController playerController = other.GetComponentInParent<PlayerController>();
+        if (playerController != null)
+        {
+            Parry activeParry = playerController.GetComponentInChildren<Parry>(true);
+            if (activeParry != null && activeParry.IsActive)
+            {
+                Reflect((Vector2)transform.position - (Vector2)activeParry.transform.position, 1000f);
+                return;
+            }
+        }
+
+        // The Parry tag is also used by the regular Projectile component.
+        if (other.CompareTag("Parry"))
+            return;
 
         PlayerHealth health = other.GetComponentInParent<PlayerHealth>();
         if (health == null) return;
