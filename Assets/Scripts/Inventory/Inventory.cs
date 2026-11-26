@@ -6,7 +6,15 @@ public class Inventory : MonoBehaviour
 {
     public static Inventory Instance { get; private set; }
 
-    public int Size => slots.Count;
+    public static Inventory EnsureInstance()
+    {
+        if (Instance != null) return Instance;
+
+        GameObject persistentObject = new GameObject("PersistentInventory");
+        return persistentObject.AddComponent<Inventory>();
+    }
+
+    public int Size => slots != null ? slots.Count : 0;
     public List<ItemStack> slots = new List<ItemStack>();
     public event Action OnChanged;
 
