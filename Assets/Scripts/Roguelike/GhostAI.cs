@@ -198,19 +198,20 @@ public class GhostAI : MonoBehaviour
     {
         Vector2 tangent = new Vector2(-towardPlayer.y, towardPlayer.x) * flankSide;
 
+        if (miniBoss)
+        {
+            // The stairs boss is also flagged as melee, so this rule must run
+            // before the generic melee movement logic.
+            if (distance > 2.35f) return towardPlayer;
+            if (distance < 1.4f) return -towardPlayer;
+            return (tangent + towardPlayer * 0.1f).normalized;
+        }
+
         if (melee)
         {
             if (distance > 1.7f) return towardPlayer;
             if (distance < 0.95f) return -towardPlayer;
             return (tangent + towardPlayer * 0.12f).normalized;
-        }
-
-        if (miniBoss)
-        {
-            // Move into ground-slam range instead of permanently kiting the player.
-            if (distance > 2.35f) return towardPlayer;
-            if (distance < 1.4f) return -towardPlayer;
-            return (tangent + towardPlayer * 0.1f).normalized;
         }
 
         if (distance > 6.2f) return towardPlayer;
