@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public class RoguelikeMerchant : MonoBehaviour
@@ -507,10 +508,23 @@ public class RoguelikeMerchant : MonoBehaviour
 
     private void EnsureStyles()
     {
+        // IMGUI cannot consume a TMP_FontAsset directly, but its source Font is
+        // available and is the same typeface used to generate the SDF asset.
+        Font uiFont = TMP_Settings.defaultFontAsset != null
+            ? TMP_Settings.defaultFontAsset.sourceFontFile
+            : null;
+        if (uiFont != null)
+        {
+            GUI.skin.font = uiFont;
+            GUI.skin.label.font = uiFont;
+            GUI.skin.button.font = uiFont;
+            GUI.skin.box.font = uiFont;
+        }
         if (titleStyle == null)
         {
             titleStyle = new GUIStyle(GUI.skin.label)
             {
+                font = uiFont != null ? uiFont : GUI.skin.label.font,
                 fontSize = Mathf.Clamp(Screen.height / 30, 24, 36),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleLeft,
@@ -523,6 +537,7 @@ public class RoguelikeMerchant : MonoBehaviour
         {
             vendorStyle = new GUIStyle(GUI.skin.label)
             {
+                font = uiFont != null ? uiFont : GUI.skin.label.font,
                 fontSize = Mathf.Clamp(Screen.height / 38, 20, 30),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
@@ -535,6 +550,7 @@ public class RoguelikeMerchant : MonoBehaviour
         {
             normalStyle = new GUIStyle(GUI.skin.label)
             {
+                font = uiFont != null ? uiFont : GUI.skin.label.font,
                 fontSize = Mathf.Clamp(Screen.height / 44, 17, 26),
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = true
@@ -546,8 +562,9 @@ public class RoguelikeMerchant : MonoBehaviour
         {
             smallStyle = new GUIStyle(GUI.skin.label)
             {
+                font = uiFont != null ? uiFont : GUI.skin.label.font,
                 fontSize = Mathf.Clamp(Screen.height / 54, 15, 21),
-                alignment = TextAnchor.MiddleLeft,
+                alignment = TextAnchor.MiddleCenter,
                 wordWrap = true
             };
             smallStyle.normal.textColor = new Color(0.86f, 0.79f, 0.68f);
