@@ -620,6 +620,8 @@ public class SaveGameSystem : MonoBehaviour
             CreateText("Load slot hint", panel, "Выберите одну из трёх полок с сохранениями",
                 new Vector2(1300f, 36f), new Vector2(0f, -335f), 20,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
+            CreateButton(panel, "", new Vector2(280f, 74f),
+                new Vector2(0f, -410f), CloseScreen, deleteSprite);
         }
         else
         {
@@ -900,10 +902,13 @@ public class SaveGameSystem : MonoBehaviour
         navigation.mode = Navigation.Mode.Automatic;
         button.navigation = navigation;
 
-        TextMeshProUGUI buttonText = CreateText("Button label", rect, label,
-            new Vector2(size.x - 12f, size.y - 8f), Vector2.zero, 25,
-            TextAnchor.MiddleCenter, FontStyle.Bold);
-        buttonText.color = Color.white;
+        if (!string.IsNullOrEmpty(label))
+        {
+            TextMeshProUGUI buttonText = CreateText("Button label", rect, label,
+                new Vector2(size.x - 12f, size.y - 8f), Vector2.zero, 25,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            buttonText.color = Color.white;
+        }
         return button;
     }
 
