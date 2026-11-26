@@ -24,12 +24,42 @@ public static class TowerDefenceSceneBuilder
 
     static TowerDefenceSceneBuilder()
     {
-        // Ждём окончания компиляции, чтобы автосборка не пропустилась на старте Unity.
-        EditorApplication.delayCall += QueueAutoBuild;
+        // Во время входа в Play Mode Unity может перезагрузить домен и повторно
+        // выполнить InitializeOnLoad. В этот момент автосборку сцены запускать нельзя.
+        EditorApplication.playModeStateChanged += HandlePlayModeStateChanged;
+
+        if (IsEditorInEditMode())
+            EditorApplication.delayCall += QueueAutoBuild;
+    }
+
+    private static bool IsEditorInEditMode()
+    {
+        return !EditorApplication.isPlaying &&
+               !EditorApplication.isPlayingOrWillChangePlaymode;
+    }
+
+    private static void HandlePlayModeStateChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.ExitingEditMode ||
+            state == PlayModeStateChange.EnteredPlayMode ||
+            state == PlayModeStateChange.ExitingPlayMode)
+        {
+            CancelQueuedAutoBuild();
+        }
+    }
+
+    private static void CancelQueuedAutoBuild()
+    {
+        EditorApplication.delayCall -= QueueAutoBuild;
+        EditorApplication.update -= BuildSceneWhenEditorReady;
+        autoBuildQueued = false;
     }
 
     private static void QueueAutoBuild()
     {
+        if (!IsEditorInEditMode())
+            return;
+
         if (autoBuildQueued)
             return;
 
@@ -39,8 +69,16 @@ public static class TowerDefenceSceneBuilder
 
     private static void BuildSceneWhenEditorReady()
     {
-        if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
+        if (EditorApplication.isCompiling)
             return;
+
+        // Если Unity начала переход в Play Mode, отменяем отложенную автосборку,
+        // а не ждём окончания игры и не открываем сцены из редакторского API.
+        if (!IsEditorInEditMode())
+        {
+            CancelQueuedAutoBuild();
+            return;
+        }
 
         EditorApplication.update -= BuildSceneWhenEditorReady;
         autoBuildQueued = false;
@@ -62,9 +100,10 @@ public static class TowerDefenceSceneBuilder
 
     private static void BuildScene(bool allowOverwrite)
     {
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        if (!IsEditorInEditMode())
         {
-            Debug.LogWarning("Закройте Play Mode перед созданием TowerDefence.");
+            Debug.LogWarning("Tower Defence: создание сцены доступно только в Edit Mode. Остановите Play Mode и повторите попытку.");
+            CancelQueuedAutoBuild();
             return;
         }
 
