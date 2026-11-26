@@ -376,11 +376,6 @@ public class SaveGameSystem : MonoBehaviour
         if (scene.name == "Intro")
             StartCoroutine(PrepareMainMenu());
 
-        // TowerDefence is currently an intentionally empty placeholder scene.
-        // Its completion screen is shown here until the actual gameplay is added.
-        if (scene.name == "TowerDefence")
-            StartCoroutine(ShowTowerDefencePlaceholder());
-
         if (scene.name == "End")
             StartCoroutine(AutoSaveBossCompletion());
     }
@@ -552,11 +547,12 @@ public class SaveGameSystem : MonoBehaviour
         BuildScreen("Рогалик пройден!", "Сохраните прохождение в один из трёх слотов или продолжите без сохранения.");
     }
 
-    private IEnumerator ShowTowerDefencePlaceholder()
+    public void ShowTowerDefenceTransition()
     {
-        yield return null;
-        yield return null;
-        if (SceneManager.GetActiveScene().name != "TowerDefence") yield break;
+        if (SceneManager.GetActiveScene().name != "TowerDefence" ||
+            overlayCanvas != null ||
+            screenMode != ScreenMode.None)
+            return;
 
         PlayMenuOpenSound();
         nextScene = "Boss";
@@ -564,7 +560,7 @@ public class SaveGameSystem : MonoBehaviour
         transitionPaused = true;
         Time.timeScale = 0f;
         screenMode = ScreenMode.SaveAfterTowerDefence;
-        BuildScreen("Tower Defence пройден!", "Сцена TowerDefence пока пустая. Сохраните прогресс и переходите к финальному боссу.");
+        BuildScreen("Tower Defence пройден!", "Сохраните прохождение в один из трёх слотов или переходите к финальному боссу.");
     }
 
     private void BuildScreen(string heading, string description)
