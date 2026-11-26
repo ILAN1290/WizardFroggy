@@ -14,6 +14,11 @@ public static class TowerDefenceSceneBuilder
     private const string RoadTileSetPath = "Assets/Sprites/Tile Sprites/Tileset_48x48_9.png";
     private const string RoadTileSpriteName = "Tileset_48x48_9_15";
     private const string FrogIconPath = "Assets/Sprites/UI Game/Dialogue/ЛЯГУХА Иконка.png";
+    private const string GhostSpritePath = "Assets/Sprites/призрак.png";
+    private const string BookSpritePath = "Assets/Sprites/книги фрогги.png";
+    private const string MushroomSpritePath = "Assets/Sprites/грибочек.png";
+    private const string UpgradePlusPath = "Assets/Sprites/UI Game/Merchenant/кнопочка_плюс.png";
+    private const string SellMinusPath = "Assets/Sprites/UI Game/Merchenant/кнопочка_минус.png";
 
     private static bool autoBuildQueued;
 
@@ -80,8 +85,11 @@ public static class TowerDefenceSceneBuilder
 
             if (!allowOverwrite && !existingIsEmpty)
             {
+                EnsureExistingSceneSystems(existingScene);
+                EditorSceneManager.SaveScene(existingScene, TowerDefenceScenePath);
                 if (openedExistingForCheck)
                     EditorSceneManager.CloseScene(existingScene, true);
+                AddTowerDefenceToBuildSettings();
                 return;
             }
 
@@ -189,12 +197,9 @@ public static class TowerDefenceSceneBuilder
             controllerObject.AddComponent<TowerDefenceSceneController>();
 
         controllerObject.AddComponent<FloorFadeTransition>();
-
-        SerializedObject serializedController = new SerializedObject(controller);
-        serializedController.FindProperty("grandpaSpriteAsset").objectReferenceValue = grandpaSprite;
-        serializedController.FindProperty("roadTileSprite").objectReferenceValue = roadTileSprite;
-        serializedController.FindProperty("frogIcon").objectReferenceValue = frogIcon;
-        serializedController.ApplyModifiedPropertiesWithoutUndo();
+        controllerObject.AddComponent<TowerDefenceManager>();
+        controllerObject.AddComponent<TowerDefenceWaveSpawner>();
+        ConfigureSceneReferences(controllerObject);
 
         if (FindInScene(targetScene, "Frog") == null)
             Debug.LogError("В копии Boss не найден объект Frog.");
@@ -206,6 +211,112 @@ public static class TowerDefenceSceneBuilder
         AssetDatabase.SaveAssets();
 
         Debug.Log("TowerDefence создана из Boss. Сцена добавлена в Build Settings.");
+    }
+
+    private static void EnsureExistingSceneSystems(Scene scene)
+    {
+        GameObject controllerObject = FindInScene(
+            scene, "Tower Defence Scene Controller");
+        if (controllerObject == null)
+        {
+            Debug.LogError("Tower Defence: в существующей сцене не найден контроллер.");
+            return;
+        }
+
+        if (controllerObject.GetComponent<TowerDefenceSceneController>() == null)
+            controllerObject.AddComponent<TowerDefenceSceneController>();
+        if (controllerObject.GetComponent<FloorFadeTransition>() == null)
+            controllerObject.AddComponent<FloorFadeTransition>();
+        if (controllerObject.GetComponent<TowerDefenceManager>() == null)
+            controllerObject.AddComponent<TowerDefenceManager>();
+        if (controllerObject.GetComponent<TowerDefenceWaveSpawner>() == null)
+            controllerObject.AddComponent<TowerDefenceWaveSpawner>();
+
+        ConfigureSceneReferences(controllerObject);
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private static void ConfigureSceneReferences(GameObject controllerObject)
+    {
+        Sprite grandpa = LoadSprite(GrandpaSpritePath, "дед_0");
+        Sprite ghost = LoadSprite(GhostSpritePath, "призрак_0");
+        Sprite book = LoadSprite(BookSpritePath, "книги фрогги_0");
+        Sprite mushroom = LoadSprite(MushroomSpritePath, null);
+        Sprite frogIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FrogIconPath);
+        Sprite roadTile = LoadSprite(RoadTileSetPath, RoadTileSpriteName);
+        Sprite plus = LoadSprite(UpgradePlusPath, null);
+        Sprite minus = LoadSprite(SellMinusPath, null);
+
+        TowerDefenceSceneController controller =
+            controllerObject.GetComponent<TowerDefenceSceneController>();
+        if (controller != null)
+        {
+            SerializedObject serialized = new SerializedObject(controller);
+            SetObject(serialized, "grandpaSpriteAsset", grandpa);
+            SetObject(serialized, "roadTileSprite", roadTile);
+            SetObject(serialized, "frogIcon", frogIcon);
+            SerializedProperty position = serialized.FindProperty("grandpaPosition");
+            if (position != null)
+                position.vector3Value = new Vector3(-8.5f, -4.5f, 0f);
+            SerializedProperty frogStop = serialized.FindProperty("frogStopX");
+            if (frogStop != null)
+                frogStop.floatValue = -6.8f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        TowerDefenceManager manager =
+            controllerObject.GetComponent<TowerDefenceManager>();
+        if (manager != null)
+        {
+            SerializedObject serialized = new SerializedObject(manager);
+            SetObject(serialized, "whiteGhostSprite", ghost);
+            SetObject(serialized, "blueGhostSprite", ghost);
+            SetObject(serialized, "redGhostSprite", ghost);
+            SetObject(serialized, "blackGhostSprite", ghost);
+            SetObject(serialized, "grandpaSprite", grandpa);
+            SetObject(serialized, "roadTileSprite", roadTile);
+            SetObject(serialized, "mushroomSprite", mushroom);
+            SetObject(serialized, "instructionBookSprite", book);
+            SetObject(serialized, "upgradePlusButtonSprite", plus);
+            SetObject(serialized, "sellMinusButtonSprite", minus);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        if (grandpa == null)
+            Debug.LogError("Tower Defence: не найден спрайт дедушки.");
+        if (ghost == null)
+            Debug.LogError("Tower Defence: не найден спрайт призрака.");
+        if (roadTile == null)
+            Debug.LogError("Tower Defence: не найден тайл дорожки.");
+        if (book == null)
+            Debug.LogWarning("Tower Defence: не найден спрайт книги для инструкции.");
+    }
+
+    private static Sprite LoadSprite(string path, string preferredName)
+    {
+        Sprite[] sprites = AssetDatabase.LoadAllAssetsAtPath(path)
+            .OfType<Sprite>()
+            .ToArray();
+
+        if (!string.IsNullOrEmpty(preferredName))
+        {
+            Sprite preferred = sprites.FirstOrDefault(
+                sprite => sprite.name == preferredName);
+            if (preferred != null)
+                return preferred;
+        }
+
+        return sprites.Length > 0 ? sprites[0] : null;
+    }
+
+    private static void SetObject(
+        SerializedObject serialized,
+        string propertyName,
+        Object value)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property != null)
+            property.objectReferenceValue = value;
     }
 
     private static GameObject FindInScene(Scene scene, string objectName)

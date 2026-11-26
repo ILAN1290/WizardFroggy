@@ -9,6 +9,10 @@ public class SpeedPotion : Potion
 
     protected override bool ApplyEffect(GameObject user, PlayerEffects effects)
     {
+        TowerDefenceManager towerDefence = TowerDefenceManager.Instance;
+        if (towerDefence != null && towerDefence.IsGameSessionRunning)
+            return towerDefence.TryApplySpeedPotion(speedMultiplier, duration);
+
         // Keep PlayerEffects in sync for UI/other systems, and apply the boost
         // directly to the movement controller so physics consumes it reliably.
         effects.Speed(speedMultiplier, duration, speedVFX);

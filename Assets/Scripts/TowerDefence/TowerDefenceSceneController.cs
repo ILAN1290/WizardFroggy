@@ -12,9 +12,9 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private Sprite frogIcon;
 
     [Header("Положение персонажей")]
-    [SerializeField] private Vector3 grandpaPosition = new Vector3(6.45f, -3.2f, 0f);
+    [SerializeField] private Vector3 grandpaPosition = new Vector3(-8.5f, -4.5f, 0f);
     [SerializeField] private float frogStartX = 10.5f;
-    [SerializeField] private float frogStopX = 5.85f;
+    [SerializeField] private float frogStopX = -6.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
 
     private DialogueManager dialogueManager;
@@ -24,6 +24,11 @@ public class TowerDefenceSceneController : MonoBehaviour
     private Texture2D solidTexture;
     private Sprite solidSprite;
     private Tile runtimeRoadTile;
+    private TowerDefenceManager gameManager;
+    private readonly HashSet<Vector3Int> generatedRoadCells = new HashSet<Vector3Int>();
+    private Vector3[] routeA;
+    private Vector3[] routeB;
+    private readonly Vector3 spawnPosition = new Vector3(9.5f, 5.5f, 0f);
 
     private void Awake()
     {
@@ -55,6 +60,18 @@ public class TowerDefenceSceneController : MonoBehaviour
         CreateRoad();
         CreateCenterDoor();
         CreateGrandpa();
+
+        gameManager = GetComponent<TowerDefenceManager>();
+        if (gameManager == null)
+            gameManager = gameObject.AddComponent<TowerDefenceManager>();
+        if (GetComponent<TowerDefenceWaveSpawner>() == null)
+            gameObject.AddComponent<TowerDefenceWaveSpawner>();
+
+        if (grandpaObject != null)
+            gameManager.SetGrandpa(grandpaObject.transform);
+        gameManager.ConfigureRoutes(
+            routeA, routeB, generatedRoadCells, spawnPosition);
+
         ConfigureIntroDialogue();
 
         if (dialogueManager == null || frog == null)
@@ -87,7 +104,6 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     private void CreateRoad()
     {
-        // Дорожка строится клетками Tilemap из контрастного красно-коричневого тайла.
         if (roadTileSprite == null)
         {
             Debug.LogError("Tower Defence: не назначен тайл дорожки Tileset_48x48_9_15.");
@@ -98,6 +114,42 @@ public class TowerDefenceSceneController : MonoBehaviour
         if (previousPath != null)
             Destroy(previousPath.gameObject);
 
+        generatedRoadCells.Clear();
+
+        // Общая дорожка приходит из правого верхнего угла к развилке.
+        // После развилки два маршрута снова сходятся перед дедушкой.
+        Vector3[] trunk =
+        {
+            spawnPosition,
+            new Vector3(7.5f, 4.5f, 0f),
+            new Vector3(5.5f, 3.5f, 0f),
+            new Vector3(3.5f, 2.5f, 0f),
+            new Vector3(1.5f, 1.5f, 0f)
+        };
+
+        routeA = new Vector3[]
+        {
+            trunk[0], trunk[1], trunk[2], trunk[3], trunk[4],
+            new Vector3(-0.5f, 3.5f, 0f),
+            new Vector3(-3.5f, 3.0f, 0f),
+            new Vector3(-5.5f, 0.5f, 0f),
+            new Vector3(-7.0f, -2.0f, 0f),
+            grandpaPosition
+        };
+
+        routeB = new Vector3[]
+        {
+            trunk[0], trunk[1], trunk[2], trunk[3], trunk[4],
+            new Vector3(-0.5f, -1.5f, 0f),
+            new Vector3(-3.5f, -2.5f, 0f),
+            new Vector3(-5.5f, 0.5f, 0f),
+            new Vector3(-7.0f, -2.0f, 0f),
+            grandpaPosition
+        };
+
+        AddRoadPolyline(generatedRoadCells, routeA);
+        AddRoadPolyline(generatedRoadCells, routeB);
+
         GameObject pathRoot = new GameObject("Tower Defence Paths");
         pathRoot.transform.SetParent(transform, false);
 
@@ -106,105 +158,46 @@ public class TowerDefenceSceneController : MonoBehaviour
         grid.cellGap = Vector3.zero;
 
         Tilemap tilemap = pathRoot.AddComponent<Tilemap>();
+        tilemap.tileAnchor = new Vector3(0.5f, 0.5f, 0f);
         TilemapRenderer renderer = pathRoot.AddComponent<TilemapRenderer>();
         renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = -6; // Поверх пола (-10), под персонажами (0).
+        renderer.sortingOrder = -6;
 
         runtimeRoadTile = ScriptableObject.CreateInstance<Tile>();
         runtimeRoadTile.name = "Runtime Tower Defence Road Tile";
         runtimeRoadTile.sprite = roadTileSprite;
         runtimeRoadTile.colliderType = Tile.ColliderType.None;
 
-        HashSet<Vector3Int> roadCells = new HashSet<Vector3Int>();
-
-        // Основной участок подходит к развилке с левой стороны.
-        int forkY = Random.Range(-6, -4);
-        AddRandomLaneSection(
-            roadCells,
-            new Vector2Int(-9, -5),
-            new Vector2Int(0, forkY),
-            -6,
-            -4,
-            0.45f);
-
-        // Верхняя и нижняя ветки каждый запуск получают свою случайную форму.
-        int upperY = Random.Range(-4, -2);
-        int lowerY = Random.Range(-7, -5);
-
-        AddRandomLaneSection(
-            roadCells,
-            new Vector2Int(0, forkY),
-            new Vector2Int(3, upperY),
-            -4,
-            -2,
-            0.35f);
-        AddRandomLaneSection(
-            roadCells,
-            new Vector2Int(3, upperY),
-            new Vector2Int(8, -5),
-            -4,
-            -2,
-            0.35f);
-
-        AddRandomLaneSection(
-            roadCells,
-            new Vector2Int(0, forkY),
-            new Vector2Int(3, lowerY),
-            -7,
-            -5,
-            0.35f);
-        AddRandomLaneSection(
-            roadCells,
-            new Vector2Int(3, lowerY),
-            new Vector2Int(8, -5),
-            -7,
-            -5,
-            0.35f);
-
-        foreach (Vector3Int cell in roadCells)
-        {
+        foreach (Vector3Int cell in generatedRoadCells)
             tilemap.SetTile(cell, runtimeRoadTile);
-
-            // Небольшая разница оттенков сохраняет фактуру и убирает визуальную монотонность.
-            float shade = Random.Range(0.92f, 1.04f);
-            tilemap.SetColor(cell, new Color(shade, shade, shade, 1f));
-        }
     }
 
-    private void AddRandomLaneSection(
-        HashSet<Vector3Int> cells,
-        Vector2Int start,
-        Vector2Int end,
-        int minY,
-        int maxY,
-        float variationChance)
+    private static void AddRoadPolyline(HashSet<Vector3Int> cells, Vector3[] points)
     {
-        int previousY = start.y;
-        int length = Mathf.Max(1, end.x - start.x);
+        if (cells == null || points == null || points.Length < 2)
+            return;
 
-        for (int x = start.x; x <= end.x; x++)
+        for (int segment = 0; segment < points.Length - 1; segment++)
         {
-            float t = (x - start.x) / (float)length;
-            int y = Mathf.RoundToInt(Mathf.Lerp(start.y, end.y, t));
+            Vector3 from = points[segment];
+            Vector3 to = points[segment + 1];
+            float distance = Vector3.Distance(from, to);
+            int steps = Mathf.Max(1, Mathf.CeilToInt(distance * 5f));
 
-            if (x > start.x && x < end.x && Random.value < variationChance)
-                y += Random.Range(-1, 2);
+            for (int step = 0; step <= steps; step++)
+            {
+                Vector3 point = Vector3.Lerp(from, to, step / (float)steps);
+                int centreX = Mathf.FloorToInt(point.x);
+                int centreY = Mathf.FloorToInt(point.y);
 
-            if (x == start.x)
-                y = start.y;
-            else if (x == end.x)
-                y = end.y;
-            else
-                y = Mathf.Clamp(y, minY, maxY);
-
-            // Заполняем промежуточные ряды, чтобы повороты не оставляли дырок.
-            int lowerY = Mathf.Min(previousY, y);
-            int upperY = Mathf.Max(previousY, y);
-
-            for (int row = lowerY; row <= upperY + 1; row++)
-                cells.Add(new Vector3Int(x, row, 0));
-
-            previousY = y;
+                // Дорожка шириной две клетки, чтобы развилки читались
+                // на игровом экране и призраки не шли по тонкой линии.
+                for (int x = -1; x <= 0; x++)
+                {
+                    for (int y = -1; y <= 0; y++)
+                        cells.Add(new Vector3Int(centreX + x, centreY + y, 0));
+                }
+            }
         }
     }
 
@@ -290,8 +283,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         grandpaObject.transform.SetParent(transform, false);
         grandpaObject.transform.position = grandpaPosition;
 
-        // У спрайта дедушки размер около 24x23 единиц при PPU=100.
-        // Уменьшаем его до размера персонажа арены Boss и ставим у правого барьера.
+        // Дедушка стоит в конце обеих веток, в нижнем левом углу арены.
         grandpaObject.transform.localScale = Vector3.one * 0.085f;
 
         SpriteRenderer renderer = grandpaObject.AddComponent<SpriteRenderer>();
@@ -406,6 +398,9 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         if (InputManager.PlayerInput != null)
             InputManager.PlayerInput.SwitchCurrentActionMap("Player");
+
+        if (gameManager != null)
+            gameManager.BeginAfterIntro();
     }
 
     private void HandleLineDisplayed(DialogueLine line)
