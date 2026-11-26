@@ -437,5 +437,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   icon: {fileID: 1434270953901844933}
   countText: {fileID: 7467723219385240261}
-  selectionHighlight: {fileID: 4192939540981741445, guid: 70512be616a07554f8c3d0381c58d4fa, type: 3}
+  selectionHighlight: {fileID: 0}
   cooldownFill: {fileID: 8784638774515865259}
