@@ -34,6 +34,12 @@ public class RoguelikeSession : MonoBehaviour
     [SerializeField] private string lobbyEnvironmentName = "Library Environment";
     [SerializeField] private Vector2 lobbyPlayerPosition = new Vector2(0f, -3f);
 
+    [Header("Параметры запуска рогалика")]
+    [Tooltip("Этаж, с которого начинается запуск сцены. Настройка инспектора обходит проверку открытых этажей.")]
+    [SerializeField, Range(1, 3)] private int startingFloor = 1;
+    [Tooltip("Показывать миникарту во время прохождения.")]
+    [SerializeField] private bool showMiniMap = true;
+
     [Header("Звуки рогалика")]
     [Tooltip("Этот звук также используется при поднятии грибочков.")]
     [SerializeField] private AudioClip itemPickupSound;
@@ -183,8 +189,8 @@ public class RoguelikeSession : MonoBehaviour
         EnablePlayerBars();
         InitializeAudioSources();
         transform.position = Vector2.zero;
-        // Roguelike starts directly in the first available floor. There is no lobby panel.
-        StartFloor(1);
+        // Запуск сразу на этаже, выбранном в Inspector.
+        StartFloorInternal(Mathf.Clamp(startingFloor, 1, 3), true);
     }
 
     private void CreateRoomFolders()
@@ -236,10 +242,17 @@ public class RoguelikeSession : MonoBehaviour
 
     public void StartFloor(int floorNumber)
     {
+        StartFloorInternal(floorNumber, false);
+    }
+
+    private void StartFloorInternal(int floorNumber, bool ignoreUnlockRequirement)
+    {
         if (!inLobby) return;
 
+        floorNumber = Mathf.Clamp(floorNumber, 1, 3);
         PlayerRunData runData = PlayerRunData.EnsureInstance();
-        if (!runData.CanStartFloor(floorNumber) && floorNumber != 1)
+        if (!ignoreUnlockRequirement &&
+            !runData.CanStartFloor(floorNumber) && floorNumber != 1)
         {
             ShowHint(runData.RoguelikeCompleted
                 ? "Все три этажа уже пройдены."
@@ -993,7 +1006,15 @@ public class RoguelikeSession : MonoBehaviour
             }
         }
 
-        // Reuse the mushroom sprite already assigned to roguelike pickups.
+    }
+
+    private void DrawMushroomCounter()
+    {
+        float size = Mathf.Min(240f, Screen.width - 100f, Screen.height - 120f);
+        size = Mathf.Max(150f, size);
+        Rect frame = new Rect(Screen.width - size - 140f, 50f, size, size);
+
+        // Счётчик грибов остаётся видимым, даже когда миникарта скрыта.
         Rect mushroomRect = new Rect(frame.x + 2f, frame.yMax + 5f, 75f, 75f);
         if (roomGenerator != null)
             DrawSpriteFit(roomGenerator.MushroomSprite, mushroomRect);
@@ -1106,7 +1127,12 @@ public class RoguelikeSession : MonoBehaviour
 
         // The map is static GUI output; skip its layout work for input events.
         if (Event.current.type == EventType.Repaint)
-            DrawMiniMap();
+        {
+            if (showMiniMap)
+                DrawMiniMap();
+
+            DrawMushroomCounter();
+        }
 
         if (shopOpen && activeMerchant != null)
             activeMerchant.DrawShopGUI(this);
