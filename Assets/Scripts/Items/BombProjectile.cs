@@ -27,7 +27,6 @@ public class BombProjectile : MonoBehaviour
     private Rigidbody2D rb;
     private SpriteRenderer sr;
     private CircleCollider2D circleCollider;
-    private Vector3 baseScale;
     private float timer;
     private bool exploded;
 
@@ -38,7 +37,6 @@ public class BombProjectile : MonoBehaviour
         circleCollider = GetComponent<CircleCollider2D>();
 
         FitToScreenSize();
-        baseScale = transform.localScale;
         timer = fuse;
     }
 
