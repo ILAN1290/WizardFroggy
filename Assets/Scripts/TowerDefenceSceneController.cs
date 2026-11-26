@@ -6,11 +6,11 @@ using UnityEngine;
 public class TowerDefenceSceneController : MonoBehaviour
 {
     [Header("Персонажи")]
-    [SerializeField] private Texture2D grandpaSheet;
+    [SerializeField] private Sprite grandpaSpriteAsset;
     [SerializeField] private Sprite frogIcon;
 
     [Header("Положение персонажей")]
-    [SerializeField] private Vector3 grandpaPosition = new Vector3(7.25f, -2.2f, 0f);
+    [SerializeField] private Vector3 grandpaPosition = new Vector3(6.45f, -3.2f, 0f);
     [SerializeField] private float frogStartX = 10.5f;
     [SerializeField] private float frogStopX = 5.85f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
@@ -63,8 +63,6 @@ public class TowerDefenceSceneController : MonoBehaviour
             Destroy(solidSprite);
         if (solidTexture != null)
             Destroy(solidTexture);
-        if (grandpaSprite != null)
-            Destroy(grandpaSprite);
     }
 
     private void CreateRoad()
@@ -220,28 +218,24 @@ public class TowerDefenceSceneController : MonoBehaviour
         if (grandpaObject != null)
             return;
 
-        if (grandpaSheet == null || grandpaSheet.width < 48 || grandpaSheet.height < 48)
+        if (grandpaSpriteAsset == null)
         {
-            Debug.LogError("Tower Defence: не назначен спрайт-лист дедушки.");
+            Debug.LogError("Tower Defence: не назначен спрайт Assets/Sprites/дед.png.");
             return;
         }
 
-        // Первый персонаж в Characters_MV — седовласый старик.
-        Rect spriteRect = new Rect(0f, grandpaSheet.height - 48f, 48f, 48f);
-        grandpaSprite = Sprite.Create(
-            grandpaSheet,
-            spriteRect,
-            new Vector2(0.5f, 0.12f),
-            48f);
-        grandpaSprite.name = "Grandpa Runtime Sprite";
+        grandpaSprite = grandpaSpriteAsset;
 
         grandpaObject = new GameObject("Grandpa");
         grandpaObject.transform.SetParent(transform, false);
         grandpaObject.transform.position = grandpaPosition;
-        grandpaObject.transform.localScale = Vector3.one * 1.65f;
+
+        // У спрайта дедушки размер около 24x23 единиц при PPU=100.
+        // Уменьшаем его до размера персонажа арены Boss и ставим у правого барьера.
+        grandpaObject.transform.localScale = Vector3.one * 0.085f;
 
         SpriteRenderer renderer = grandpaObject.AddComponent<SpriteRenderer>();
-        renderer.sprite = grandpaSprite;
+        renderer.sprite = grandpaSpriteAsset;
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 4;
     }
@@ -264,7 +258,7 @@ public class TowerDefenceSceneController : MonoBehaviour
                 playerIcon = frogRenderer.sprite;
         }
 
-        Sprite oldManIcon = grandpaSprite != null ? grandpaSprite : playerIcon;
+        Sprite oldManIcon = grandpaSpriteAsset != null ? grandpaSpriteAsset : playerIcon;
 
         List<DialogueLine> lines = new List<DialogueLine>
         {
@@ -317,7 +311,7 @@ public class TowerDefenceSceneController : MonoBehaviour
             body.simulated = false;
         }
 
-        Vector3 target = new Vector3(frogStopX, grandpaPosition.y - 0.2f, frog.position.z);
+        Vector3 target = new Vector3(frogStopX, grandpaPosition.y + 0.15f, frog.position.z);
         frog.position = new Vector3(frogStartX, target.y, frog.position.z);
 
         if (body != null)
