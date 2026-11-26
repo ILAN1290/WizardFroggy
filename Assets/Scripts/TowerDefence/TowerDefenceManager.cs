@@ -217,12 +217,22 @@ public class TowerDefenceManager : MonoBehaviour
 
     public void BeginAfterIntro()
     {
+        if (waveSpawner == null)
+            waveSpawner = GetComponent<TowerDefenceWaveSpawner>();
+        if (waveSpawner == null)
+            waveSpawner = gameObject.AddComponent<TowerDefenceWaveSpawner>();
+
         if (!gameStarted && !instructionsOpen)
             StartCoroutine(ShowInstructionsAndRun());
     }
 
     private IEnumerator ShowInstructionsAndRun()
     {
+        if (waveSpawner == null)
+            waveSpawner = GetComponent<TowerDefenceWaveSpawner>();
+        if (waveSpawner == null)
+            waveSpawner = gameObject.AddComponent<TowerDefenceWaveSpawner>();
+
         instructionsOpen = true;
         yield return new WaitUntil(() => !instructionsOpen);
 

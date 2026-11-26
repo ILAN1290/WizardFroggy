@@ -18668,6 +18668,8 @@ GameObject:
   - component: {fileID: 2190011002}
   - component: {fileID: 2190011003}
   - component: {fileID: 2190011004}
+  - component: {fileID: 2190011005}
+  - component: {fileID: 2190011006}
   m_Layer: 0
   m_Name: Tower Defence Scene Controller
   m_TagString: Untagged
@@ -18705,9 +18707,10 @@ MonoBehaviour:
   grandpaSpriteAsset: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
   frogIcon: {fileID: 21300000, guid: 90a81166ee8d0f54496b9d53bd7dde18, type: 3}
-  grandpaPosition: {x: 6.45, y: -3.2, z: 0}
+  dialogueManager: {fileID: 1368409279}
+  grandpaPosition: {x: -8.5, y: -4.5, z: 0}
   frogStartX: 10.5
-  frogStopX: 5.85
+  frogStopX: -6.8
   frogWalkSpeed: 3.8
 --- !u!114 &2190011004
 MonoBehaviour:
@@ -18722,6 +18725,138 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   defaultDuration: 0.4
+
+
+--- !u!114 &2190011005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2190011001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a11f3a37a74d229d01000000000002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnInterval: 0.8
+  waves:
+  - whiteGhosts: 5
+    blueGhosts: 0
+    redGhosts: 0
+    blackGhosts: 0
+  - whiteGhosts: 6
+    blueGhosts: 2
+    redGhosts: 0
+    blackGhosts: 0
+  - whiteGhosts: 7
+    blueGhosts: 3
+    redGhosts: 1
+    blackGhosts: 0
+  - whiteGhosts: 8
+    blueGhosts: 4
+    redGhosts: 2
+    blackGhosts: 0
+  - whiteGhosts: 8
+    blueGhosts: 4
+    redGhosts: 2
+    blackGhosts: 1
+  - whiteGhosts: 10
+    blueGhosts: 5
+    redGhosts: 3
+    blackGhosts: 0
+  - whiteGhosts: 11
+    blueGhosts: 6
+    redGhosts: 4
+    blackGhosts: 0
+  - whiteGhosts: 12
+    blueGhosts: 7
+    redGhosts: 5
+    blackGhosts: 0
+  - whiteGhosts: 13
+    blueGhosts: 8
+    redGhosts: 6
+    blackGhosts: 0
+  - whiteGhosts: 15
+    blueGhosts: 10
+    redGhosts: 8
+    blackGhosts: 3
+--- !u!114 &2190011006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2190011001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a11f3a37a74d229d01000000000004, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  whiteGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
+  blueGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
+  redGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
+  blackGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
+  machineGunTowerSprite: {fileID: 0}
+  standardTowerSprite: {fileID: 0}
+  cannonTowerSprite: {fileID: 0}
+  projectileSprite: {fileID: 0}
+  grandpaSprite: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
+  roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
+  mushroomSprite: {fileID: -8804783980236045272, guid: b0f578d14ecafc14386ac662666ccd19, type: 3}
+  instructionBookSprite: {fileID: 497790256, guid: 5017c1a619c219b4da3d9195545f4b6a, type: 3}
+  upgradePlusButtonSprite: {fileID: -1505932246928245792, guid: df285eabc66e97c4c8246b3f31bedfcd, type: 3}
+  sellMinusButtonSprite: {fileID: 4505060559889354466, guid: 29a06ad9e584ef44596084ef32102902, type: 3}
+  grandpaMaximumHealth: 300
+  grandpaPotionHealAmount: 15
+  whiteGhostHealth: 10
+  whiteGhostSpeed: 0.72
+  whiteGhostSize: 0.72
+  blueGhostHealth: 10
+  blueGhostSpeedMultiplier: 2
+  blueGhostSize: 0.88
+  redGhostHealth: 30
+  redGhostSpeedMultiplier: 1
+  redGhostSize: 1.05
+  blackGhostHealth: 200
+  blackGhostSpeedMultiplier: 0.5
+  blackGhostSize: 1.35
+  machineGunStats:
+    mushroomCost: 2
+    damage: 2.2
+    attackInterval: 0.28
+    range: 3.15
+    projectileSpeed: 7
+    projectileSize: 0.105
+    splashRadius: 0
+  standardStats:
+    mushroomCost: 1
+    damage: 5
+    attackInterval: 0.88
+    range: 4.65
+    projectileSpeed: 5.4
+    projectileSize: 0.14
+    splashRadius: 0
+  cannonStats:
+    mushroomCost: 4
+    damage: 18
+    attackInterval: 2.45
+    range: 2.75
+    projectileSpeed: 4.8
+    projectileSize: 0.19
+    splashRadius: 1.25
+  maximumTowerLevel: 4
+  upgradeDamagePerLevel: 0.25
+  upgradeRangePerLevel: 0.22
+  firstWaveDelay: 30
+  betweenWaveDelay: 15
+  grandpaPhrases:
+  - "Ну что, внучок, держим оборону! Я ещё не старый!"
+  - "Вот раньше привидения были воспитаннее..."
+  - "Только картошку поставил, а тут опять гости!"
+  - "Не пускайте их ко мне, у меня спина!"
+  - "Шапку наденьте! Сквозняк же!"
+  - "Я вообще-то рассчитывал на спокойную пенсию."
 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

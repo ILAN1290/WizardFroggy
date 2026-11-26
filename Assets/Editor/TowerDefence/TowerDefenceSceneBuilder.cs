@@ -86,6 +86,7 @@ public static class TowerDefenceSceneBuilder
             if (!allowOverwrite && !existingIsEmpty)
             {
                 EnsureExistingSceneSystems(existingScene);
+                DisableLegacyBossFlow(existingScene);
                 EditorSceneManager.SaveScene(existingScene, TowerDefenceScenePath);
                 if (openedExistingForCheck)
                     EditorSceneManager.CloseScene(existingScene, true);
@@ -161,15 +162,7 @@ public static class TowerDefenceSceneBuilder
                 bossObject.SetActive(false);
         }
 
-        GameObject gameManagerObject = FindInScene(targetScene, "Game Manager");
-        if (gameManagerObject != null)
-        {
-            foreach (MonoBehaviour behaviour in gameManagerObject.GetComponents<MonoBehaviour>())
-            {
-                if (behaviour != null && behaviour.GetType().Name == "GameManager")
-                    behaviour.enabled = false;
-            }
-        }
+        DisableLegacyBossFlow(targetScene);
 
         GameObject dialogueElements = FindInScene(targetScene, "DialogueElements");
         if (dialogueElements != null)
@@ -211,6 +204,23 @@ public static class TowerDefenceSceneBuilder
         AssetDatabase.SaveAssets();
 
         Debug.Log("TowerDefence создана из Boss. Сцена добавлена в Build Settings.");
+    }
+
+    private static void DisableLegacyBossFlow(Scene scene)
+    {
+        GameObject gameManagerObject = FindInScene(scene, "Game Manager");
+        if (gameManagerObject != null)
+        {
+            foreach (MonoBehaviour behaviour in gameManagerObject.GetComponents<MonoBehaviour>())
+            {
+                if (behaviour != null && behaviour.GetType().Name == "GameManager")
+                    behaviour.enabled = false;
+            }
+
+            // Keep the Game Manager object active because the copied scene may
+            // host shared audio or support components on it; only its Boss-flow
+            // GameManager behaviour is disabled above.
+        }
     }
 
     private static void EnsureExistingSceneSystems(Scene scene)
@@ -255,6 +265,8 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
             SetObject(serialized, "frogIcon", frogIcon);
+            SetObject(serialized, "dialogueManager",
+                FindComponentInScene<DialogueManager>(controllerObject.scene));
             SerializedProperty position = serialized.FindProperty("grandpaPosition");
             if (position != null)
                 position.vector3Value = new Vector3(-8.5f, -4.5f, 0f);

@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
 [DisallowMultipleComponent]
 public class TowerDefenceSceneController : MonoBehaviour
@@ -17,7 +19,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private float frogStopX = -6.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
 
-    private DialogueManager dialogueManager;
+    [SerializeField] private DialogueManager dialogueManager;
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
@@ -32,13 +34,43 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     private void Awake()
     {
-        dialogueManager = FindObjectOfType<DialogueManager>();
+        Time.timeScale = 1f;
+        dialogueManager = FindDialogueManagerInScene();
 
-        GameObject frogObject = GameObject.Find("Frog");
-        if (frogObject != null)
-            frog = frogObject.transform;
+        Transform frogTransform = FindSceneTransform("Frog");
+        if (frogTransform != null)
+            frog = frogTransform;
 
         sceneCamera = Camera.main;
+    }
+
+    private DialogueManager FindDialogueManagerInScene()
+    {
+        DialogueManager[] candidates =
+            Resources.FindObjectsOfTypeAll<DialogueManager>();
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            DialogueManager candidate = candidates[i];
+            if (candidate != null && candidate.gameObject.scene == gameObject.scene)
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private Transform FindSceneTransform(string targetName)
+    {
+        Transform[] candidates = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            Transform candidate = candidates[i];
+            if (candidate != null &&
+                candidate.gameObject.scene == gameObject.scene &&
+                candidate.name == targetName)
+                return candidate;
+        }
+
+        return null;
     }
 
     private IEnumerator Start()
@@ -47,13 +79,9 @@ public class TowerDefenceSceneController : MonoBehaviour
         yield return null;
 
         if (dialogueManager == null)
-            dialogueManager = FindObjectOfType<DialogueManager>();
+            dialogueManager = FindDialogueManagerInScene();
         if (frog == null)
-        {
-            GameObject frogObject = GameObject.Find("Frog");
-            if (frogObject != null)
-                frog = frogObject.transform;
-        }
+            frog = FindSceneTransform("Frog");
         if (sceneCamera == null)
             sceneCamera = Camera.main;
 
@@ -61,11 +89,13 @@ public class TowerDefenceSceneController : MonoBehaviour
         CreateCenterDoor();
         CreateGrandpa();
 
+        // Add the spawner first: TowerDefenceManager caches it in Awake.
+        if (GetComponent<TowerDefenceWaveSpawner>() == null)
+            gameObject.AddComponent<TowerDefenceWaveSpawner>();
+
         gameManager = GetComponent<TowerDefenceManager>();
         if (gameManager == null)
             gameManager = gameObject.AddComponent<TowerDefenceManager>();
-        if (GetComponent<TowerDefenceWaveSpawner>() == null)
-            gameObject.AddComponent<TowerDefenceWaveSpawner>();
 
         if (grandpaObject != null)
             gameManager.SetGrandpa(grandpaObject.transform);
@@ -76,7 +106,9 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         if (dialogueManager == null || frog == null)
         {
-            Debug.LogError("Tower Defence: катсцена не запущена — не найдены Frog или DialogueManager.");
+            Debug.LogError(
+                "Tower Defence: не удалось запустить катсцену. " +
+                "Проверьте наличие активных Frog и DialogueManager в сцене.");
             yield break;
         }
 
@@ -352,7 +384,28 @@ public class TowerDefenceSceneController : MonoBehaviour
             yield break;
         }
 
-        yield return new WaitUntil(() => InputManager.PlayerInput != null);
+        // PlayerInput is initialized by InputManager.Awake. Recover the
+        // reference explicitly in case the scene was entered from another mode.
+        if (InputManager.PlayerInput == null)
+        {
+            InputManager inputManager = FindObjectOfType<InputManager>();
+            if (inputManager != null)
+                InputManager.PlayerInput = inputManager.GetComponent<PlayerInput>();
+        }
+
+        float inputWait = 0f;
+        while (InputManager.PlayerInput == null && inputWait < 5f)
+        {
+            inputWait += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (InputManager.PlayerInput == null)
+        {
+            Debug.LogError("Tower Defence: не найден PlayerInput. Катсцена отменена.");
+            yield break;
+        }
+
         InputManager.PlayerInput.SwitchCurrentActionMap("Cutscene");
 
         Rigidbody2D body = frog.GetComponent<Rigidbody2D>();
@@ -391,10 +444,20 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         yield return new WaitForSeconds(0.15f);
+        if (dialogueManager.dialogues == null ||
+            dialogueManager.dialogues.Count == 0)
+        {
+            Debug.LogError("Tower Defence: список реплик пуст, диалог не запущен.");
+            yield break;
+        }
+
+        dialogueManager.dialogues[0].isPassed = false;
         dialogueManager.StartDialogue(0);
 
         yield return new WaitUntil(
-            () => dialogueManager.dialogues.Count > 0 && dialogueManager.dialogues[0].isPassed);
+            () => dialogueManager == null ||
+                (dialogueManager.dialogues.Count > 0 &&
+                 dialogueManager.dialogues[0].isPassed));
 
         if (InputManager.PlayerInput != null)
             InputManager.PlayerInput.SwitchCurrentActionMap("Player");
