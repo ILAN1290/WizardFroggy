@@ -8539,7 +8539,6 @@ MonoBehaviour:
   frameTexture: {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
   deleteTexture: {fileID: 2800000, guid: bbc611a95e0ee3545bbaed3f3ab0dc29, type: 3}
   selectedFrameTexture: {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
-  merchantPortrait: {fileID: 1135266238516603899, guid: ab5420c6eff66e045ac59a2f6918d253, type: 3}
   loadButtonSprite: {fileID: 0}
   startMenuButtonTexture: {fileID: 0}
   optionsMenuButtonTexture: {fileID: 0}
@@ -8558,6 +8557,7 @@ MonoBehaviour:
   optionsButtonPosition: {x: 289.8, y: -272}
   exitButtonPosition: {x: 539.8, y: -272}
   menuFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
+  slotPlaceholderSprite: {fileID: 21300000, guid: 21c97ae3a919c984888d3d1323155b1c, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
