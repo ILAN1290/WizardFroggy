@@ -61,6 +61,7 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private Texture2D deleteTexture;
     [SerializeField] private Texture2D selectedFrameTexture;
     [SerializeField] private Sprite merchantPortrait;
+    [SerializeField] private Sprite loadButtonSprite;
 
     public static SaveGameSystem Instance { get; private set; }
 
@@ -110,6 +111,7 @@ public class SaveGameSystem : MonoBehaviour
         if (source.deleteTexture != null) deleteTexture = source.deleteTexture;
         if (source.selectedFrameTexture != null) selectedFrameTexture = source.selectedFrameTexture;
         if (source.merchantPortrait != null) merchantPortrait = source.merchantPortrait;
+        if (source.loadButtonSprite != null) loadButtonSprite = source.loadButtonSprite;
         RefreshSprites();
     }
 
@@ -196,11 +198,15 @@ public class SaveGameSystem : MonoBehaviour
         Transform menu = menuObject.transform;
         Transform start = menu.Find("Start Button");
         Transform load = menu.Find("Load Game Button");
+        Transform exit = menu.Find("Exit Button");
         if (load == null && exit != null)
         {
             GameObject loadObject = Instantiate(exit.gameObject, exit.parent);
             loadObject.name = "Load Game Button";
             load = loadObject.transform;
+            Image loadButtonImage = loadObject.GetComponent<Image>();
+            if (loadButtonImage != null && loadButtonSprite != null)
+                loadButtonImage.sprite = loadButtonSprite;
             Button loadButtonComponent = loadObject.GetComponent<Button>();
             if (loadButtonComponent != null)
                 loadButtonComponent.onClick.RemoveAllListeners();
@@ -209,7 +215,6 @@ public class SaveGameSystem : MonoBehaviour
                 loadObject.AddComponent<MainMenuLoadButton>();
         }
         Transform options = menu.Find("Options Button");
-        Transform exit = menu.Find("Exit Button");
 
         SetMenuRect(start, new Vector2(414.8f, -38f), new Vector2(500f, 100f));
         SetMenuRect(load, new Vector2(414.8f, -155f), new Vector2(500f, 100f));
@@ -451,6 +456,7 @@ public class SaveGameSystem : MonoBehaviour
                 "   •   Tower Defence: " + PassStatus(data.towerDefenceCompleted) +
                 "   •   Босс: " + PassStatus(data.bossCompleted) + "\n" +
                 "Прогресс: " + data.progressPercent + "%   •   " + GetNextStageLabel(data.resumeStage) + "\n" +
+                "Инвентарь: " + GetInventorySummary(data.inventory) + "\n" +
                 "Прокачка — урон: " + data.staffDamageLevel +
                 ", расход маны: " + data.manaConsumptionLevel +
                 ", регенерация: " + data.manaRegenerationLevel +
@@ -462,7 +468,7 @@ public class SaveGameSystem : MonoBehaviour
             new Vector2(190f, 38f), new Vector2(-455f, 58f), 25,
             TextAnchor.MiddleLeft, FontStyle.Bold);
         CreateText("Slot details", card, details,
-            new Vector2(880f, 132f), new Vector2(-10f, -10f), 21,
+            new Vector2(950f, 156f), new Vector2(-5f, -6f), 18,
             TextAnchor.MiddleLeft, FontStyle.Normal);
 
         int slotIndex = index;
@@ -487,6 +493,24 @@ public class SaveGameSystem : MonoBehaviour
                     new Vector2(475f, -55f), delegate { DeleteSlot(slotIndex); }, deleteSprite);
             }
         }
+    }
+
+    private string GetInventorySummary(List<InventoryEntry> entries)
+    {
+        if (entries == null || entries.Count == 0) return "пусто";
+
+        List<string> descriptions = new List<string>();
+        for (int i = 0; i < entries.Count; i++)
+        {
+            InventoryEntry entry = entries[i];
+            if (entry == null || entry.count <= 0) continue;
+            Item item = FindCatalogItem(entry.itemId);
+            string itemName = item != null && !string.IsNullOrEmpty(item.itemName)
+                ? item.itemName
+                : entry.itemId;
+            descriptions.Add(itemName + " x" + entry.count);
+        }
+        return descriptions.Count == 0 ? "пусто" : string.Join(", ", descriptions);
     }
 
     private static string PassStatus(bool passed)
