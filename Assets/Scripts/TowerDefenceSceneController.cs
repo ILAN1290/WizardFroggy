@@ -19,7 +19,6 @@ public class TowerDefenceSceneController : MonoBehaviour
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
-    private Sprite grandpaSprite;
     private Texture2D solidTexture;
     private Sprite solidSprite;
     private Material pathMaterial;
@@ -223,8 +222,6 @@ public class TowerDefenceSceneController : MonoBehaviour
             Debug.LogError("Tower Defence: не назначен спрайт Assets/Sprites/дед.png.");
             return;
         }
-
-        grandpaSprite = grandpaSpriteAsset;
 
         grandpaObject = new GameObject("Grandpa");
         grandpaObject.transform.SetParent(transform, false);
