@@ -140,28 +140,27 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
         Vector2 direction = ai.DirectionToPlayer;
 
-        if (miniBoss && attacksSinceSuper >= 3 &&
-            ai.DistanceToPlayer <= 1.75f)
+        if (miniBoss && attacksSinceSuper >= 3)
         {
             attacksSinceSuper = 0;
             nextAttackTime = Time.time + 3.2f;
 
-            // The mini-boss randomly chooses one of its two charged specials.
-            if (Random.value < 0.5f)
+            // Pick the special attack from the player's distance:
+            // slam at close range, spiral projectiles while the player is far away.
+            if (ai.DistanceToPlayer <= 2.65f)
             {
                 StartCoroutine(PerformGroundSlam());
             }
             else
             {
-                if (session != null) session.PlayGhostAttackSound(true);
+                if (session != null) session.PlayGhostAttackSound(false);
                 StartCoroutine(PerformSpiralAttack(direction, 36, 13f, 0.05f));
             }
             return;
         }
 
         // At range, the mini-boss fires ordinary aimed shots and stores one
-        // charge per attack. Reaching three charges does not trigger the slam:
-        // it keeps chasing and waits until it gets close to the player.
+        // charge per attack. Once charged, its special is selected by distance.
         if (miniBoss && ai.DistanceToPlayer > 1.75f)
         {
             attacksSinceSuper = Mathf.Min(attacksSinceSuper + 1, 3);
