@@ -62,7 +62,7 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private Texture2D frameTexture;
     [SerializeField] private Texture2D deleteTexture;
     [SerializeField] private Texture2D selectedFrameTexture;
-    [SerializeField] private Sprite merchantPortrait;
+    [SerializeField] private Sprite slotPlaceholderSprite;
 
     [Header("Save/load menu sound")]
     [SerializeField] private AudioClip menuOpenSound;
@@ -138,7 +138,7 @@ public class SaveGameSystem : MonoBehaviour
         if (source.frameTexture != null) frameTexture = source.frameTexture;
         if (source.deleteTexture != null) deleteTexture = source.deleteTexture;
         if (source.selectedFrameTexture != null) selectedFrameTexture = source.selectedFrameTexture;
-        if (source.merchantPortrait != null) merchantPortrait = source.merchantPortrait;
+        if (source.slotPlaceholderSprite != null) slotPlaceholderSprite = source.slotPlaceholderSprite;
         if (source.menuOpenSound != null) menuOpenSound = source.menuOpenSound;
         if (source.uiAudioSource != null) uiAudioSource = source.uiAudioSource;
         if (source.startMenuButtonTexture != null) startMenuButtonTexture = source.startMenuButtonTexture;
@@ -556,16 +556,6 @@ public class SaveGameSystem : MonoBehaviour
         CreateText("Description", panel, description, new Vector2(1320f, 58f),
             new Vector2(0f, 345f), 25, TextAnchor.MiddleCenter, FontStyle.Normal);
 
-        if (merchantPortrait != null)
-        {
-            RectTransform portraitRect = CreateRect("Merchant portrait", panel,
-                new Vector2(88f, 132f), new Vector2(-665f, 382f));
-            Image portrait = portraitRect.gameObject.AddComponent<Image>();
-            portrait.sprite = merchantPortrait;
-            portrait.preserveAspect = true;
-            portrait.raycastTarget = false;
-        }
-
         currentSlotButtons = new Button[SlotCount];
         for (int i = 0; i < SlotCount; i++)
             BuildSlotCard(panel, i);
@@ -642,14 +632,38 @@ public class SaveGameSystem : MonoBehaviour
         Sprite slotSprite = slotTexture != null
             ? MakeSprite(slotTexture, null)
             : (data.exists && selectedFrameSprite != null ? selectedFrameSprite : frameSprite);
+        if (slotSprite == null)
+            slotSprite = MakeSprite(Texture2D.whiteTexture, null);
 
         RectTransform iconRect = CreateRect("Slot " + (index + 1) + " visual frame", card,
             new Vector2(160f, 160f), new Vector2(-610f, 0f));
         Image icon = iconRect.gameObject.AddComponent<Image>();
         icon.sprite = slotSprite;
-        icon.color = Color.white;
+        icon.color = slotTexture == null && frameSprite == null && selectedFrameSprite == null
+            ? new Color(0.22f, 0.15f, 0.11f, 1f)
+            : Color.white;
         icon.preserveAspect = true;
         icon.raycastTarget = false;
+
+        // Keep a recognizable frog mascot inside every slot, including empty ones.
+        if (slotPlaceholderSprite != null)
+        {
+            RectTransform frogRect = CreateRect("Save slot frog", iconRect,
+                new Vector2(108f, 124f), new Vector2(0f, 0f));
+            Image frog = frogRect.gameObject.AddComponent<Image>();
+            frog.sprite = slotPlaceholderSprite;
+            frog.color = Color.white;
+            frog.preserveAspect = true;
+            frog.raycastTarget = false;
+        }
+
+        // Empty slots always have a visible state label.
+        if (!data.exists)
+        {
+            CreateText("Empty slot label", card, "ПУСТО",
+                new Vector2(150f, 32f), new Vector2(-610f, -60f), 17,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+        }
 
         string details;
         if (!data.exists)
@@ -673,7 +687,7 @@ public class SaveGameSystem : MonoBehaviour
         }
 
         CreateText("Slot title", card, "СЛОТ " + (index + 1),
-            new Vector2(190f, 38f), new Vector2(-455f, 58f), 25,
+            new Vector2(190f, 38f), new Vector2(-420f, 58f), 25,
             TextAnchor.MiddleLeft, FontStyle.Bold);
         CreateText("Slot details", card, details,
             new Vector2(790f, 156f), new Vector2(-85f, -6f), 18,
