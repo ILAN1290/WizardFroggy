@@ -565,9 +565,11 @@ public class RoguelikeMerchant : MonoBehaviour
     {
         // IMGUI cannot consume a TMP_FontAsset directly, but its source Font is
         // available and is the same typeface used to generate the SDF asset.
-        Font uiFont = TMP_Settings.defaultFontAsset != null
-            ? TMP_Settings.defaultFontAsset.sourceFontFile
-            : null;
+        TMP_FontAsset selectedFont = SaveGameSystem.Instance != null &&
+            SaveGameSystem.Instance.MenuFontAsset != null
+                ? SaveGameSystem.Instance.MenuFontAsset
+                : TMP_Settings.defaultFontAsset;
+        Font uiFont = selectedFont != null ? selectedFont.sourceFontFile : null;
         if (uiFont != null)
         {
             GUI.skin.font = uiFont;
