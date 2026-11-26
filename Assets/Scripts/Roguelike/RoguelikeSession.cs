@@ -98,6 +98,8 @@ public class RoguelikeSession : MonoBehaviour
     private bool inLobby = true;
     private bool shopOpen;
     private bool deathScreenShown;
+    private readonly Dictionary<int, Item[]> merchantOffersByFloorSeed =
+        new Dictionary<int, Item[]>();
     private RoguelikeMerchant activeMerchant;
     private readonly List<WorldPlaceholder> worldPlaceholders = new List<WorldPlaceholder>();
     private GUIStyle minimapMarkerStyle;
@@ -246,6 +248,9 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         currentFloor = RoguelikeGenerator.GenerateFloor(floorNumber);
+        // A newly generated floor gets a fresh merchant assortment. Re-entering
+        // rooms on this floor reuses the cached array with already-sold items removed.
+        merchantOffersByFloorSeed.Remove(currentFloor.Seed);
         currentRoomIndex = currentFloor.StartRoomIndex;
         inLobby = false;
         shopOpen = false;
@@ -641,6 +646,22 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         return true;
+    }
+
+    public bool IsShopOpen => shopOpen;
+
+    public Item[] GetCachedMerchantOffersForCurrentFloor()
+    {
+        if (currentFloor == null) return null;
+        return merchantOffersByFloorSeed.TryGetValue(currentFloor.Seed, out Item[] offers)
+            ? offers
+            : null;
+    }
+
+    public void CacheMerchantOffersForCurrentFloor(Item[] offers)
+    {
+        if (currentFloor == null || offers == null) return;
+        merchantOffersByFloorSeed[currentFloor.Seed] = offers;
     }
 
     public void OpenShop(RoguelikeMerchant merchant)
