@@ -34,7 +34,9 @@ public class RoguelikeMerchant : MonoBehaviour
 
     private void GenerateOffers()
     {
-        Item[] available = Resources.LoadAll<Item>("RoguelikeLoot");
+        Item[] available = session != null
+            ? session.GetAvailableItems()
+            : new Item[0];
         for (int i = 0; i < offeredItems.Length; i++)
             offeredItems[i] = null;
 
@@ -520,6 +522,7 @@ public class RoguelikeMerchant : MonoBehaviour
 
     private static string GetItemDescription(Item item)
     {
+        if (item is Bomb) return "Бросает взрывную бомбу в направлении взгляда.";
         if (item is HealingPotion) return "Восстанавливает здоровье при использовании.";
         if (item is ManaPotion) return "Восполняет запас маны.";
         if (item is StrengthPotion) return "Временно увеличивает наносимый урон.";
@@ -596,6 +599,7 @@ public class RoguelikeMerchant : MonoBehaviour
 
     private int GetItemPrice(Item item)
     {
+        if (item is Bomb) return 24;
         if (item is HealingPotion) return 18;
         if (item is ManaPotion) return 16;
         if (item is StrengthPotion) return 24;
