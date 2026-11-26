@@ -210,6 +210,14 @@ public class RoguelikeMerchant : MonoBehaviour
             {
                 GUI.Label(new Rect(slot.x + 5f, slot.center.y - 15f,
                     slot.width - 10f, 30f), "ПРОДАНО", normalStyle);
+
+                // Sold-out slots remain clickable so the player gets feedback
+                // instead of silently tapping an unavailable offer.
+                if (GUI.Button(slot, GUIContent.none, GUIStyle.none))
+                {
+                    session?.PlayMerchantButtonSound();
+                    session?.PlayMerchantSoldOutSound();
+                }
                 continue;
             }
 
@@ -226,7 +234,10 @@ public class RoguelikeMerchant : MonoBehaviour
                 GetItemPrice(item) + " гриб.", smallStyle);
 
             if (GUI.Button(slot, GUIContent.none, GUIStyle.none))
+            {
+                session?.PlayMerchantButtonSound();
                 selectedOfferIndex = i;
+            }
         }
     }
 
@@ -311,6 +322,7 @@ public class RoguelikeMerchant : MonoBehaviour
         {
             if (data.TryUpgrade(type))
             {
+                session?.PlayMerchantUpgradeSound();
                 if (type == RoguelikeUpgradeType.MaximumHealth)
                     ApplyMaximumHealthChange();
                 ShowHint("Уровень улучшения: " + data.GetUpgradeLevel(type) + "/10.");
@@ -410,11 +422,21 @@ public class RoguelikeMerchant : MonoBehaviour
             GUI.DrawTexture(rect, texture, ScaleMode.StretchToFill, true);
 
         GUIStyle buttonTextStyle = normalStyle;
+        bool clicked;
         if (texture == null)
-            return GUI.Button(rect, label);
+        {
+            clicked = GUI.Button(rect, label);
+        }
+        else
+        {
+            GUI.Label(rect, label, buttonTextStyle);
+            clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+        }
 
-        GUI.Label(rect, label, buttonTextStyle);
-        return GUI.Button(rect, GUIContent.none, GUIStyle.none);
+        if (clicked)
+            session?.PlayMerchantButtonSound();
+
+        return clicked;
     }
 
     private static void DrawSpriteFit(Sprite sprite, Rect destination)
@@ -469,6 +491,7 @@ public class RoguelikeMerchant : MonoBehaviour
         }
 
         Inventory.Instance.Add(item, 1);
+        session?.PlayMerchantPurchaseSound();
         offeredItems[selectedOfferIndex] = null;
         SelectNextAvailableOffer();
         ShowHint("Куплено: " + item.itemName);
