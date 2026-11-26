@@ -620,8 +620,6 @@ public class SaveGameSystem : MonoBehaviour
             CreateText("Load slot hint", panel, "Выберите одну из трёх полок с сохранениями",
                 new Vector2(1300f, 36f), new Vector2(0f, -335f), 20,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
-            CreateButton(panel, "Назад", new Vector2(280f, 74f),
-                new Vector2(0f, -410f), CloseScreen, deleteSprite);
         }
         else
         {
