@@ -957,6 +957,7 @@ GameObject:
   - component: {fileID: 326843989}
   - component: {fileID: 326843990}
   - component: {fileID: 326843991}
+  - component: {fileID: 326843992}
   m_Layer: 0
   m_Name: MenuManager
   m_TagString: Untagged
@@ -8514,6 +8515,31 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8cf38d978b1fdf643889928e2f74abfe, type: 3}
+--- !u!114 &326843992
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 326843986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a61fe68b38a54ce3a45f3e0d49bdfdb5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemCatalog:
+  - {fileID: 11400000, guid: 53fa3334be69b804c8ecdbd9a01aa5a8, type: 2}
+  - {fileID: 11400000, guid: 52104eae654630146a029c62d622345c, type: 2}
+  - {fileID: 11400000, guid: 20fca9aceb4648d4d899ce9ce5edce2d, type: 2}
+  - {fileID: 11400000, guid: 71c93be60ed9880468b5ecf8e3b4a08f, type: 2}
+  - {fileID: 11400000, guid: f2d51bbde3ba08e489a86cce6f494ac3, type: 2}
+  - {fileID: 11400000, guid: 80e0c0c51550e074d8c520b2bd1ad6ce, type: 2}
+  - {fileID: 11400000, guid: 04ad346f22c014e448f5316d5c0fde9c, type: 2}
+  buttonTexture: {fileID: 2800000, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
+  frameTexture: {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
+  deleteTexture: {fileID: 2800000, guid: bbc611a95e0ee3545bbaed3f3ab0dc29, type: 3}
+  selectedFrameTexture: {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
+  merchantPortrait: {fileID: 1135266238516603899, guid: ab5420c6eff66e045ac59a2f6918d253, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
