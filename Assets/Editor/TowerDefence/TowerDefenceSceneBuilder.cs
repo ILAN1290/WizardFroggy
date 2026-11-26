@@ -11,24 +11,41 @@ public static class TowerDefenceSceneBuilder
     private const string BossScenePath = "Assets/Scenes/Boss.unity";
     private const string TowerDefenceScenePath = "Assets/Scenes/TowerDefence.unity";
     private const string GrandpaSpritePath = "Assets/Sprites/дед.png";
+    private const string RoadTileSetPath = "Assets/Sprites/Tile Sprites/Tileset_48x48_9.png";
+    private const string RoadTileSpriteName = "Tileset_48x48_9_15";
     private const string FrogIconPath = "Assets/Sprites/UI Game/Dialogue/ЛЯГУХА Иконка.png";
+
+    private static bool autoBuildQueued;
 
     static TowerDefenceSceneBuilder()
     {
-        // Создаём сцену автоматически при первом открытии проекта с этой веткой.
-        EditorApplication.delayCall += BuildSceneIfMissing;
+        // Ждём окончания компиляции, чтобы автосборка не пропустилась на старте Unity.
+        EditorApplication.delayCall += QueueAutoBuild;
     }
 
-    private static void BuildSceneIfMissing()
+    private static void QueueAutoBuild()
+    {
+        if (autoBuildQueued)
+            return;
+
+        autoBuildQueued = true;
+        EditorApplication.update += BuildSceneWhenEditorReady;
+    }
+
+    private static void BuildSceneWhenEditorReady()
     {
         if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
             return;
 
-        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(BossScenePath) == null)
-            return;
+        EditorApplication.update -= BuildSceneWhenEditorReady;
+        autoBuildQueued = false;
 
-        // Если в репозитории уже лежит пустая заготовка TowerDefence,
-        // автоматически заполняем её копией Boss при первой загрузке проекта.
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(BossScenePath) == null)
+        {
+            Debug.LogError("Tower Defence: не найдена исходная сцена Boss.");
+            return;
+        }
+
         BuildScene(false);
     }
 
@@ -154,9 +171,14 @@ public static class TowerDefenceSceneBuilder
             .OfType<Sprite>()
             .FirstOrDefault(sprite => sprite.name == "дед_0" || sprite.name == "дед");
         Sprite frogIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FrogIconPath);
+        Sprite roadTileSprite = AssetDatabase.LoadAllAssetsAtPath(RoadTileSetPath)
+            .OfType<Sprite>()
+            .FirstOrDefault(sprite => sprite.name == RoadTileSpriteName);
 
         if (grandpaSprite == null)
             Debug.LogError("Не найден спрайт дедушки в Assets/Sprites/дед.png.");
+        if (roadTileSprite == null)
+            Debug.LogError("Не найден тайл дорожки " + RoadTileSpriteName + " в " + RoadTileSetPath);
         if (frogIcon == null)
             Debug.LogWarning("Не найдена иконка лягушки для диалога.");
 
@@ -170,6 +192,7 @@ public static class TowerDefenceSceneBuilder
 
         SerializedObject serializedController = new SerializedObject(controller);
         serializedController.FindProperty("grandpaSpriteAsset").objectReferenceValue = grandpaSprite;
+        serializedController.FindProperty("roadTileSprite").objectReferenceValue = roadTileSprite;
         serializedController.FindProperty("frogIcon").objectReferenceValue = frogIcon;
         serializedController.ApplyModifiedPropertiesWithoutUndo();
 
