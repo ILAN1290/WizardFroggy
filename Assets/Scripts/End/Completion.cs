@@ -57,7 +57,7 @@ public class Completion : MonoBehaviour
     }
     private void LoadIntroScene()
     {
-        PlayerPrefs.DeleteAll();
+        // Keep the three save slots when returning to the title screen.
         SceneManager.LoadScene(INTRO_SCENE);
     }
 
