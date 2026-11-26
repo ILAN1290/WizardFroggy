@@ -251,6 +251,7 @@ public class RoguelikeSession : MonoBehaviour
         // A newly generated floor gets a fresh merchant assortment. Re-entering
         // rooms on this floor reuses the cached array with already-sold items removed.
         merchantOffersByFloorSeed.Remove(currentFloor.Seed);
+        InitializeMerchantOffersForCurrentFloor();
         currentRoomIndex = currentFloor.StartRoomIndex;
         inLobby = false;
         shopOpen = false;
@@ -650,6 +651,34 @@ public class RoguelikeSession : MonoBehaviour
 
     public bool IsShopOpen => shopOpen;
 
+    private void InitializeMerchantOffersForCurrentFloor()
+    {
+        if (currentFloor == null) return;
+
+        Item[] available = GetAvailableItems();
+        List<Item> shuffled = new List<Item>();
+        if (available != null)
+        {
+            for (int i = 0; i < available.Length; i++)
+                if (available[i] != null)
+                    shuffled.Add(available[i]);
+        }
+
+        for (int i = shuffled.Count - 1; i > 0; i--)
+        {
+            int swapIndex = Random.Range(0, i + 1);
+            Item temporary = shuffled[i];
+            shuffled[i] = shuffled[swapIndex];
+            shuffled[swapIndex] = temporary;
+        }
+
+        Item[] offers = new Item[3];
+        for (int i = 0; i < offers.Length && i < shuffled.Count; i++)
+            offers[i] = shuffled[i];
+
+        merchantOffersByFloorSeed[currentFloor.Seed] = offers;
+    }
+
     public Item[] GetCachedMerchantOffersForCurrentFloor()
     {
         if (currentFloor == null) return null;
@@ -733,6 +762,8 @@ public class RoguelikeSession : MonoBehaviour
         if (completedFloor < 3)
         {
             currentFloor = RoguelikeGenerator.GenerateFloor(completedFloor + 1);
+            merchantOffersByFloorSeed.Remove(currentFloor.Seed);
+            InitializeMerchantOffersForCurrentFloor();
             currentRoomIndex = currentFloor.StartRoomIndex;
             inLobby = false;
             shopOpen = false;
