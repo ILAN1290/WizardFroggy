@@ -22,6 +22,8 @@ public class MainMenuLoadButton : MonoBehaviour
         {
             tmpLabel.text = "Загрузить";
             tmpLabel.alignment = TextAlignmentOptions.Center;
+            if (SaveGameSystem.Instance != null && SaveGameSystem.Instance.MenuFontAsset != null)
+                tmpLabel.font = SaveGameSystem.Instance.MenuFontAsset;
         }
         else
         {
@@ -49,12 +51,14 @@ public class MainMenuLoadButton : MonoBehaviour
         rect.offsetMin = new Vector2(8f, 4f);
         rect.offsetMax = new Vector2(-8f, -4f);
 
-        Text label = labelObject.AddComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        TextMeshProUGUI label = labelObject.AddComponent<TextMeshProUGUI>();
+        label.font = SaveGameSystem.Instance != null
+            ? SaveGameSystem.Instance.MenuFontAsset
+            : TMP_Settings.defaultFontAsset;
         label.text = "Загрузить";
         label.fontSize = 36;
-        label.fontStyle = FontStyle.Bold;
-        label.alignment = TextAnchor.MiddleCenter;
+        label.fontStyle = FontStyles.Bold;
+        label.alignment = TextAlignmentOptions.Center;
         label.color = Color.white;
         label.raycastTarget = false;
     }
