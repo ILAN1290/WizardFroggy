@@ -9,8 +9,7 @@ public static class TowerDefenceSceneBuilder
 {
     private const string BossScenePath = "Assets/Scenes/Boss.unity";
     private const string TowerDefenceScenePath = "Assets/Scenes/TowerDefence.unity";
-    private const string GrandpaSheetPath =
-        "Assets/Sprites/Modern tiles_Free/Characters_free/RPGMAKERMV/Characters_MV.png";
+    private const string GrandpaSpritePath = "Assets/Sprites/дед.png";
     private const string FrogIconPath = "Assets/Sprites/UI Game/Dialogue/ЛЯГУХА Иконка.png";
 
     static TowerDefenceSceneBuilder()
@@ -24,12 +23,11 @@ public static class TowerDefenceSceneBuilder
         if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
             return;
 
-        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(TowerDefenceScenePath) != null)
-            return;
-
         if (AssetDatabase.LoadAssetAtPath<SceneAsset>(BossScenePath) == null)
             return;
 
+        // Если в репозитории уже лежит пустая заготовка TowerDefence,
+        // автоматически заполняем её копией Boss при первой загрузке проекта.
         BuildScene(false);
     }
 
@@ -47,22 +45,49 @@ public static class TowerDefenceSceneBuilder
             return;
         }
 
-        SceneAsset existing = AssetDatabase.LoadAssetAtPath<SceneAsset>(TowerDefenceScenePath);
-        if (existing != null)
+        SceneAsset existingAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(TowerDefenceScenePath);
+        Scene existingScene = SceneManager.GetSceneByPath(TowerDefenceScenePath);
+        bool openedExistingForCheck = false;
+        bool existingIsEmpty = true;
+
+        if (existingAsset != null)
         {
-            if (!allowOverwrite)
+            if (!existingScene.IsValid() || !existingScene.isLoaded)
+            {
+                existingScene = EditorSceneManager.OpenScene(TowerDefenceScenePath, OpenSceneMode.Additive);
+                openedExistingForCheck = true;
+            }
+
+            existingIsEmpty = existingScene.GetRootGameObjects().Length == 0;
+
+            if (!allowOverwrite && !existingIsEmpty)
+            {
+                if (openedExistingForCheck)
+                    EditorSceneManager.CloseScene(existingScene, true);
                 return;
+            }
 
-            bool confirmed = EditorUtility.DisplayDialog(
-                "Пересоздать TowerDefence?",
-                "Сцена TowerDefence будет заново скопирована из Boss. Текущие ручные изменения сцены будут потеряны.",
-                "Пересоздать",
-                "Отмена");
+            if (allowOverwrite)
+            {
+                bool confirmed = EditorUtility.DisplayDialog(
+                    "Пересоздать TowerDefence?",
+                    "Сцена TowerDefence будет заново скопирована из Boss. Текущие ручные изменения сцены будут потеряны.",
+                    "Пересоздать",
+                    "Отмена");
 
-            if (!confirmed)
-                return;
+                if (!confirmed)
+                {
+                    if (openedExistingForCheck)
+                        EditorSceneManager.CloseScene(existingScene, true);
+                    return;
+                }
+            }
 
-            AssetDatabase.DeleteAsset(TowerDefenceScenePath);
+            if (!existingIsEmpty)
+            {
+                EditorSceneManager.CloseScene(existingScene, true);
+                existingScene = default(Scene);
+            }
         }
 
         Scene sourceScene = EditorSceneManager.OpenScene(BossScenePath, OpenSceneMode.Additive);
@@ -72,9 +97,11 @@ public static class TowerDefenceSceneBuilder
             return;
         }
 
-        Scene targetScene = EditorSceneManager.NewScene(
-            NewSceneSetup.EmptyScene,
-            NewSceneMode.Additive);
+        // Переиспользуем уже открытую пустую сцену, чтобы сохранить её GUID и метафайл.
+        Scene targetScene = existingAsset != null && existingIsEmpty &&
+                            existingScene.IsValid() && existingScene.isLoaded
+            ? existingScene
+            : EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
 
         EditorSceneManager.SetActiveScene(targetScene);
 
@@ -122,11 +149,13 @@ public static class TowerDefenceSceneBuilder
         if (dialogueElements != null)
             dialogueElements.SetActive(false);
 
-        Texture2D grandpaSheet = AssetDatabase.LoadAssetAtPath<Texture2D>(GrandpaSheetPath);
+        Sprite grandpaSprite = AssetDatabase.LoadAllAssetsAtPath(GrandpaSpritePath)
+            .OfType<Sprite>()
+            .FirstOrDefault(sprite => sprite.name == "дед_0" || sprite.name == "дед");
         Sprite frogIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FrogIconPath);
 
-        if (grandpaSheet == null)
-            Debug.LogError("Не найден спрайт-лист Characters_MV.png для дедушки.");
+        if (grandpaSprite == null)
+            Debug.LogError("Не найден спрайт дедушки в Assets/Sprites/дед.png.");
         if (frogIcon == null)
             Debug.LogWarning("Не найдена иконка лягушки для диалога.");
 
@@ -139,7 +168,7 @@ public static class TowerDefenceSceneBuilder
         controllerObject.AddComponent<FloorFadeTransition>();
 
         SerializedObject serializedController = new SerializedObject(controller);
-        serializedController.FindProperty("grandpaSheet").objectReferenceValue = grandpaSheet;
+        serializedController.FindProperty("grandpaSpriteAsset").objectReferenceValue = grandpaSprite;
         serializedController.FindProperty("frogIcon").objectReferenceValue = frogIcon;
         serializedController.ApplyModifiedPropertiesWithoutUndo();
 
@@ -184,12 +213,27 @@ public static class TowerDefenceSceneBuilder
     private static void AddTowerDefenceToBuildSettings()
     {
         EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
-        var updatedScenes = scenes.ToList();
-        int existingIndex = updatedScenes.FindIndex(scene => scene.path == TowerDefenceScenePath);
+        var updatedScenes = new List<EditorBuildSettingsScene>();
+        bool towerDefenceAdded = false;
 
-        if (existingIndex >= 0)
-            updatedScenes[existingIndex] = new EditorBuildSettingsScene(TowerDefenceScenePath, true);
-        else
+        foreach (EditorBuildSettingsScene scene in scenes)
+        {
+            if (scene.path == TowerDefenceScenePath)
+            {
+                // В Build Settings не должно оставаться нескольких ссылок на один путь
+                // с разными GUID (они могли попасть туда из main и TowerDefence).
+                if (!towerDefenceAdded)
+                {
+                    updatedScenes.Add(new EditorBuildSettingsScene(TowerDefenceScenePath, true));
+                    towerDefenceAdded = true;
+                }
+                continue;
+            }
+
+            updatedScenes.Add(scene);
+        }
+
+        if (!towerDefenceAdded)
             updatedScenes.Add(new EditorBuildSettingsScene(TowerDefenceScenePath, true));
 
         EditorBuildSettings.scenes = updatedScenes.ToArray();
