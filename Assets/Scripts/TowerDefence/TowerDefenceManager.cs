@@ -103,6 +103,9 @@ public class TowerDefenceManager : MonoBehaviour
         new HashSet<Vector3Int>();
 
     private TowerDefenceWaveSpawner waveSpawner;
+    private int totalSpawnedGhosts;
+    private int completedWaves;
+    private bool waveLoopRunning;
     private Vector3[] routeA;
     private Vector3[] routeB;
     private Vector3 spawnPosition;
@@ -217,32 +220,73 @@ public class TowerDefenceManager : MonoBehaviour
 
     public void BeginAfterIntro()
     {
+        if (gameStarted || instructionsOpen || waveLoopRunning)
+            return;
+
         if (waveSpawner == null)
             waveSpawner = GetComponent<TowerDefenceWaveSpawner>();
         if (waveSpawner == null)
             waveSpawner = gameObject.AddComponent<TowerDefenceWaveSpawner>();
 
-        if (!gameStarted && !instructionsOpen)
-            StartCoroutine(ShowInstructionsAndRun());
+        if (waveSpawner == null || waveSpawner.TotalWaves <= 0)
+        {
+            ReportWaveSetupFailure("Не найден спавнер или в нём не настроены волны.");
+            return;
+        }
+
+        if (routeA == null || routeB == null ||
+            routeA.Length < 2 || routeB.Length < 2)
+        {
+            ReportWaveSetupFailure("Не настроены маршруты призраков. Запуск волн отменён.");
+            return;
+        }
+
+        totalSpawnedGhosts = 0;
+        completedWaves = 0;
+        StartCoroutine(ShowInstructionsAndRun());
     }
 
     private IEnumerator ShowInstructionsAndRun()
     {
-        if (waveSpawner == null)
-            waveSpawner = GetComponent<TowerDefenceWaveSpawner>();
-        if (waveSpawner == null)
-            waveSpawner = gameObject.AddComponent<TowerDefenceWaveSpawner>();
+        if (waveLoopRunning)
+            yield break;
+
+        waveLoopRunning = true;
+
+        if (waveSpawner == null || waveSpawner.TotalWaves <= 0)
+        {
+            ReportWaveSetupFailure("Спавнер не содержит ни одной волны.");
+            waveLoopRunning = false;
+            yield break;
+        }
 
         instructionsOpen = true;
-        yield return new WaitUntil(() => !instructionsOpen);
+        yield return new WaitUntil(() => !instructionsOpen || gameOver);
+
+        if (gameOver)
+        {
+            waveLoopRunning = false;
+            yield break;
+        }
 
         gameStarted = true;
         CreateStarterTower();
+
+        int totalWaves = waveSpawner.TotalWaves;
         countdown = Mathf.Max(0f, firstWaveDelay);
         countdownActive = true;
 
-        for (int wave = 1; wave <= (waveSpawner != null ? waveSpawner.TotalWaves : 10); wave++)
+        for (int wave = 1; wave <= totalWaves; wave++)
         {
+            int expectedGhosts = waveSpawner.GetEnemyCountForWave(wave);
+            if (expectedGhosts <= 0)
+            {
+                ReportWaveSetupFailure(
+                    "Волна " + wave + " пуста. Победа не засчитывается.");
+                waveLoopRunning = false;
+                yield break;
+            }
+
             while (countdown > 0f && !gameOver)
             {
                 countdown -= Time.deltaTime;
@@ -250,25 +294,51 @@ public class TowerDefenceManager : MonoBehaviour
             }
 
             if (gameOver)
+            {
+                waveLoopRunning = false;
                 yield break;
+            }
 
             currentWave = wave;
             ShowGrandpaPhrase();
             countdownActive = false;
 
-            if (waveSpawner != null)
-                yield return StartCoroutine(waveSpawner.SpawnWave(wave, this));
+            int spawnedBeforeWave = totalSpawnedGhosts;
+            yield return StartCoroutine(waveSpawner.SpawnWave(wave, this));
+
+            if (gameOver)
+            {
+                waveLoopRunning = false;
+                yield break;
+            }
+
+            int actuallySpawned = totalSpawnedGhosts - spawnedBeforeWave;
+            if (actuallySpawned != expectedGhosts)
+            {
+                ReportWaveSetupFailure(
+                    "Волна " + wave + ": создано призраков " +
+                    actuallySpawned + " из " + expectedGhosts +
+                    ". Проверь маршруты и настройки спавнера.");
+                waveLoopRunning = false;
+                yield break;
+            }
 
             while (activeGhosts.Count > 0 && !gameOver)
                 yield return null;
 
             if (gameOver)
+            {
+                waveLoopRunning = false;
                 yield break;
+            }
 
-            if (wave < (waveSpawner != null ? waveSpawner.TotalWaves : 10))
+            completedWaves = wave;
+
+            if (wave < totalWaves)
             {
                 countdown = Mathf.Max(0f, betweenWaveDelay);
                 countdownActive = true;
+
                 while (countdown > 0f && !gameOver)
                 {
                     countdown -= Time.deltaTime;
@@ -276,15 +346,33 @@ public class TowerDefenceManager : MonoBehaviour
                 }
 
                 if (gameOver)
+                {
+                    waveLoopRunning = false;
                     yield break;
+                }
 
                 countdownActive = false;
             }
         }
 
-        victory = !gameOver;
-        statusMessage = "Все 10 волн отбиты! Дед жив — победа!";
+        if (!gameOver && completedWaves == totalWaves)
+        {
+            victory = true;
+            statusMessage = "Все " + totalWaves + " волн отбиты! Дед жив — победа!";
+            statusUntil = float.MaxValue;
+        }
+
+        waveLoopRunning = false;
+    }
+
+    private void ReportWaveSetupFailure(string message)
+    {
+        gameStarted = false;
+        instructionsOpen = false;
+        countdownActive = false;
+        statusMessage = message;
         statusUntil = float.MaxValue;
+        Debug.LogError("Tower Defence: " + message, this);
     }
 
     private void CreateStarterTower()
@@ -322,7 +410,8 @@ public class TowerDefenceManager : MonoBehaviour
 
     public void SpawnGhost(TowerDefenceGhostType type)
     {
-        if (gameOver || routeA == null || routeB == null)
+        if (gameOver || routeA == null || routeB == null ||
+            routeA.Length < 2 || routeB.Length < 2)
             return;
 
         int branch = nextRouteIndex % 2;
@@ -369,6 +458,7 @@ public class TowerDefenceManager : MonoBehaviour
         TowerDefenceGhost ghost = ghostObject.AddComponent<TowerDefenceGhost>();
         ghost.Initialize(this, type, route, sprite, health, speed, size);
         activeGhosts.Add(ghost);
+        totalSpawnedGhosts++;
     }
 
     public void OnGhostDefeated(TowerDefenceGhost ghost, Vector3 position)
@@ -887,7 +977,7 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!gameStarted && !instructionsOpen)
+        if (!gameStarted && !instructionsOpen && string.IsNullOrEmpty(statusMessage))
             return;
 
         DrawHud();
