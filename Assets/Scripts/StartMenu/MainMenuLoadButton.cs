@@ -52,9 +52,10 @@ public class MainMenuLoadButton : MonoBehaviour
         rect.offsetMax = new Vector2(-8f, -4f);
 
         TextMeshProUGUI label = labelObject.AddComponent<TextMeshProUGUI>();
-        label.font = SaveGameSystem.Instance != null
+        TMP_FontAsset configuredFont = SaveGameSystem.Instance != null
             ? SaveGameSystem.Instance.MenuFontAsset
-            : TMP_Settings.defaultFontAsset;
+            : null;
+        label.font = configuredFont != null ? configuredFont : TMP_Settings.defaultFontAsset;
         label.text = "Загрузить";
         label.fontSize = 36;
         label.fontStyle = FontStyles.Bold;
