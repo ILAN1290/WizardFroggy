@@ -58,6 +58,14 @@ public class RoguelikeSession : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float ambientVolume = 0.35f;
     [SerializeField, Range(0f, 1f)] private float soundEffectsVolume = 0.85f;
 
+    [Header("Звуки торговца")]
+    [SerializeField] private AudioClip merchantOpenSound;
+    [SerializeField] private AudioClip merchantCloseSound;
+    [SerializeField] private AudioClip merchantButtonSound;
+    [SerializeField] private AudioClip merchantUpgradeSound;
+    [SerializeField] private AudioClip merchantPurchaseSound;
+    [SerializeField] private AudioClip merchantSoldOutSound;
+
     [Header("Merchant UI Textures")]
     [SerializeField] private RoguelikeMerchantTextures merchantTextures =
         new RoguelikeMerchantTextures();
@@ -600,8 +608,11 @@ public class RoguelikeSession : MonoBehaviour
     public void OpenShop(RoguelikeMerchant merchant)
     {
         if (merchant == null || deathScreenShown) return;
+        if (shopOpen && activeMerchant == merchant) return;
+
         activeMerchant = merchant;
         shopOpen = true;
+        PlayRoguelikeSound(merchantOpenSound);
         if (playerBody != null)
             playerBody.linearVelocity = Vector2.zero;
         if (playerController != null)
@@ -611,10 +622,33 @@ public class RoguelikeSession : MonoBehaviour
 
     public void CloseShop()
     {
+        if (!shopOpen) return;
+
         shopOpen = false;
         activeMerchant = null;
+        PlayRoguelikeSound(merchantCloseSound);
         if (!deathScreenShown && playerController != null)
             playerController.enabled = true;
+    }
+
+    public void PlayMerchantButtonSound()
+    {
+        PlayRoguelikeSound(merchantButtonSound, 0.75f);
+    }
+
+    public void PlayMerchantUpgradeSound()
+    {
+        PlayRoguelikeSound(merchantUpgradeSound);
+    }
+
+    public void PlayMerchantPurchaseSound()
+    {
+        PlayRoguelikeSound(merchantPurchaseSound);
+    }
+
+    public void PlayMerchantSoldOutSound()
+    {
+        PlayRoguelikeSound(merchantSoldOutSound);
     }
 
     public void ShowHint(string message)
