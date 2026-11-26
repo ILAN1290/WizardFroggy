@@ -68,6 +68,10 @@ public class RoguelikeSession : MonoBehaviour
     [SerializeField] private AudioClip merchantPurchaseSound;
     [SerializeField] private AudioClip merchantSoldOutSound;
 
+    [Header("Предметы рогалика")]
+    [Tooltip("Предметы из Assets/Prefabs/Item. Используются для выпадения, сундуков и ассортимента торговца.")]
+    [SerializeField] private Item[] availableItems = new Item[0];
+
     [Header("Merchant UI Textures")]
     [SerializeField] private RoguelikeMerchantTextures merchantTextures =
         new RoguelikeMerchantTextures();
@@ -414,10 +418,37 @@ public class RoguelikeSession : MonoBehaviour
             clip, Mathf.Clamp01(soundEffectsVolume * volumeMultiplier));
     }
 
+    public Item[] GetAvailableItems()
+    {
+        return GetLootItems();
+    }
+
     private Item[] GetLootItems()
     {
-        if (lootItems == null)
-            lootItems = Resources.LoadAll<Item>("RoguelikeLoot");
+        if (lootItems != null)
+            return lootItems;
+
+        List<Item> validItems = new List<Item>();
+        if (availableItems != null)
+        {
+            for (int i = 0; i < availableItems.Length; i++)
+            {
+                Item item = availableItems[i];
+                if (item == null)
+                {
+                    Debug.LogWarning("RoguelikeSession: один из предметов в списке Available Items не назначен.");
+                    continue;
+                }
+
+                if (!validItems.Contains(item))
+                    validItems.Add(item);
+            }
+        }
+
+        lootItems = validItems.ToArray();
+        if (lootItems.Length == 0)
+            Debug.LogError("RoguelikeSession: список предметов пуст. Назначьте Item assets из Assets/Prefabs/Item/ в Inspector.");
+
         return lootItems;
     }
 
@@ -526,6 +557,11 @@ public class RoguelikeSession : MonoBehaviour
         Sprite itemSprite = item.icon != null ? item.icon :
             roomGenerator != null && roomGenerator.ItemSprite != null
                 ? roomGenerator.ItemSprite : RoomGenerator.CircleSprite;
+        if (itemSprite == null)
+        {
+            Debug.LogError("RoguelikeSession: у предмета \"" + item.itemName + "\" отсутствует иконка и резервный спрайт.");
+            return;
+        }
 
         Camera camera = Camera.main;
         float pixelsPerUnit = camera != null && camera.orthographic && camera.pixelHeight > 0
