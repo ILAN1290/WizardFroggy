@@ -183,9 +183,8 @@ public class GhostAI : MonoBehaviour
     {
         if (miniBoss)
         {
-            // The mini-boss can fire from afar, but reserves its charged
-            // ground slam for the close-range window.
-            return distance <= 1.75f ||
+            // Keep a wider close-range attack window for the ground slam.
+            return distance <= 2.65f ||
                 (distance >= 3.0f && distance <= 8.5f);
         }
 
@@ -204,6 +203,14 @@ public class GhostAI : MonoBehaviour
             if (distance > 1.7f) return towardPlayer;
             if (distance < 0.95f) return -towardPlayer;
             return (tangent + towardPlayer * 0.12f).normalized;
+        }
+
+        if (miniBoss)
+        {
+            // Move into ground-slam range instead of permanently kiting the player.
+            if (distance > 2.35f) return towardPlayer;
+            if (distance < 1.4f) return -towardPlayer;
+            return (tangent + towardPlayer * 0.1f).normalized;
         }
 
         if (distance > 6.2f) return towardPlayer;
