@@ -1,8 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
 
-public class SlotUI : MonoBehaviour
+public class SlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
 {
     public Image icon;
     public TextMeshProUGUI countText;
@@ -129,5 +130,30 @@ public class SlotUI : MonoBehaviour
     {
         if (owner != null)
             owner.OnSlotClicked(index);
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left || owner == null)
+            return;
+        owner.BeginSlotDrag(index);
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        // InventoryUI positions the held icon at the current mouse position.
+    }
+
+    public void OnDrop(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left || owner == null)
+            return;
+        owner.DropHeldItemIntoSlot(index);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (owner != null)
+            owner.EndSlotDrag();
     }
 }
