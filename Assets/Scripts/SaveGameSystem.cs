@@ -59,9 +59,7 @@ public class SaveGameSystem : MonoBehaviour
 
     [Header("UI Game / Merchenant assets")]
     [SerializeField] private Texture2D buttonTexture;
-    [SerializeField] private Texture2D frameTexture;
     [SerializeField] private Texture2D deleteTexture;
-    [SerializeField] private Texture2D selectedFrameTexture;
 
     [Header("Save/load menu sound")]
     [SerializeField] private AudioClip menuOpenSound;
@@ -83,8 +81,6 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private TMP_FontAsset menuFontAsset;
 
     [Header("Three save slot textures (one texture per slot)")]
-    [SerializeField] private Texture2D[] emptySlotTextures = new Texture2D[3];
-    [SerializeField] private Texture2D[] occupiedSlotTextures = new Texture2D[3];
 
     public static SaveGameSystem Instance { get; private set; }
 
@@ -97,9 +93,7 @@ public class SaveGameSystem : MonoBehaviour
     private bool transitionPaused;
     private List<InventoryEntry> pendingInventoryRestore;
     private Sprite buttonSprite;
-    private Sprite frameSprite;
     private Sprite deleteSprite;
-    private Sprite selectedFrameSprite;
     private Sprite loadActionIcon;
     private Sprite saveActionIcon;
     private Sprite deleteActionIcon;
@@ -137,9 +131,7 @@ public class SaveGameSystem : MonoBehaviour
         if (source.itemCatalog != null && source.itemCatalog.Length > 0)
             itemCatalog = source.itemCatalog;
         if (source.buttonTexture != null) buttonTexture = source.buttonTexture;
-        if (source.frameTexture != null) frameTexture = source.frameTexture;
         if (source.deleteTexture != null) deleteTexture = source.deleteTexture;
-        if (source.selectedFrameTexture != null) selectedFrameTexture = source.selectedFrameTexture;
         if (source.menuOpenSound != null) menuOpenSound = source.menuOpenSound;
         if (source.uiAudioSource != null) uiAudioSource = source.uiAudioSource;
         if (source.startMenuButtonTexture != null) startMenuButtonTexture = source.startMenuButtonTexture;
@@ -151,10 +143,6 @@ public class SaveGameSystem : MonoBehaviour
         optionsButtonPosition = source.optionsButtonPosition;
         exitButtonPosition = source.exitButtonPosition;
         if (source.menuFontAsset != null) menuFontAsset = source.menuFontAsset;
-        if (source.emptySlotTextures != null && source.emptySlotTextures.Length == SlotCount)
-            emptySlotTextures = source.emptySlotTextures;
-        if (source.occupiedSlotTextures != null && source.occupiedSlotTextures.Length == SlotCount)
-            occupiedSlotTextures = source.occupiedSlotTextures;
         RefreshSprites();
     }
 
@@ -274,9 +262,7 @@ public class SaveGameSystem : MonoBehaviour
     private void RefreshSprites()
     {
         buttonSprite = MakeSprite(buttonTexture, buttonSprite);
-        frameSprite = MakeSprite(frameTexture, frameSprite);
         deleteSprite = MakeSprite(deleteTexture, deleteSprite);
-        selectedFrameSprite = MakeSprite(selectedFrameTexture, selectedFrameSprite);
 
         if (loadActionIcon == null) loadActionIcon = CreatePixelActionIcon(0);
         if (saveActionIcon == null) saveActionIcon = CreatePixelActionIcon(1);
@@ -301,27 +287,17 @@ public class SaveGameSystem : MonoBehaviour
         if (iconType == 0 || iconType == 1)
         {
             bool down = iconType == 0;
-            for (int y = 17; y < 29; y++)
+            // Shared shaft, connected to the flat side of the arrow head.
+            for (int y = 18; y < 29; y++)
                 for (int x = 13; x <= 18; x++)
                     pixels[y * size + x] = ink;
 
             for (int row = 0; row < 14; row++)
             {
-                int halfWidth = 2 + row;
-                int y = down ? 17 - row : 14 + row;
+                int y = down ? 18 - row : 5 + row;
+                int halfWidth = down ? 15 - row : 2 + row;
                 for (int x = 16 - halfWidth; x <= 16 + halfWidth; x++)
                     pixels[y * size + x] = ink;
-            }
-
-            if (down)
-            {
-                for (int x = 6; x <= 25; x++)
-                    pixels[3 * size + x] = ink;
-            }
-            else
-            {
-                for (int x = 6; x <= 25; x++)
-                    pixels[3 * size + x] = ink;
             }
         }
         else
@@ -781,11 +757,11 @@ public class SaveGameSystem : MonoBehaviour
     {
         RectTransform rect = CreateRect(objectName, parent, size, position);
         Image background = rect.gameObject.AddComponent<Image>();
-        background.sprite = buttonSprite;
-        background.preserveAspect = buttonSprite != null;
-        background.color = buttonSprite != null
-            ? Color.white
-            : new Color(0.31f, 0.20f, 0.14f, 1f);
+        background.color = new Color(0.24f, 0.16f, 0.12f, 1f);
+        background.raycastTarget = true;
+        Outline buttonOutline = rect.gameObject.AddComponent<Outline>();
+        buttonOutline.effectColor = new Color(0.62f, 0.43f, 0.26f, 1f);
+        buttonOutline.effectDistance = new Vector2(2f, -2f);
 
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = background;
@@ -827,14 +803,6 @@ public class SaveGameSystem : MonoBehaviour
             if (!ReadSlot(i).exists)
                 return i;
         return 0;
-    }
-
-    private Texture2D GetSlotTexture(int index, bool occupied)
-    {
-        Texture2D[] textures = occupied ? occupiedSlotTextures : emptySlotTextures;
-        if (textures != null && index >= 0 && index < textures.Length && textures[index] != null)
-            return textures[index];
-        return occupied ? selectedFrameTexture : frameTexture;
     }
 
     private string GetInventorySummary(List<InventoryEntry> entries)
