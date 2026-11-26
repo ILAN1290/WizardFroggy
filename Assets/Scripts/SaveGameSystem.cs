@@ -657,14 +657,6 @@ public class SaveGameSystem : MonoBehaviour
             frog.raycastTarget = false;
         }
 
-        // Empty slots always have a visible state label.
-        if (!data.exists)
-        {
-            CreateText("Empty slot label", card, "ПУСТО",
-                new Vector2(150f, 32f), new Vector2(-610f, -60f), 17,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-        }
-
         string details;
         if (!data.exists)
         {
