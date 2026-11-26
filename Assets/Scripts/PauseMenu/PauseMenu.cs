@@ -21,6 +21,18 @@ public class PauseMenu : MonoBehaviour
 
     private void Update()
     {
+        if (InputManager.instance == null) return;
+
+        // Escape should dismiss the merchant first; do not toggle the pause menu
+        // while the merchant overlay is the active interaction.
+        if (RoguelikeSession.Instance != null &&
+            RoguelikeSession.Instance.IsShopOpen &&
+            (InputManager.instance.OpenPauseMenuInput || InputManager.instance.UIClosePauseMenuInput))
+        {
+            RoguelikeSession.Instance.CloseShop();
+            return;
+        }
+
         if ((InputManager.instance.OpenPauseMenuInput || InputManager.instance.OpenPauseFromDialogue || InputManager.instance.OpenPauseFromReading || InputManager.instance.OpenPauseFromCutscene))
         {
             previousInputActionMap = InputManager.PlayerInput.currentActionMap.name;
