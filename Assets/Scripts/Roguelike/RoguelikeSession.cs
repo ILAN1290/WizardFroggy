@@ -723,16 +723,18 @@ public class RoguelikeSession : MonoBehaviour
             return;
         }
 
-        // TowerDefence is intentionally supplied by the other developer.
-        // Do not create a fake scene or attempt to load it until it is in Build Settings.
-        if (Application.CanStreamedLevelBeLoaded("TowerDefence"))
+        if (SaveGameSystem.Instance != null)
+        {
+            SaveGameSystem.Instance.ShowRoguelikeTransition();
+        }
+        else if (Application.CanStreamedLevelBeLoaded("TowerDefence"))
         {
             SceneManager.LoadScene("TowerDefence");
         }
         else
         {
             ReturnToLobby();
-            ShowHint("Все три этажа пройдены. Добавьте TowerDefence в Build Settings перед Boss.");
+            ShowHint("Сцена TowerDefence не добавлена в Build Settings.");
         }
     }
 
