@@ -8541,6 +8541,17 @@ MonoBehaviour:
   selectedFrameTexture: {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
   merchantPortrait: {fileID: 1135266238516603899, guid: ab5420c6eff66e045ac59a2f6918d253, type: 3}
   loadButtonSprite: {fileID: 0}
+  startMenuButtonTexture: {fileID: 0}
+  optionsMenuButtonTexture: {fileID: 0}
+  exitMenuButtonTexture: {fileID: 0}
+  emptySlotTextures:
+  - {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
+  - {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
+  - {fileID: 2800000, guid: d0192fd186c7fe349abaf6c8f24568d5, type: 3}
+  occupiedSlotTextures:
+  - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
+  - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
+  - {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
