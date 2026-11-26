@@ -207,7 +207,8 @@ public class SaveGameSystem : MonoBehaviour
             Image loadButtonImage = loadObject.GetComponent<Image>();
             if (loadButtonImage != null)
             {
-                loadButtonImage.sprite = loadButtonSprite != null ? loadButtonSprite : buttonSprite;
+                if (loadButtonSprite != null)
+                    loadButtonImage.sprite = loadButtonSprite;
                 loadButtonImage.preserveAspect = loadButtonImage.sprite != null;
             }
             Button loadButtonComponent = loadObject.GetComponent<Button>();
