@@ -132,8 +132,9 @@ public class TowerDefenceManager : MonoBehaviour
     private Texture2D runtimeSquareTexture;
     private Material rangeMaterial;
 
-    public bool IsGameSessionRunning => (gameStarted || instructionsOpen) && !gameOver;
-    public bool IsGameOver => gameOver;
+    public bool IsGameSessionRunning =>
+        (gameStarted || instructionsOpen) && !gameOver && !victory;
+    public bool IsGameOver => gameOver || victory;
     public float TowerSpeedMultiplier =>
         Time.time < speedPotionUntil ? speedPotionMultiplier : 1f;
     public float TowerDamageMultiplier =>

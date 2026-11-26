@@ -28,7 +28,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     private readonly HashSet<Vector3Int> generatedRoadCells = new HashSet<Vector3Int>();
     private Vector3[] routeA;
     private Vector3[] routeB;
-    private readonly Vector3 spawnPosition = new Vector3(9.5f, 5.5f, 0f);
+    private readonly Vector3 spawnPosition = new Vector3(9.5f, 4.5f, 0f);
 
     private void Awake()
     {
@@ -121,9 +121,9 @@ public class TowerDefenceSceneController : MonoBehaviour
         Vector3[] trunk =
         {
             spawnPosition,
-            new Vector3(7.5f, 4.5f, 0f),
-            new Vector3(5.5f, 3.5f, 0f),
-            new Vector3(3.5f, 2.5f, 0f),
+            new Vector3(7.5f, 3.8f, 0f),
+            new Vector3(5.5f, 3.0f, 0f),
+            new Vector3(3.5f, 2.2f, 0f),
             new Vector3(1.5f, 1.5f, 0f)
         };
 
