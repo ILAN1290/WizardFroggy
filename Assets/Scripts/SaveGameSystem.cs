@@ -972,6 +972,13 @@ public class SaveGameSystem : MonoBehaviour
             transitionPaused = false;
         }
         SetMainMenuEnabled(true);
+
+        GameObject menuObject = GameObject.Find("MainMenuAndLogo");
+        Transform startButton = menuObject != null
+            ? menuObject.transform.Find("Start Button")
+            : null;
+        if (startButton != null && EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(startButton.gameObject);
     }
 
     private void SetMainMenuEnabled(bool enabled)
