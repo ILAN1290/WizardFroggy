@@ -14,7 +14,7 @@ public class RoguelikeMerchant : MonoBehaviour
 
     private RoguelikeSession session;
     private RoguelikeMerchantTextures textures;
-    private readonly Item[] offeredItems = new Item[3];
+    private Item[] offeredItems = new Item[3];
     private int selectedOfferIndex;
     private GUIStyle titleStyle;
     private GUIStyle vendorStyle;
@@ -29,7 +29,23 @@ public class RoguelikeMerchant : MonoBehaviour
         textures = uiTextures;
         currencyIcon = uiTextures != null && uiTextures.currencyIcon != null
             ? uiTextures.currencyIcon : fallbackCurrencyIcon;
-        GenerateOffers();
+
+        // The merchant object is recreated whenever its room is rebuilt.
+        // Keep one shared offer array for the entire generated floor.
+        Item[] cachedOffers = session != null
+            ? session.GetCachedMerchantOffersForCurrentFloor()
+            : null;
+        if (cachedOffers != null)
+        {
+            offeredItems = cachedOffers;
+            SelectFirstAvailableOffer();
+        }
+        else
+        {
+            offeredItems = new Item[3];
+            GenerateOffers();
+            session?.CacheMerchantOffersForCurrentFloor(offeredItems);
+        }
     }
 
     private void GenerateOffers()
@@ -55,7 +71,20 @@ public class RoguelikeMerchant : MonoBehaviour
         for (int i = 0; i < offeredItems.Length && i < shuffled.Length; i++)
             offeredItems[i] = shuffled[i];
 
+        SelectFirstAvailableOffer();
+    }
+
+    private void SelectFirstAvailableOffer()
+    {
         selectedOfferIndex = 0;
+        for (int i = 0; i < offeredItems.Length; i++)
+        {
+            if (offeredItems[i] != null)
+            {
+                selectedOfferIndex = i;
+                return;
+            }
+        }
     }
 
     private void OnTriggerStay2D(Collider2D other)
