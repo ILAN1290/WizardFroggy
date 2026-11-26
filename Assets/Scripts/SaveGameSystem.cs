@@ -91,7 +91,7 @@ public class SaveGameSystem : MonoBehaviour
         if (Instance != null && Instance != this)
         {
             Instance.AbsorbConfiguration(this);
-            Destroy(gameObject);
+            Destroy(this);
             return;
         }
 
@@ -205,8 +205,11 @@ public class SaveGameSystem : MonoBehaviour
             loadObject.name = "Load Game Button";
             load = loadObject.transform;
             Image loadButtonImage = loadObject.GetComponent<Image>();
-            if (loadButtonImage != null && loadButtonSprite != null)
-                loadButtonImage.sprite = loadButtonSprite;
+            if (loadButtonImage != null)
+            {
+                loadButtonImage.sprite = loadButtonSprite != null ? loadButtonSprite : buttonSprite;
+                loadButtonImage.preserveAspect = loadButtonImage.sprite != null;
+            }
             Button loadButtonComponent = loadObject.GetComponent<Button>();
             if (loadButtonComponent != null)
                 loadButtonComponent.onClick.RemoveAllListeners();
