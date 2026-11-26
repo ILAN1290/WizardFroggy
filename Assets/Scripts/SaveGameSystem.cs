@@ -795,7 +795,7 @@ public class SaveGameSystem : MonoBehaviour
             ? TextAlignmentOptions.MidlineLeft
             : TextAlignmentOptions.Center;
         label.color = new Color(0.97f, 0.91f, 0.78f, 1f);
-        label.enableWordWrapping = true;
+        label.textWrappingMode = TextWrappingModes.Normal;
         label.overflowMode = TextOverflowModes.Overflow;
         label.raycastTarget = false;
         return label;
