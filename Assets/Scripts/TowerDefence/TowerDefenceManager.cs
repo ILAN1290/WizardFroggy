@@ -360,6 +360,10 @@ public class TowerDefenceManager : MonoBehaviour
             victory = true;
             statusMessage = "Все " + totalWaves + " волн отбиты! Дед жив — победа!";
             statusUntil = float.MaxValue;
+
+            // The save/next-stage screen appears only after all waves are defeated.
+            if (SaveGameSystem.Instance != null)
+                SaveGameSystem.Instance.ShowTowerDefenceTransition();
         }
 
         waveLoopRunning = false;
