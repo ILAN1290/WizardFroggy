@@ -62,7 +62,6 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private Texture2D frameTexture;
     [SerializeField] private Texture2D deleteTexture;
     [SerializeField] private Texture2D selectedFrameTexture;
-    [SerializeField] private Sprite slotPlaceholderSprite;
 
     [Header("Save/load menu sound")]
     [SerializeField] private AudioClip menuOpenSound;
@@ -101,6 +100,9 @@ public class SaveGameSystem : MonoBehaviour
     private Sprite frameSprite;
     private Sprite deleteSprite;
     private Sprite selectedFrameSprite;
+    private Sprite loadActionIcon;
+    private Sprite saveActionIcon;
+    private Sprite deleteActionIcon;
     private Button[] currentSlotButtons = new Button[SlotCount];
     private int selectedSaveSlotIndex;
 
@@ -138,7 +140,6 @@ public class SaveGameSystem : MonoBehaviour
         if (source.frameTexture != null) frameTexture = source.frameTexture;
         if (source.deleteTexture != null) deleteTexture = source.deleteTexture;
         if (source.selectedFrameTexture != null) selectedFrameTexture = source.selectedFrameTexture;
-        if (source.slotPlaceholderSprite != null) slotPlaceholderSprite = source.slotPlaceholderSprite;
         if (source.menuOpenSound != null) menuOpenSound = source.menuOpenSound;
         if (source.uiAudioSource != null) uiAudioSource = source.uiAudioSource;
         if (source.startMenuButtonTexture != null) startMenuButtonTexture = source.startMenuButtonTexture;
@@ -276,6 +277,83 @@ public class SaveGameSystem : MonoBehaviour
         frameSprite = MakeSprite(frameTexture, frameSprite);
         deleteSprite = MakeSprite(deleteTexture, deleteSprite);
         selectedFrameSprite = MakeSprite(selectedFrameTexture, selectedFrameSprite);
+
+        if (loadActionIcon == null) loadActionIcon = CreatePixelActionIcon(0);
+        if (saveActionIcon == null) saveActionIcon = CreatePixelActionIcon(1);
+        if (deleteActionIcon == null) deleteActionIcon = CreatePixelActionIcon(2);
+    }
+
+    // 0 = download arrow, 1 = save arrow, 2 = trash can.
+    private static Sprite CreatePixelActionIcon(int iconType)
+    {
+        const int size = 32;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = iconType == 0 ? "Save UI • Download" :
+            iconType == 1 ? "Save UI • Save" : "Save UI • Delete";
+        texture.filterMode = FilterMode.Point;
+        texture.wrapMode = TextureWrapMode.Clamp;
+
+        Color32 clear = new Color32(0, 0, 0, 0);
+        Color32 ink = new Color32(255, 239, 207, 255);
+        Color32[] pixels = new Color32[size * size];
+        for (int i = 0; i < pixels.Length; i++) pixels[i] = clear;
+
+        if (iconType == 0 || iconType == 1)
+        {
+            bool down = iconType == 0;
+            for (int y = 17; y < 29; y++)
+                for (int x = 13; x <= 18; x++)
+                    pixels[y * size + x] = ink;
+
+            for (int row = 0; row < 14; row++)
+            {
+                int halfWidth = 2 + row;
+                int y = down ? 17 - row : 14 + row;
+                for (int x = 16 - halfWidth; x <= 16 + halfWidth; x++)
+                    pixels[y * size + x] = ink;
+            }
+
+            if (down)
+            {
+                for (int x = 6; x <= 25; x++)
+                    pixels[3 * size + x] = ink;
+            }
+            else
+            {
+                for (int x = 6; x <= 25; x++)
+                    pixels[3 * size + x] = ink;
+            }
+        }
+        else
+        {
+            // Lid and handle.
+            for (int x = 6; x <= 25; x++) pixels[25 * size + x] = ink;
+            for (int x = 11; x <= 20; x++) pixels[27 * size + x] = ink;
+            for (int y = 27; y <= 29; y++)
+                for (int x = 13; x <= 18; x++)
+                    pixels[y * size + x] = ink;
+
+            // Slightly tapered bin body.
+            for (int y = 7; y <= 23; y++)
+            {
+                int inset = (23 - y) / 7;
+                for (int x = 9 + inset; x <= 22 - inset; x++)
+                    pixels[y * size + x] = ink;
+            }
+
+            // Dark vertical slots in the bin.
+            Color32 cut = new Color32(70, 48, 39, 255);
+            for (int y = 10; y <= 19; y++)
+            {
+                pixels[y * size + 13] = cut;
+                pixels[y * size + 18] = cut;
+            }
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply(false, true);
+        return Sprite.Create(texture, new Rect(0, 0, size, size),
+            new Vector2(0.5f, 0.5f), 100f);
     }
 
     private static Sprite MakeSprite(Texture2D texture, Sprite current)
@@ -596,7 +674,6 @@ public class SaveGameSystem : MonoBehaviour
         cardImage.color = new Color(0.16f, 0.115f, 0.08f, 0.96f);
         cardImage.raycastTarget = true;
 
-        // The whole shelf is clickable, not only the narrow action button on its edge.
         Button shelfButton = card.gameObject.AddComponent<Button>();
         shelfButton.targetGraphic = cardImage;
         currentSlotButtons[slotIndex] = shelfButton;
@@ -610,9 +687,9 @@ public class SaveGameSystem : MonoBehaviour
         Navigation shelfNavigation = new Navigation();
         shelfNavigation.mode = Navigation.Mode.None;
         shelfButton.navigation = shelfNavigation;
+
         if (screenMode == ScreenMode.Load)
         {
-            // Keep even empty shelves selectable so the player can browse all three.
             shelfButton.interactable = true;
             if (data.exists)
                 shelfButton.onClick.AddListener(delegate { LoadSlot(slotIndex); });
@@ -622,90 +699,118 @@ public class SaveGameSystem : MonoBehaviour
             shelfButton.onClick.AddListener(delegate { SaveTransitionToSlot(slotIndex); });
         }
 
-        Outline outline = card.gameObject.AddComponent<Outline>();
-        outline.effectColor = new Color(0.50f, 0.34f, 0.18f, 1f);
-        outline.effectDistance = new Vector2(2f, -2f);
-
-        // Each of the three save slots has its own inspector texture.
-        // If a per-slot texture is not assigned, reuse the shared merchant frame.
-        Texture2D slotTexture = GetSlotTexture(index, data.exists);
-        Sprite slotSprite = slotTexture != null
-            ? MakeSprite(slotTexture, null)
-            : (data.exists && selectedFrameSprite != null ? selectedFrameSprite : frameSprite);
-        if (slotSprite == null)
-            slotSprite = MakeSprite(Texture2D.whiteTexture, null);
-
-        RectTransform iconRect = CreateRect("Slot " + (index + 1) + " visual frame", card,
-            new Vector2(160f, 160f), new Vector2(-610f, 0f));
-        Image icon = iconRect.gameObject.AddComponent<Image>();
-        icon.sprite = slotSprite;
-        icon.color = slotTexture == null && frameSprite == null && selectedFrameSprite == null
-            ? new Color(0.22f, 0.15f, 0.11f, 1f)
-            : Color.white;
-        icon.preserveAspect = true;
-        icon.raycastTarget = false;
-
-        // Keep a recognizable frog mascot inside every slot, including empty ones.
-        if (slotPlaceholderSprite != null)
-        {
-            RectTransform frogRect = CreateRect("Save slot frog", iconRect,
-                new Vector2(108f, 124f), new Vector2(0f, 0f));
-            Image frog = frogRect.gameObject.AddComponent<Image>();
-            frog.sprite = slotPlaceholderSprite;
-            frog.color = Color.white;
-            frog.preserveAspect = true;
-            frog.raycastTarget = false;
-        }
-
-        string details;
-        if (!data.exists)
-        {
-            details = "ПУСТОЙ СЛОТ\nРогалик: не пройден   •   Tower Defence: не пройден   •   Босс: не пройден\nПрогресс: 0%";
-        }
-        else
-        {
-            details = "Сохранено: " + data.savedAt + "   •   Грибочки: " + data.mushrooms +
-                "   •   Предметов: " + data.inventory.Count + "\n" +
-                "Рогалик: " + PassStatus(data.roguelikeCompleted) +
-                "   •   Tower Defence: " + PassStatus(data.towerDefenceCompleted) +
-                "   •   Босс: " + PassStatus(data.bossCompleted) + "\n" +
-                "Прогресс: " + data.progressPercent + "%   •   " + GetNextStageLabel(data.resumeStage) + "\n" +
-                "Инвентарь: " + GetInventorySummary(data.inventory) + "\n" +
-                "Прокачка — урон: " + data.staffDamageLevel +
-                ", расход маны: " + data.manaConsumptionLevel +
-                ", регенерация: " + data.manaRegenerationLevel +
-                ", здоровье: " + data.maximumHealthLevel +
-                ", защита: " + data.defenseLevel;
-        }
+        Outline cardOutline = card.gameObject.AddComponent<Outline>();
+        cardOutline.effectColor = new Color(0.50f, 0.34f, 0.18f, 1f);
+        cardOutline.effectDistance = new Vector2(2f, -2f);
 
         CreateText("Slot title", card, "СЛОТ " + (index + 1),
-            new Vector2(190f, 38f), new Vector2(-420f, 58f), 25,
+            new Vector2(310f, 30f), new Vector2(-470f, 73f), 22,
             TextAnchor.MiddleLeft, FontStyle.Bold);
-        CreateText("Slot details", card, details,
-            new Vector2(790f, 156f), new Vector2(-85f, -6f), 18,
-            TextAnchor.MiddleLeft, FontStyle.Normal);
+
+        string completed = data.exists
+            ? "Рогалик: " + PassStatus(data.roguelikeCompleted) +
+              "\\nTower Defence: " + PassStatus(data.towerDefenceCompleted) +
+              "\\nБосс: " + PassStatus(data.bossCompleted)
+            : "Рогалик: не пройден\\nTower Defence: не пройден\\nБосс: не пройден";
+
+        string inventory = data.exists
+            ? "Грибочки: " + data.mushrooms +
+              "\\n" + GetInventorySummary(data.inventory) +
+              "\\nПрокачка: урон " + data.staffDamageLevel +
+              ", мана " + data.manaConsumptionLevel + "/" + data.manaRegenerationLevel +
+              ", здоровье " + data.maximumHealthLevel +
+              ", защита " + data.defenseLevel
+            : "Грибочки: 0\\nПредметов нет\\nПрокачка: не улучшена";
+
+        string progressAndDate = data.exists
+            ? data.progressPercent + "%\\nСохранено: " + data.savedAt
+            : "0%\\nДата сохранения: —";
+
+        CreateSaveInfoBox(card, "Completed box", "ПРОЙДЕНО",
+            completed, new Vector2(330f, 126f), new Vector2(-490f, -8f), 15,
+            TextAnchor.MiddleLeft);
+        CreateSaveInfoBox(card, "Inventory box", "ИНВЕНТАРЬ",
+            inventory, new Vector2(420f, 126f), new Vector2(-105f, -8f), 14,
+            TextAnchor.MiddleLeft);
+        CreateSaveInfoBox(card, "Progress box", "ПРОГРЕСС",
+            progressAndDate, new Vector2(290f, 126f), new Vector2(265f, -8f), 19,
+            TextAnchor.MiddleCenter);
 
         if (screenMode == ScreenMode.Load)
         {
-            if (data.exists)
-            {
-                CreateButton(card, "Загрузить", new Vector2(220f, 64f),
-                    new Vector2(475f, 38f), delegate { LoadSlot(slotIndex); }, buttonSprite);
-                CreateButton(card, "Удалить", new Vector2(220f, 58f),
-                    new Vector2(475f, -42f), delegate { DeleteSlot(slotIndex); }, deleteSprite);
-            }
+            CreateIconButton(card, "Load save " + (slotIndex + 1),
+                new Vector2(64f, 64f), new Vector2(525f, 0f),
+                delegate { LoadSlot(slotIndex); }, loadActionIcon, data.exists);
         }
         else
         {
-            CreateButton(card, data.exists ? "Перезаписать" : "Сохранить",
-                new Vector2(245f, 70f), new Vector2(475f, 12f),
-                delegate { SaveTransitionToSlot(slotIndex); }, buttonSprite);
-            if (data.exists)
-            {
-                CreateButton(card, "Удалить", new Vector2(220f, 54f),
-                    new Vector2(475f, -55f), delegate { DeleteSlot(slotIndex); }, deleteSprite);
-            }
+            CreateIconButton(card, "Save slot " + (slotIndex + 1),
+                new Vector2(64f, 64f), new Vector2(525f, 0f),
+                delegate { SaveTransitionToSlot(slotIndex); }, saveActionIcon, true);
         }
+
+        CreateIconButton(card, "Delete save " + (slotIndex + 1),
+            new Vector2(64f, 64f), new Vector2(615f, 0f),
+            delegate { DeleteSlot(slotIndex); }, deleteActionIcon, data.exists);
+    }
+
+    private void CreateSaveInfoBox(Transform parent, string objectName,
+        string heading, string body, Vector2 size, Vector2 position,
+        int bodyFontSize, TextAnchor bodyAlignment)
+    {
+        RectTransform box = CreateRect(objectName, parent, size, position);
+        Image background = box.gameObject.AddComponent<Image>();
+        background.color = new Color(0.105f, 0.075f, 0.06f, 0.96f);
+        background.raycastTarget = false;
+
+        Outline outline = box.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(0.36f, 0.25f, 0.17f, 1f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+        CreateText(objectName + " heading", box, heading,
+            new Vector2(size.x - 18f, 25f), new Vector2(0f, 47f), 16,
+            TextAnchor.MiddleCenter, FontStyle.Bold);
+        CreateText(objectName + " body", box, body,
+            new Vector2(size.x - 24f, 88f), new Vector2(0f, -12f), bodyFontSize,
+            bodyAlignment, FontStyle.Normal);
+    }
+
+    private Button CreateIconButton(Transform parent, string objectName,
+        Vector2 size, Vector2 position, UnityAction action, Sprite iconSprite,
+        bool interactable)
+    {
+        RectTransform rect = CreateRect(objectName, parent, size, position);
+        Image background = rect.gameObject.AddComponent<Image>();
+        background.sprite = buttonSprite;
+        background.preserveAspect = buttonSprite != null;
+        background.color = buttonSprite != null
+            ? Color.white
+            : new Color(0.31f, 0.20f, 0.14f, 1f);
+
+        Button button = rect.gameObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.interactable = interactable;
+        button.onClick.AddListener(action);
+
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1f, 0.88f, 0.68f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.pressedColor = new Color(0.72f, 0.59f, 0.43f, 1f);
+        colors.disabledColor = new Color(0.42f, 0.38f, 0.34f, 0.48f);
+        button.colors = colors;
+
+        Navigation navigation = new Navigation();
+        navigation.mode = Navigation.Mode.None;
+        button.navigation = navigation;
+
+        RectTransform iconRect = CreateRect("Icon", rect,
+            new Vector2(34f, 34f), Vector2.zero);
+        Image icon = iconRect.gameObject.AddComponent<Image>();
+        icon.sprite = iconSprite;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        return button;
     }
 
     private int FindFirstExistingSaveSlot()
