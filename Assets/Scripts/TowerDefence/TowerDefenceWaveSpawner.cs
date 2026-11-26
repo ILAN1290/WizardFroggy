@@ -31,15 +31,41 @@ public class TowerDefenceWaveSpawner : MonoBehaviour
 
     public int TotalWaves => waves != null ? waves.Length : 0;
 
-    public IEnumerator SpawnWave(int waveNumber, TowerDefenceManager manager)
+    public int GetEnemyCountForWave(int waveNumber)
     {
-        if (manager == null || waves == null ||
-            waveNumber < 1 || waveNumber > waves.Length)
-            yield break;
+        if (waves == null || waveNumber < 1 || waveNumber > waves.Length)
+            return 0;
 
         TowerDefenceWaveDefinition wave = waves[waveNumber - 1];
         if (wave == null)
+            return 0;
+
+        return Mathf.Max(0, wave.whiteGhosts) +
+               Mathf.Max(0, wave.blueGhosts) +
+               Mathf.Max(0, wave.redGhosts) +
+               Mathf.Max(0, wave.blackGhosts);
+    }
+
+    public IEnumerator SpawnWave(int waveNumber, TowerDefenceManager manager)
+    {
+        if (manager == null)
+        {
+            Debug.LogError("Tower Defence: менеджер отсутствует, волну запустить нельзя.");
             yield break;
+        }
+
+        if (waves == null || waveNumber < 1 || waveNumber > waves.Length)
+        {
+            Debug.LogError("Tower Defence: запрошена несуществующая волна " + waveNumber + ".");
+            yield break;
+        }
+
+        TowerDefenceWaveDefinition wave = waves[waveNumber - 1];
+        if (wave == null || GetEnemyCountForWave(waveNumber) <= 0)
+        {
+            Debug.LogError("Tower Defence: волна " + waveNumber + " не содержит врагов.");
+            yield break;
+        }
 
         // Сначала появляются обычные, затем быстрые и крупные,
         // а чёрные тяжёлые призраки завершают волну.
