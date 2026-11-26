@@ -20,6 +20,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private Rigidbody2D body;
     private int attacksSinceSuper;
     private float nextMeleeSuperTime;
+    private float nextGhostVoiceTime;
     private bool superAttackInProgress;
 
     public void Initialize(RoguelikeSession owner, int floor, bool isMelee,
@@ -51,8 +52,10 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         ai.Initialize(player, melee, miniBoss);
 
         nextRadialShotTime = Time.time + 2.5f;
-        // Independent initial delay prevents groups of melee ghosts from dashing together.
+        // Independent timers keep both dashes and ambient ghost voices from
+        // happening in sync when several enemies spawn together.
         nextMeleeSuperTime = Time.time + Random.Range(8f, 12f);
+        nextGhostVoiceTime = Time.time + Random.Range(5f, 13f);
     }
 
     private IEnumerator Start()
@@ -101,12 +104,22 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
     private void Update()
     {
-        if (defeated || player == null || ai == null || superAttackInProgress)
+        if (defeated) return;
+
+        if (Time.time >= nextGhostVoiceTime)
+        {
+            if (session != null)
+                session.PlayGhostVoiceSound();
+            nextGhostVoiceTime = Time.time + Random.Range(8f, 12f);
+        }
+
+        if (player == null || ai == null || superAttackInProgress)
             return;
 
         if (miniBoss && Time.time >= nextRadialShotTime)
         {
             nextRadialShotTime = Time.time + 4.5f;
+            if (session != null) session.PlayGhostAttackSound(false);
             ShootRadialBurst();
         }
 
@@ -135,9 +148,14 @@ public class GhostEnemy : MonoBehaviour, IDamageable
 
             // The mini-boss randomly chooses one of its two charged specials.
             if (Random.value < 0.5f)
+            {
                 StartCoroutine(PerformGroundSlam());
+            }
             else
+            {
+                if (session != null) session.PlayGhostAttackSound(true);
                 StartCoroutine(PerformSpiralAttack(direction, 36, 13f, 0.05f));
+            }
             return;
         }
 
@@ -148,6 +166,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         {
             attacksSinceSuper = Mathf.Min(attacksSinceSuper + 1, 3);
             nextAttackTime = Time.time + 1.8f;
+            if (session != null) session.PlayGhostAttackSound(false);
             StartCoroutine(PlayAttackAnimation(direction));
             Shoot(direction);
             return;
@@ -156,6 +175,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
         if (melee)
         {
             nextAttackTime = Time.time + 1.15f;
+            if (session != null) session.PlayGhostAttackSound(true);
             StartCoroutine(PlayAttackAnimation(direction));
             if (playerHealth != null) playerHealth.TakeDamage(damage);
         }
@@ -168,11 +188,13 @@ public class GhostEnemy : MonoBehaviour, IDamageable
             {
                 attacksSinceSuper = 0;
                 nextAttackTime = Time.time + 2.7f;
+                if (session != null) session.PlayGhostAttackSound(false);
                 StartCoroutine(PerformSpiralAttack(direction));
                 return;
             }
 
             nextAttackTime = Time.time + 1.8f;
+            if (session != null) session.PlayGhostAttackSound(false);
             StartCoroutine(PlayAttackAnimation(direction));
             Shoot(direction);
         }
@@ -243,6 +265,7 @@ public class GhostEnemy : MonoBehaviour, IDamageable
     private IEnumerator PerformMeleeDash(Vector2 direction)
     {
         superAttackInProgress = true;
+        if (session != null) session.PlayGhostAttackSound(true);
         ai.SetMovementSuspended(true);
         yield return new WaitForSeconds(0.08f);
 
