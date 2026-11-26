@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 [System.Serializable]
 public class TowerDefenceTowerStats
@@ -601,12 +602,14 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void HandleWorldClick()
     {
-        if (!Input.GetMouseButtonDown(0))
+        Mouse mouse = Mouse.current;
+        if (mouse == null || !mouse.leftButton.wasPressedThisFrame)
             return;
 
+        Vector2 mousePosition = mouse.position.ReadValue();
         Vector2 guiPosition = new Vector2(
-            Input.mousePosition.x,
-            Screen.height - Input.mousePosition.y);
+            mousePosition.x,
+            Screen.height - mousePosition.y);
 
         if (buildMenuOpen && GetBuildPanelRect().Contains(guiPosition))
             return;
@@ -621,7 +624,7 @@ public class TowerDefenceManager : MonoBehaviour
             return;
 
         Vector3 world = camera.ScreenToWorldPoint(new Vector3(
-            Input.mousePosition.x, Input.mousePosition.y,
+            mousePosition.x, mousePosition.y,
             Mathf.Abs(camera.transform.position.z)));
 
         Collider2D hit = Physics2D.OverlapPoint(world);
