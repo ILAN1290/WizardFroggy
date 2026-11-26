@@ -124,6 +124,8 @@ public class SaveGameSystem : MonoBehaviour
         if (source.deleteTexture != null) deleteTexture = source.deleteTexture;
         if (source.selectedFrameTexture != null) selectedFrameTexture = source.selectedFrameTexture;
         if (source.merchantPortrait != null) merchantPortrait = source.merchantPortrait;
+        if (source.menuOpenSound != null) menuOpenSound = source.menuOpenSound;
+        if (source.uiAudioSource != null) uiAudioSource = source.uiAudioSource;
         if (source.startMenuButtonTexture != null) startMenuButtonTexture = source.startMenuButtonTexture;
         if (source.loadButtonSprite != null) loadButtonSprite = source.loadButtonSprite;
         if (source.optionsMenuButtonTexture != null) optionsMenuButtonTexture = source.optionsMenuButtonTexture;
