@@ -1357,17 +1357,20 @@ public class RoomGenerator : MonoBehaviour
     }
 
     public void StartGroundSlamWave(
-        Vector2 centre, Transform effectsParent, Transform player, float damage)
+        Vector2 centre, Transform effectsParent, Transform player, float damage,
+        System.Action onPlayerEnteredFire)
     {
         if (groundSlamRoutine != null)
             StopCoroutine(groundSlamRoutine);
 
         groundSlamRoutine = StartCoroutine(
-            GroundSlamWaveRoutine(centre, effectsParent, player, damage));
+            GroundSlamWaveRoutine(centre, effectsParent, player, damage,
+                onPlayerEnteredFire));
     }
 
     private IEnumerator GroundSlamWaveRoutine(
-        Vector2 centre, Transform effectsParent, Transform player, float damage)
+        Vector2 centre, Transform effectsParent, Transform player, float damage,
+        System.Action onPlayerEnteredFire)
     {
         if (groundSlamWarningTile == null || groundSlamFireTile == null)
         {
@@ -1476,13 +1479,22 @@ public class RoomGenerator : MonoBehaviour
             ? player.GetComponent<PlayerHealth>() : null;
         float fireUntil = Time.time + 3f;
         float damageTimer = 0f;
+        bool wasPlayerOnFire = false;
         while (Time.time < fireUntil && overlayRoot != null)
         {
             damageTimer -= Time.deltaTime;
-            if (health != null && player != null && damageTimer <= 0f)
+            if (player != null)
             {
                 Vector3Int playerCell = overlayMap.WorldToCell(player.position);
-                if (burningCells.Contains(playerCell))
+                bool playerOnFire = burningCells.Contains(playerCell);
+
+                // Play once when the player enters the connected fire area;
+                // do not restart the clip on every damage tick.
+                if (playerOnFire && !wasPlayerOnFire && onPlayerEnteredFire != null)
+                    onPlayerEnteredFire();
+                wasPlayerOnFire = playerOnFire;
+
+                if (health != null && playerOnFire && damageTimer <= 0f)
                 {
                     health.TakeDamage(damage);
                     // Reuse the same red burning effect and damage-over-time
@@ -1490,6 +1502,10 @@ public class RoomGenerator : MonoBehaviour
                     health.StartBurning(3f, 2f, "Red");
                     damageTimer = 0.7f;
                 }
+            }
+            else
+            {
+                wasPlayerOnFire = false;
             }
             yield return null;
         }
