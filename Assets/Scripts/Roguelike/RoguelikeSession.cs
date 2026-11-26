@@ -33,7 +33,30 @@ public class RoguelikeSession : MonoBehaviour
     [Header("Lobby")]
     [SerializeField] private string lobbyEnvironmentName = "Library Environment";
     [SerializeField] private Vector2 lobbyPlayerPosition = new Vector2(0f, -3f);
+
+    [Header("Звуки рогалика")]
+    [Tooltip("Этот звук также используется при поднятии грибочков.")]
     [SerializeField] private AudioClip itemPickupSound;
+    [Tooltip("Фоновая музыка/эмбиент. Проигрывается по кругу, пока игрок находится в рогалике.")]
+    [SerializeField] private AudioClip ambientSound;
+    [Tooltip("Атака призрака вблизи.")]
+    [SerializeField] private AudioClip ghostMeleeAttackSound;
+    [Tooltip("Дальняя атака призрака.")]
+    [SerializeField] private AudioClip ghostRangedAttackSound;
+    [Tooltip("Случайные звуки призраков. Каждый призрак выбирает один из них примерно раз в 10 секунд.")]
+    [SerializeField] private AudioClip[] ghostVoiceSounds = new AudioClip[0];
+    [Tooltip("Звук горения, когда игрок впервые заходит на огненные клетки атаки минибосса.")]
+    [SerializeField] private AudioClip groundFireStepSound;
+    [Tooltip("Звук удара минибосса по полу.")]
+    [SerializeField] private AudioClip miniBossGroundSlamSound;
+    [Tooltip("Звук открытия сундука.")]
+    [SerializeField] private AudioClip chestOpenSound;
+    [Tooltip("Звук закрытия двери при переходе в другую комнату.")]
+    [SerializeField] private AudioClip doorCloseSound;
+    [Tooltip("Звук открытия двери после зачистки комнаты.")]
+    [SerializeField] private AudioClip doorOpenSound;
+    [SerializeField, Range(0f, 1f)] private float ambientVolume = 0.35f;
+    [SerializeField, Range(0f, 1f)] private float soundEffectsVolume = 0.85f;
 
     [Header("Merchant UI Textures")]
     [SerializeField] private RoguelikeMerchantTextures merchantTextures =
@@ -66,6 +89,8 @@ public class RoguelikeSession : MonoBehaviour
     private GUIStyle minimapMarkerStyle;
     private GUIStyle mushroomCountStyle;
     private Item[] lootItems;
+    private AudioSource ambientAudioSource;
+    private AudioSource soundEffectsAudioSource;
 
     private static readonly float[] FrameSourceX = new float[4];
     private static readonly float[] FrameSourceY = new float[4];
@@ -140,6 +165,7 @@ public class RoguelikeSession : MonoBehaviour
         }
 
         EnablePlayerBars();
+        InitializeAudioSources();
         transform.position = Vector2.zero;
         // Roguelike starts directly in the first available floor. There is no lobby panel.
         StartFloor(1);
@@ -212,6 +238,7 @@ public class RoguelikeSession : MonoBehaviour
 
         if (lobbyEnvironment != null) lobbyEnvironment.SetActive(false);
         dungeonRoot.SetActive(true);
+        StartRoguelikeAmbient();
         ShowHint("Этаж " + floorNumber + ". Исследуйте комнаты и найдите выход.");
         GenerateCurrentRoom(Vector2.zero);
     }
@@ -264,8 +291,10 @@ public class RoguelikeSession : MonoBehaviour
 
     public void MarkCurrentRoomCleared()
     {
-        if (currentRoom != null)
-            currentRoom.IsCleared = true;
+        if (currentRoom == null || currentRoom.IsCleared) return;
+
+        currentRoom.IsCleared = true;
+        PlayRoguelikeSound(doorOpenSound);
     }
 
     public void TryEnterRoom(int destinationIndex, Vector2 spawnPosition)
@@ -279,6 +308,7 @@ public class RoguelikeSession : MonoBehaviour
 
         RoguelikeRoomData destination = currentFloor.GetRoom(destinationIndex);
         if (destination == null) return;
+        PlayRoguelikeSound(doorCloseSound);
         currentRoomIndex = destinationIndex;
         GenerateCurrentRoom(spawnPosition);
     }
@@ -290,9 +320,88 @@ public class RoguelikeSession : MonoBehaviour
 
     public void TriggerMiniBossGroundSlam(Vector2 position, float damage)
     {
-        if (roomGenerator != null)
-            roomGenerator.StartGroundSlamWave(
-                position, effectsRoot, transform, damage);
+        if (roomGenerator == null) return;
+
+        PlayRoguelikeSound(miniBossGroundSlamSound);
+        roomGenerator.StartGroundSlamWave(
+            position, effectsRoot, transform, damage, PlayGroundFireSound);
+    }
+
+    public void PlayGhostAttackSound(bool isMelee)
+    {
+        PlayRoguelikeSound(isMelee
+            ? ghostMeleeAttackSound
+            : ghostRangedAttackSound);
+    }
+
+    public void PlayGhostVoiceSound()
+    {
+        if (ghostVoiceSounds == null || ghostVoiceSounds.Length == 0) return;
+
+        int firstIndex = Random.Range(0, ghostVoiceSounds.Length);
+        for (int i = 0; i < ghostVoiceSounds.Length; i++)
+        {
+            AudioClip clip = ghostVoiceSounds[(firstIndex + i) % ghostVoiceSounds.Length];
+            if (clip == null) continue;
+
+            PlayRoguelikeSound(clip, 0.65f);
+            return;
+        }
+    }
+
+    private void PlayGroundFireSound()
+    {
+        PlayRoguelikeSound(groundFireStepSound, 0.8f);
+    }
+
+    private void InitializeAudioSources()
+    {
+        if (ambientAudioSource != null && soundEffectsAudioSource != null) return;
+
+        GameObject audioRoot = new GameObject("Roguelike Audio Sources");
+        audioRoot.transform.SetParent(transform, false);
+
+        ambientAudioSource = audioRoot.AddComponent<AudioSource>();
+        ambientAudioSource.playOnAwake = false;
+        ambientAudioSource.loop = true;
+        ambientAudioSource.spatialBlend = 0f;
+        ambientAudioSource.volume = ambientVolume;
+
+        soundEffectsAudioSource = audioRoot.AddComponent<AudioSource>();
+        soundEffectsAudioSource.playOnAwake = false;
+        soundEffectsAudioSource.loop = false;
+        soundEffectsAudioSource.spatialBlend = 0f;
+    }
+
+    private void StartRoguelikeAmbient()
+    {
+        if (ambientSound == null) return;
+        if (ambientAudioSource == null) InitializeAudioSources();
+
+        if (ambientAudioSource.clip != ambientSound)
+        {
+            ambientAudioSource.Stop();
+            ambientAudioSource.clip = ambientSound;
+        }
+
+        ambientAudioSource.volume = ambientVolume;
+        if (!ambientAudioSource.isPlaying)
+            ambientAudioSource.Play();
+    }
+
+    private void StopRoguelikeAmbient()
+    {
+        if (ambientAudioSource != null)
+            ambientAudioSource.Stop();
+    }
+
+    private void PlayRoguelikeSound(AudioClip clip, float volumeMultiplier = 1f)
+    {
+        if (clip == null) return;
+        if (soundEffectsAudioSource == null) InitializeAudioSources();
+
+        soundEffectsAudioSource.PlayOneShot(
+            clip, Mathf.Clamp01(soundEffectsVolume * volumeMultiplier));
     }
 
     private Item[] GetLootItems()
@@ -326,7 +435,7 @@ public class RoguelikeSession : MonoBehaviour
 
         if (enemiesRemaining == 0 && currentRoom != null)
         {
-            currentRoom.IsCleared = true;
+            MarkCurrentRoomCleared();
             ShowHint(currentRoom.IsExit
                 ? "Последняя комната зачищена. Выход открыт!"
                 : "Комната зачищена. Выходы открыты!");
@@ -335,8 +444,9 @@ public class RoguelikeSession : MonoBehaviour
 
     public void OpenChest(Vector2 position)
     {
+        PlayRoguelikeSound(chestOpenSound);
         SpawnChestLoot(position);
-        if (currentRoom != null) currentRoom.IsCleared = true;
+        MarkCurrentRoomCleared();
         ShowHint("Сундук открыт! Заберите добычу.");
     }
 
@@ -396,7 +506,7 @@ public class RoguelikeSession : MonoBehaviour
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;
         collider.radius = pickupRadius;
-        pickup.AddComponent<RoguelikePickup>().SetupCurrency(amount);
+        pickup.AddComponent<RoguelikePickup>().SetupCurrency(amount, itemPickupSound);
     }
 
     private void SpawnItemPickup(Item item, int count, Vector2 position)
@@ -575,6 +685,7 @@ public class RoguelikeSession : MonoBehaviour
         shopOpen = false;
         activeMerchant = null;
         inLobby = true;
+        StopRoguelikeAmbient();
         currentFloor = null;
         currentRoom = null;
         enemiesRemaining = 0;
