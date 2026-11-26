@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class MainMenuLoadButton : MonoBehaviour
 {
@@ -16,8 +17,20 @@ public class MainMenuLoadButton : MonoBehaviour
         if (image != null && image.sprite == null)
             image.color = new Color(0.34f, 0.23f, 0.15f, 1f);
 
-        if (GetComponentInChildren<Text>() == null)
-            CreateLabel();
+        TMP_Text tmpLabel = GetComponentInChildren<TMP_Text>(true);
+        if (tmpLabel != null)
+        {
+            tmpLabel.text = "Загрузить";
+            tmpLabel.alignment = TextAlignmentOptions.Center;
+        }
+        else
+        {
+            Text legacyLabel = GetComponentInChildren<Text>(true);
+            if (legacyLabel != null)
+                legacyLabel.text = "Загрузить";
+            else
+                CreateLabel();
+        }
     }
 
     private void OpenLoadMenu()
