@@ -18,6 +18,9 @@ public class DialogueManager : MonoBehaviour
 
     public List<Dialogue> dialogues = new List<Dialogue>();
 
+    // Событие вызывается каждый раз, когда начинается новая реплика.
+    public event System.Action<DialogueLine> OnLineDisplayed;
+
     private Queue<DialogueLine> linesQueue = new Queue<DialogueLine>();
     private DialogueLine currentLine;
     private int currentDialogueIndex;
@@ -69,6 +72,7 @@ public class DialogueManager : MonoBehaviour
         if (linesQueue.Count != 0)
         {
             currentLine = linesQueue.Dequeue();
+            OnLineDisplayed?.Invoke(currentLine);
 
             if (currentLine.emotion != "Idle" && currentLine.person != null)
                 currentLine.person.GetComponent<Animator>().SetBool(currentLine.emotion, true);
