@@ -2742,7 +2742,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: -4, y: -7, z: 0}
@@ -3008,7 +3008,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: 8, y: -3, z: 0}
@@ -3134,7 +3134,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   m_TileAssetArray:
@@ -18187,14 +18187,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoguelikeSession
   lobbyEnvironmentName: Library Environment
   lobbyPlayerPosition: {x: 0, y: -3}
-  availableItems:
-  - {fileID: 11400000, guid: 53fa3334be69b804c8ecdbd9a01aa5a8, type: 2}
-  - {fileID: 11400000, guid: 52104eae654630146a029c62d622345c, type: 2}
-  - {fileID: 11400000, guid: 20fca9aceb4648d4d899ce9ce5edce2d, type: 2}
-  - {fileID: 11400000, guid: 71c93be60ed9880468b5ecf8e3b4a08f, type: 2}
-  - {fileID: 11400000, guid: f2d51bbde3ba08e489a86cce6f494ac3, type: 2}
-  - {fileID: 11400000, guid: 80e0c0c51550e074d8c520b2bd1ad6ce, type: 2}
-  - {fileID: 11400000, guid: 04ad346f22c014e448f5316d5c0fde9c, type: 2}
   itemPickupSound: {fileID: 8300000, guid: d798a253eb5a8f64a825c979d1cf93a5, type: 3}
   ambientSound: {fileID: 8300000, guid: e70c6713316288f47a5eeb50e51c8721, type: 3}
   ghostMeleeAttackSound: {fileID: 8300000, guid: 48b38569ea402044b81745e53eb96749, type: 3}
@@ -18214,6 +18206,14 @@ MonoBehaviour:
   merchantUpgradeSound: {fileID: 8300000, guid: d20174feaf9d8504db985cad060b9c7a, type: 3}
   merchantPurchaseSound: {fileID: 8300000, guid: 87bcc16a8838c384e8a55bb32b97248c, type: 3}
   merchantSoldOutSound: {fileID: 8300000, guid: 18d2f45edc0041d4e904ef2cc14624c4, type: 3}
+  availableItems:
+  - {fileID: 11400000, guid: 53fa3334be69b804c8ecdbd9a01aa5a8, type: 2}
+  - {fileID: 11400000, guid: 52104eae654630146a029c62d622345c, type: 2}
+  - {fileID: 11400000, guid: 20fca9aceb4648d4d899ce9ce5edce2d, type: 2}
+  - {fileID: 11400000, guid: 71c93be60ed9880468b5ecf8e3b4a08f, type: 2}
+  - {fileID: 11400000, guid: f2d51bbde3ba08e489a86cce6f494ac3, type: 2}
+  - {fileID: 11400000, guid: 80e0c0c51550e074d8c520b2bd1ad6ce, type: 2}
+  - {fileID: 11400000, guid: 04ad346f22c014e448f5316d5c0fde9c, type: 2}
   merchantTextures:
     panelBackground: {fileID: 0}
     vendorPanelBackground: {fileID: 0}
@@ -18223,7 +18223,7 @@ MonoBehaviour:
     itemSlotSelectedBackground: {fileID: 2800000, guid: bd6f12082e163294198f25b16c0ad74a, type: 3}
     itemSlotSoldBackground: {fileID: 0}
     itemDescriptionBackground: {fileID: 0}
-    itemBuyButton: {fileID: 0}
+    itemBuyButton: {fileID: 2800000, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
     currencyIcon: {fileID: 0}
     upgradeRowBackground: {fileID: 0}
     upgradePlusButton: {fileID: 2800000, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
