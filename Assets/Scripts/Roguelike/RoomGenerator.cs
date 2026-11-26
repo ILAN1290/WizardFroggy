@@ -1358,7 +1358,7 @@ public class RoomGenerator : MonoBehaviour
 
     public void StartGroundSlamWave(
         Vector2 centre, Transform effectsParent, Transform player, float damage,
-        System.Action onPlayerEnteredFire)
+        System.Action onPlayerEnteredFire = null)
     {
         if (groundSlamRoutine != null)
             StopCoroutine(groundSlamRoutine);
