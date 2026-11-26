@@ -62,6 +62,10 @@ public class SaveGameSystem : MonoBehaviour
     [SerializeField] private Texture2D selectedFrameTexture;
     [SerializeField] private Sprite merchantPortrait;
 
+    [Header("Save/load menu sound")]
+    [SerializeField] private AudioClip menuOpenSound;
+    [SerializeField] private AudioSource uiAudioSource;
+
     [Header("Main menu button textures (empty = keep scene sprite)")]
     [SerializeField] private Sprite startMenuButtonTexture;
     [SerializeField] private Sprite loadButtonSprite;
@@ -135,6 +139,25 @@ public class SaveGameSystem : MonoBehaviour
     {
         RefreshSprites();
         EnsurePersistentEventSystem();
+        if (uiAudioSource == null)
+            uiAudioSource = gameObject.AddComponent<AudioSource>();
+        uiAudioSource.playOnAwake = false;
+        uiAudioSource.loop = false;
+        uiAudioSource.spatialBlend = 0f;
+        uiAudioSource.ignoreListenerPause = true;
+    }
+
+    private void PlayMenuOpenSound()
+    {
+        if (menuOpenSound == null) return;
+        if (uiAudioSource == null)
+        {
+            uiAudioSource = gameObject.AddComponent<AudioSource>();
+            uiAudioSource.playOnAwake = false;
+            uiAudioSource.spatialBlend = 0f;
+            uiAudioSource.ignoreListenerPause = true;
+        }
+        uiAudioSource.PlayOneShot(menuOpenSound);
     }
 
     private void OnDestroy()
@@ -243,8 +266,10 @@ public class SaveGameSystem : MonoBehaviour
 
         SetMenuRect(start, new Vector2(414.8f, -38f), new Vector2(500f, 100f));
         SetMenuRect(load, new Vector2(414.8f, -155f), new Vector2(500f, 100f));
-        SetMenuRect(options, new Vector2(280f, -272f), new Vector2(250f, 88f));
-        SetMenuRect(exit, new Vector2(550f, -272f), new Vector2(250f, 88f));
+        // The lower shelf is exactly as wide as either upper shelf:
+        // two 250 px buttons meet at the centre without an extra gap.
+        SetMenuRect(options, new Vector2(289.8f, -272f), new Vector2(250f, 88f));
+        SetMenuRect(exit, new Vector2(539.8f, -272f), new Vector2(250f, 88f));
 
         GameObject[] buttons = new GameObject[4];
         buttons[0] = start != null ? start.gameObject : null;
@@ -352,13 +377,15 @@ public class SaveGameSystem : MonoBehaviour
 
     public void OpenLoadMenu()
     {
+        PlayMenuOpenSound();
         transitionPaused = false;
         screenMode = ScreenMode.Load;
-        BuildScreen("Загрузка игры", "Выберите сохранение. В каждом слоте хранится прогресс, грибы, инвентарь и прокачка.");
+        BuildScreen("Загрузка игры", "Выберите один из трёх слотов. Нажмите на карточку сохранения, чтобы загрузить игру.");
     }
 
     public void ShowRoguelikeTransition()
     {
+        PlayMenuOpenSound();
         nextScene = "TowerDefence";
         previousTimeScale = Time.timeScale;
         transitionPaused = true;
@@ -373,6 +400,7 @@ public class SaveGameSystem : MonoBehaviour
         yield return null;
         if (SceneManager.GetActiveScene().name != "TowerDefence") yield break;
 
+        PlayMenuOpenSound();
         nextScene = "Boss";
         previousTimeScale = Time.timeScale;
         transitionPaused = true;
@@ -440,11 +468,17 @@ public class SaveGameSystem : MonoBehaviour
         if (screenMode == ScreenMode.Load)
         {
             SetMainMenuEnabled(false);
+            CreateText("Load slot hint", panel, "Выберите одну из трёх полок с сохранениями",
+                new Vector2(1300f, 36f), new Vector2(0f, -335f), 20,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
             CreateButton(panel, "Назад", new Vector2(280f, 74f),
                 new Vector2(0f, -410f), CloseScreen, deleteSprite);
         }
         else
         {
+            CreateText("Save slot hint", panel, "НАЖМИТЕ НА ЛЮБУЮ ПОЛКУ, ЧТОБЫ СОХРАНИТЬ ИГРУ",
+                new Vector2(1300f, 36f), new Vector2(0f, -335f), 20,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
             CreateButton(panel, "Продолжить", new Vector2(330f, 78f),
                 new Vector2(0f, -410f), ContinueToNextStage, buttonSprite);
         }
@@ -460,12 +494,32 @@ public class SaveGameSystem : MonoBehaviour
     private void BuildSlotCard(RectTransform panel, int index)
     {
         SaveSlotData data = ReadSlot(index);
+        int slotIndex = index;
         float y = 205f - index * 205f;
 
         RectTransform card = CreateRect("Save slot " + (index + 1), panel,
             new Vector2(1390f, 184f), new Vector2(0f, y));
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.color = new Color(0.16f, 0.115f, 0.08f, 0.96f);
+        cardImage.raycastTarget = true;
+
+        // The whole shelf is clickable, not only the narrow action button on its edge.
+        Button shelfButton = card.gameObject.AddComponent<Button>();
+        shelfButton.targetGraphic = cardImage;
+        Navigation shelfNavigation = new Navigation();
+        shelfNavigation.mode = Navigation.Mode.None;
+        shelfButton.navigation = shelfNavigation;
+        if (screenMode == ScreenMode.Load)
+        {
+            shelfButton.interactable = data.exists;
+            if (data.exists)
+                shelfButton.onClick.AddListener(delegate { LoadSlot(slotIndex); });
+        }
+        else
+        {
+            shelfButton.onClick.AddListener(delegate { SaveTransitionToSlot(slotIndex); });
+        }
+
         Outline outline = card.gameObject.AddComponent<Outline>();
         outline.effectColor = new Color(0.50f, 0.34f, 0.18f, 1f);
         outline.effectDistance = new Vector2(2f, -2f);
@@ -513,7 +567,6 @@ public class SaveGameSystem : MonoBehaviour
             new Vector2(790f, 156f), new Vector2(-85f, -6f), 18,
             TextAnchor.MiddleLeft, FontStyle.Normal);
 
-        int slotIndex = index;
         if (screenMode == ScreenMode.Load)
         {
             if (data.exists)
