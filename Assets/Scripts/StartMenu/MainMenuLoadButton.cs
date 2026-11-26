@@ -38,7 +38,7 @@ public class MainMenuLoadButton : MonoBehaviour
 
         Text label = labelObject.AddComponent<Text>();
         label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        label.text = "ЗАГРУЗИТЬ ИГРУ";
+        label.text = "Загрузить";
         label.fontSize = 36;
         label.fontStyle = FontStyle.Bold;
         label.alignment = TextAnchor.MiddleCenter;
