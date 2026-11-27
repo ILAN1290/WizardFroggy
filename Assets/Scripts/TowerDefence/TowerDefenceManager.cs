@@ -1013,6 +1013,13 @@ public class TowerDefenceManager : MonoBehaviour
         if (roadCells.Contains(cell) || occupiedCells.Contains(cell))
             return false;
 
+        // Правило строительства фиксированное: только клетки той же сетки,
+        // что и стартовая башня. Не допускается ряд соседних клеток.
+        const int starterX = 5;
+        const int starterY = -1;
+        if (((cell.x + cell.y) & 1) != ((starterX + starterY) & 1))
+            return false;
+
         Vector2 centre = new Vector2(cell.x + 0.5f, cell.y + 0.5f);
         bool nearRoad = false;
         foreach (Vector3Int roadCell in roadCells)
@@ -1033,7 +1040,9 @@ public class TowerDefenceManager : MonoBehaviour
             TowerDefenceTower tower = towers[i];
             if (tower == null)
                 continue;
-            if (Vector2.Distance(centre, tower.transform.position) < 1.45f)
+            // Запас в 2 клетки не допускает установку башен рядом,
+            // включая диагональные соседние позиции.
+            if (Vector2.Distance(centre, tower.transform.position) < 1.9f)
                 return false;
         }
 
@@ -1366,6 +1375,10 @@ public class TowerDefenceManager : MonoBehaviour
                 Vector3Int cell = new Vector3Int(x, y, 0);
                 if (cell.x == starterX && cell.y == starterY)
                     continue;
+                // Сетка размещения строго шахматная: между доступными клетками
+                // всегда остаётся минимум одна недоступная клетка.
+                if (((cell.x + cell.y) & 1) != ((starterX + starterY) & 1))
+                    continue;
                 if (CanPlaceTowerAt(cell))
                     desired.Add(cell);
             }
@@ -1428,7 +1441,7 @@ public class TowerDefenceManager : MonoBehaviour
         grandpaHealthCanvas.worldCamera = Camera.main;
         grandpaHealthCanvas.overrideSorting = true;
         grandpaHealthCanvas.sortingLayerName = "Default";
-        grandpaHealthCanvas.sortingOrder = 9;
+        grandpaHealthCanvas.sortingOrder = 29;
 
         CanvasScaler scaler = root.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
@@ -1616,7 +1629,11 @@ public class TowerDefenceManager : MonoBehaviour
         text.fontSize = 17;
         text.wordWrap = true;
         text.richText = true;
-        text.normal.textColor = new Color(0.22f, 0.18f, 0.12f, 1f);
+        Color tutorialTextColor = new Color(0.22f, 0.18f, 0.12f, 1f);
+        text.normal.textColor = tutorialTextColor;
+        text.hover.textColor = tutorialTextColor;
+        text.active.textColor = tutorialTextColor;
+        text.focused.textColor = tutorialTextColor;
         GUI.Label(new Rect(page.x + 108f, page.y + 120f, page.width - 216f, 392f),
             "• Призраки идут по дорожке к деду. Если доберутся — отнимут у него здоровье.\n\n" +
             "• Нажми на свободную клетку рядом с дорожкой, чтобы построить башню.\n\n" +

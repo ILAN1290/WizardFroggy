@@ -177,7 +177,14 @@ public class DialogueManager : MonoBehaviour
             dialogueArea.text += let;
             yield return new WaitForSeconds(textSpeed);
         }
-        if (dialogueAudioSource != null)
+
+        // Не обрываем голос после печати текста: дождаться завершения клипа.
+        if (dialogueAudioSource != null && dialogueAudioSource.isPlaying)
+        {
+            while (dialogueAudioSource.isPlaying && currentLine == diLine)
+                yield return null;
+        }
+        if (dialogueAudioSource != null && currentLine == diLine)
             dialogueAudioSource.Stop();
     }
 
