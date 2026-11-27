@@ -1722,6 +1722,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: green candlestick 2
       objectReference: {fileID: 0}
+    - target: {fileID: 3019974651116752915, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7145062713125851544, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4.84268
@@ -1760,10 +1764,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7145062713125851544, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3019974651116752915, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
-      propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -3054,7 +3054,7 @@ Tilemap:
       - {fileID: -1813057320, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -1995450908, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
       - {fileID: -542268665, guid: 23eca46208a3f284ca419cd06566924f, type: 3}
-      m_AnimationSpeed: 5.0000005
+      m_AnimationSpeed: 5
       m_AnimationTimeOffset: 0
       m_Flags: 0
   - first: {x: -9, y: -1, z: 0}
@@ -5594,6 +5594,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: green candlestick 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3019974651116752915, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7145062713125851544, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 2.44268
@@ -5632,10 +5636,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7145062713125851544, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3019974651116752915, guid: cf5382a20efcc3e46aedd6240c764ff5, type: 3}
-      propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -15741,7 +15741,7 @@ Tilemap:
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
-      m_AllTileFlags: 1073741825
+      m_AllTileFlags: 1073741826
   - first: {x: 6, y: 2, z: 0}
     second:
       serializedVersion: 2
@@ -15761,7 +15761,7 @@ Tilemap:
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
-      m_AllTileFlags: 1073741825
+      m_AllTileFlags: 1073741826
   - first: {x: 8, y: 2, z: 0}
     second:
       serializedVersion: 2
@@ -15821,7 +15821,7 @@ Tilemap:
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
-      m_AllTileFlags: 1073741825
+      m_AllTileFlags: 1073741826
   - first: {x: 14, y: 2, z: 0}
     second:
       serializedVersion: 2
@@ -16041,7 +16041,7 @@ Tilemap:
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
-      m_AllTileFlags: 1073741825
+      m_AllTileFlags: 1073741826
   - first: {x: 6, y: 3, z: 0}
     second:
       serializedVersion: 2
@@ -16051,7 +16051,7 @@ Tilemap:
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
-      m_AllTileFlags: 1073741825
+      m_AllTileFlags: 1073741826
   - first: {x: 7, y: 3, z: 0}
     second:
       serializedVersion: 2
@@ -16061,7 +16061,7 @@ Tilemap:
       m_TileColorIndex: 0
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
-      m_AllTileFlags: 1073741825
+      m_AllTileFlags: 1073741826
   - first: {x: 8, y: 3, z: 0}
     second:
       serializedVersion: 2
@@ -17108,7 +17108,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1888122518
 Transform:
   m_ObjectHideFlags: 0
@@ -17258,7 +17258,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1911344274
 Transform:
   m_ObjectHideFlags: 0
@@ -18309,31 +18309,32 @@ MonoBehaviour:
   grandpaSpriteAsset: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
   closedDoorTileSprites:
-  - {fileID: -5225876556858284812, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -3094171731127790719, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -6558360575689610975, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: 2365339308313440513, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -6085209271259904505, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -7743214850641337493, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
+  - {fileID: -5225876556858284812, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -3094171731127790719, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -6558360575689610975, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 2365339308313440513, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -6085209271259904505, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -7743214850641337493, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
   openDoorTileSprites:
-  - {fileID: -3697355384244169913, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -5767162948771900228, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: 7145941756167820797, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: 457820117542733627, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -6975971501963557229, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  - {fileID: -7265388314283571386, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
-  previousWallPatchSprite: {fileID: 2056942473736830267, guid: 5c25c0369e1a5003de59a2cd169e06190f5a4cf1, type: 3}
+  - {fileID: -3697355384244169913, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -5767162948771900228, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 7145941756167820797, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: 457820117542733627, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -6975971501963557229, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  - {fileID: -7265388314283571386, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
+  previousWallPatchSprite: {fileID: 2056942473736830267, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
   keyPickupSprite: {fileID: 8200857774506189066, guid: 4c133480305161549ba333eb2d45f83a, type: 3}
   keyInventoryItem: {fileID: 11400000, guid: 9e01d326f4cd4cfb8f0a6df92c3f28a2, type: 2}
   frogIcon: {fileID: 21300000, guid: 90a81166ee8d0f54496b9d53bd7dde18, type: 3}
   grandpaPosition: {x: -6.5, y: -4.5, z: 0}
   frogStartX: 10.5
   frogWalkSpeed: 3.8
-  centralDoorPosition: {x: 2.6472082, y: 2.7151251, z: 0.15}
-  centralDoorColliderSize: {x: 3, y: 2}
+  centralDoorPosition: {x: 0, y: 2, z: 0}
+  centralDoorColliderSize: {x: 0, y: 2}
   doorTileSize: 1
   doorVerticalOffset: 0.06
   doorInteractDistance: 1.5
+  dialogueManager: {fileID: 1368409279}
 --- !u!114 &2190011004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18442,7 +18443,7 @@ MonoBehaviour:
   cannonTowerSprite: {fileID: 0}
   projectileSprite: {fileID: 0}
   grandpaSprite: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
-  roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
+  roadTileSprite: {fileID: 107796029, guid: 88b90e64fa4e36e4ca267d4bcbaf6923, type: 3}
   mushroomSprite: {fileID: -8804783980236045272, guid: b0f578d14ecafc14386ac662666ccd19, type: 3}
   instructionBookSprite: {fileID: 21300000, guid: 07df931a772281a44b6c26e8951b89a7, type: 3}
   instructionButtonSprite: {fileID: -8510727349376626655, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
