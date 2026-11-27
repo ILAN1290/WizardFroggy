@@ -1428,7 +1428,7 @@ public class TowerDefenceManager : MonoBehaviour
         grandpaHealthCanvas.worldCamera = Camera.main;
         grandpaHealthCanvas.overrideSorting = true;
         grandpaHealthCanvas.sortingLayerName = "Default";
-        grandpaHealthCanvas.sortingOrder = -100;
+        grandpaHealthCanvas.sortingOrder = 9;
 
         CanvasScaler scaler = root.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
