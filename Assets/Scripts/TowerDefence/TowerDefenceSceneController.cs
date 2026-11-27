@@ -36,6 +36,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     private Tile runtimeRoadTile;
     private bool keyCollected;
     private bool doorOpened;
+    private bool doorTransitionStarted;
     private bool postWaveSequenceStarted;
     private TowerDefenceManager gameManager;
     private readonly HashSet<Vector3Int> generatedRoadCells = new HashSet<Vector3Int>();
@@ -245,11 +246,24 @@ public class TowerDefenceSceneController : MonoBehaviour
         Tilemap[] tilemaps = FindObjectsOfType<Tilemap>();
         for (int i = 0; i < tilemaps.Length; i++)
         {
-            if (tilemaps[i] == null || tilemaps[i].gameObject.scene != gameObject.scene)
+            Tilemap tilemap = tilemaps[i];
+            if (tilemap == null || tilemap.gameObject.scene != gameObject.scene)
                 continue;
 
-            tilemaps[i].SetTile(new Vector3Int(6, 2, 0), null);
-            tilemaps[i].SetTile(new Vector3Int(6, 3, 0), null);
+            // Боковые кирпичи продолжают рисунок стены, а клетки по центру
+            // освобождаются под закрытую дверь шириной в одну клетку.
+            TileBase wallTile = tilemap.GetTile(new Vector3Int(4, 2, 0));
+            if (wallTile != null)
+            {
+                tilemap.SetTile(new Vector3Int(5, 2, 0), wallTile);
+                tilemap.SetTile(new Vector3Int(5, 3, 0), wallTile);
+                tilemap.SetTile(new Vector3Int(7, 2, 0), wallTile);
+                tilemap.SetTile(new Vector3Int(7, 3, 0), wallTile);
+                tilemap.SetTile(new Vector3Int(13, 2, 0), wallTile);
+            }
+
+            tilemap.SetTile(new Vector3Int(6, 2, 0), null);
+            tilemap.SetTile(new Vector3Int(6, 3, 0), null);
         }
 
         centralDoorObject = new GameObject("Central Door");
@@ -495,22 +509,37 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     private void Update()
     {
-        if (doorOpened || !keyCollected || centralDoorObject == null ||
-            InputManager.instance == null || !InputManager.instance.InteractionInput)
+        if (centralDoorObject == null || frog == null)
             return;
 
-        if (frog == null ||
-            Vector2.Distance(frog.position, centralDoorObject.transform.position) > doorInteractDistance)
-            return;
-
-        if (!TryConsumeKeyFromInventory())
+        if (!doorOpened && InputManager.instance != null &&
+            InputManager.instance.InteractionInput &&
+            Vector2.Distance(frog.position, centralDoorObject.transform.position) <= doorInteractDistance)
         {
-            keyCollected = false;
-            ShowKeyPickupMessage("Ключ не найден в инвентаре");
-            return;
+            if (!TryConsumeKeyFromInventory())
+            {
+                ShowKeyPickupMessage("Дверь заперта. Нужен ключ от дедушки.");
+                return;
+            }
+
+            doorOpened = true;
+            if (centralDoorRenderer != null && openDoorSprite != null)
+                centralDoorRenderer.sprite = openDoorSprite;
+            if (centralDoorCollider != null)
+                centralDoorCollider.enabled = false;
+
+            ShowKeyPickupMessage("Дверь открыта — проходи внутрь!");
         }
 
-        StartCoroutine(OpenDoorAndFinishStage());
+        // Победа засчитывается только после того, как игрок действительно
+        // проходит через освобождённый дверной проём.
+        if (doorOpened && !doorTransitionStarted &&
+            frog.position.y > centralDoorObject.transform.position.y + 0.65f &&
+            Mathf.Abs(frog.position.x - centralDoorObject.transform.position.x) < 0.75f)
+        {
+            doorTransitionStarted = true;
+            StartCoroutine(CompleteDoorTransition());
+        }
     }
 
     private void HandleAllWavesDefeated()
@@ -641,7 +670,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 40;
 
-        Vector3 destination = grandpaObject.transform.position + new Vector3(1.25f, 0.05f, 0f);
+        Vector3 destination = grandpaObject.transform.position + new Vector3(2.2f, 0.05f, 0f);
         Vector3 start = keyObject.transform.position;
         float elapsed = 0f;
         const float throwDuration = 0.55f;
@@ -693,14 +722,8 @@ public class TowerDefenceSceneController : MonoBehaviour
         return false;
     }
 
-    private IEnumerator OpenDoorAndFinishStage()
+    private IEnumerator CompleteDoorTransition()
     {
-        doorOpened = true;
-        if (centralDoorRenderer != null && openDoorSprite != null)
-            centralDoorRenderer.sprite = openDoorSprite;
-        if (centralDoorCollider != null)
-            centralDoorCollider.enabled = false;
-
         FloorFadeTransition fade = GetComponent<FloorFadeTransition>();
         if (fade != null)
             yield return fade.FadeToBlack(0.9f);
