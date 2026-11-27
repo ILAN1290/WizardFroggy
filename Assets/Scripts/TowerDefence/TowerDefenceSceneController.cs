@@ -11,6 +11,9 @@ public class TowerDefenceSceneController : MonoBehaviour
 {
     [Header("Персонажи")]
     [SerializeField] private Sprite grandpaSpriteAsset;
+
+    [Header("Оформление дорожки")]
+    [Tooltip("Спрайт одного тайла дорожки. Выбери здесь любой нарезанный Sprite из набора тайлов — дорожка будет использовать его при создании сцены.")]
     [SerializeField] private Sprite roadTileSprite;
     [Header("Декор стартовой клетки лягушки")]
     [Tooltip("Спрайт лестницы в клетке, где лягушка появляется в начале сцены.")]
