@@ -29,6 +29,7 @@ public static class TowerDefenceSceneBuilder
     private const string KeyItemPath = "Assets/Prefabs/Item/TowerDefenceKey.asset";
     private const string ClosedDoorSpritePath = "Assets/Sprites/TowerDefence/TDS_Door_Closed.png";
     private const string OpenDoorSpritePath = "Assets/Sprites/TowerDefence/TDS_Door_Open.png";
+    private const string DungeonTilesetPath = "Assets/2D Dungeon PixelArt Tileset/Dungeon-2D-PixelArt-Tileset.png";
 
     private static bool autoBuildQueued;
 
@@ -211,14 +212,6 @@ public static class TowerDefenceSceneBuilder
                 bossObject.SetActive(false);
         }
 
-        GameObject leftShelves = FindInScene(targetScene, "Left Book Cases");
-        if (leftShelves != null)
-            leftShelves.SetActive(false);
-
-        GameObject rightShelves = FindInScene(targetScene, "Right Book Cases");
-        if (rightShelves != null)
-            rightShelves.SetActive(false);
-
         GameObject candle = FindInScene(targetScene, "candle");
         if (candle != null)
             candle.SetActive(false);
@@ -281,13 +274,14 @@ public static class TowerDefenceSceneBuilder
             }
         }
 
+        // Стеллажи по бокам являются частью окружения библиотеки TDS.
         GameObject leftShelves = FindInScene(scene, "Left Book Cases");
         if (leftShelves != null)
-            leftShelves.SetActive(false);
+            leftShelves.SetActive(true);
 
         GameObject rightShelves = FindInScene(scene, "Right Book Cases");
         if (rightShelves != null)
-            rightShelves.SetActive(false);
+            rightShelves.SetActive(true);
 
         GameObject candle = FindInScene(scene, "candle");
         if (candle != null)
@@ -340,8 +334,29 @@ public static class TowerDefenceSceneBuilder
         Sprite timerBackground = AssetDatabase.LoadAssetAtPath<Sprite>(TimerBackgroundPath);
         Sprite grandpaHpBackground = AssetDatabase.LoadAssetAtPath<Sprite>(GrandpaHpBackgroundPath);
         Sprite keySprite = LoadSprite(KeySpritePath, "ключ 1_0");
-        Sprite closedDoor = LoadSprite(ClosedDoorSpritePath, null);
-        Sprite openDoor = LoadSprite(OpenDoorSpritePath, null);
+        Sprite topWallTile = LoadSprite(DungeonTilesetPath, "Top_Wall_Tile");
+        Sprite leftWallCornerTile = LoadSprite(DungeonTilesetPath, "Top_Left_Corner_Tile");
+        Sprite rightWallCornerTile = LoadSprite(DungeonTilesetPath, "Top_Right_Corner_Tile");
+        Sprite previousWallPatch = LoadSprite(
+            DungeonTilesetPath, "Dungeon-2D-PixelArt-Tileset_5");
+        Sprite[] closedDoorTiles =
+        {
+            LoadSprite(DungeonTilesetPath, "Top_Left_Dungeon_Door_Closed"),
+            LoadSprite(DungeonTilesetPath, "Top_Middle_Dungeon_Door_Closed"),
+            LoadSprite(DungeonTilesetPath, "Top_Right_Dungeon_Door_Closed"),
+            LoadSprite(DungeonTilesetPath, "Bottom_Left_Dungeon_Door_Closed"),
+            LoadSprite(DungeonTilesetPath, "Bottom_Middle_Dungeon_Door_Closed"),
+            LoadSprite(DungeonTilesetPath, "Bottom_Right_Dungeon_Door_Closed")
+        };
+        Sprite[] openDoorTiles =
+        {
+            LoadSprite(DungeonTilesetPath, "Top_Left_Dungeon_Door_Opened"),
+            LoadSprite(DungeonTilesetPath, "Top_Middle_Dungeon_Door_Opened"),
+            LoadSprite(DungeonTilesetPath, "Top_Right_Dungeon_Door_Opened"),
+            LoadSprite(DungeonTilesetPath, "Bottom_Left_Dungeon_Door_Opened"),
+            LoadSprite(DungeonTilesetPath, "Bottom_Middle_Dungeon_Door_Opened"),
+            LoadSprite(DungeonTilesetPath, "Bottom_Right_Dungeon_Door_Opened")
+        };
         Item keyItem = AssetDatabase.LoadAssetAtPath<Item>(KeyItemPath);
         TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
 
@@ -352,8 +367,12 @@ public static class TowerDefenceSceneBuilder
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
-            SetObject(serialized, "closedDoorSprite", closedDoor);
-            SetObject(serialized, "openDoorSprite", openDoor);
+            SetObject(serialized, "topWallTileSprite", topWallTile);
+            SetObject(serialized, "leftWallCornerTileSprite", leftWallCornerTile);
+            SetObject(serialized, "rightWallCornerTileSprite", rightWallCornerTile);
+            SetObject(serialized, "previousWallPatchSprite", previousWallPatch);
+            SetSpriteArray(serialized, "closedDoorTileSprites", closedDoorTiles);
+            SetSpriteArray(serialized, "openDoorTileSprites", openDoorTiles);
             SetObject(serialized, "frogIcon", frogIcon);
             SetObject(serialized, "keyPickupSprite", keySprite);
             SetObject(serialized, "keyInventoryItem", keyItem);
@@ -382,6 +401,7 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "mushroomSprite", mushroom);
             SetObject(serialized, "instructionBookSprite", tdsBookPage);
             SetObject(serialized, "timerBackgroundSprite", timerBackground);
+            SetObject(serialized, "statusBackgroundSprite", timerBackground);
             SetObject(serialized, "waveCountBackgroundSprite", timerBackground);
             SetObject(serialized, "grandpaHpBackgroundSprite", grandpaHpBackground);
             SetObject(serialized, "upgradePlusButtonSprite", plus);
@@ -416,8 +436,12 @@ public static class TowerDefenceSceneBuilder
             Debug.LogWarning("Tower Defence: не найдены текстуры панелей HUD.");
         if (keySprite == null || keyItem == null)
             Debug.LogWarning("Tower Defence: не найдены спрайт или предмет ключа.");
-        if (closedDoor == null || openDoor == null)
-            Debug.LogWarning("Tower Defence: не найдены текстуры закрытой/открытой двери.");
+        if (topWallTile == null || leftWallCornerTile == null ||
+            rightWallCornerTile == null || previousWallPatch == null)
+            Debug.LogWarning("Tower Defence: не найдены тайлы стены из Dungeon-2D-PixelArt-Tileset.");
+        if (closedDoorTiles.Any(sprite => sprite == null) ||
+            openDoorTiles.Any(sprite => sprite == null))
+            Debug.LogWarning("Tower Defence: не все спрайты двери найдены в Dungeon-2D-PixelArt-Tileset.");
     }
 
     private static Sprite LoadSprite(string path, string preferredName)
@@ -435,6 +459,20 @@ public static class TowerDefenceSceneBuilder
         }
 
         return sprites.Length > 0 ? sprites[0] : null;
+    }
+
+    private static void SetSpriteArray(
+        SerializedObject serialized,
+        string propertyName,
+        Sprite[] sprites)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property == null || !property.isArray || sprites == null)
+            return;
+
+        property.arraySize = sprites.Length;
+        for (int i = 0; i < sprites.Length; i++)
+            property.GetArrayElementAtIndex(i).objectReferenceValue = sprites[i];
     }
 
     private static void SetObject(

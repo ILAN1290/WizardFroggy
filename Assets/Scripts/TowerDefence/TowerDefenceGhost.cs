@@ -17,6 +17,8 @@ public class TowerDefenceGhost : MonoBehaviour
     private Vector3[] route;
     private int waypointIndex;
     private float currentHealth;
+    private float maximumHealth;
+    private SpriteRenderer ghostVisualRenderer;
     private float moveSpeed;
     private float pathProgress;
     private bool finished;
@@ -39,6 +41,7 @@ public class TowerDefenceGhost : MonoBehaviour
         Type = type;
         route = selectedRoute;
         currentHealth = Mathf.Max(1f, health);
+        maximumHealth = currentHealth;
         moveSpeed = Mathf.Max(0.05f, speed);
         waypointIndex = 1;
         pathProgress = 0f;
@@ -72,6 +75,7 @@ public class TowerDefenceGhost : MonoBehaviour
             renderer = visual.gameObject.AddComponent<SpriteRenderer>();
 
         renderer.sprite = sprite;
+        ghostVisualRenderer = renderer;
         renderer.color = GetTint(type);
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 18;
@@ -153,6 +157,62 @@ public class TowerDefenceGhost : MonoBehaviour
         if (manager != null)
             manager.OnGhostReachedGrandpa(this, CurrentHealth);
         Destroy(gameObject);
+    }
+
+    private void OnGUI()
+    {
+        if (!IsAlive || Camera.main == null || maximumHealth <= 0f)
+            return;
+
+        float worldTop = ghostVisualRenderer != null
+            ? ghostVisualRenderer.bounds.max.y + 0.12f
+            : transform.position.y + 0.6f;
+        Vector3 screen = Camera.main.WorldToScreenPoint(
+            new Vector3(transform.position.x, worldTop, transform.position.z));
+
+        if (screen.z < 0f)
+            return;
+
+        const float barWidth = 66f;
+        const float barHeight = 7f;
+        float x = screen.x - barWidth * 0.5f;
+        float top = Screen.height - screen.y;
+
+        GUI.color = new Color(0.04f, 0.04f, 0.06f, 0.88f);
+        GUI.DrawTexture(
+            new Rect(x - 1f, top - 1f, barWidth + 2f, barHeight + 2f),
+            Texture2D.whiteTexture);
+
+        float healthRatio = Mathf.Clamp01(currentHealth / maximumHealth);
+        Color healthColor = healthRatio > 0.55f
+            ? new Color(0.25f, 0.88f, 0.32f, 1f)
+            : healthRatio > 0.25f
+                ? new Color(1f, 0.76f, 0.2f, 1f)
+                : new Color(1f, 0.24f, 0.2f, 1f);
+
+        GUI.color = new Color(0.16f, 0.16f, 0.18f, 1f);
+        GUI.DrawTexture(
+            new Rect(x, top, barWidth, barHeight),
+            Texture2D.whiteTexture);
+
+        GUI.color = healthColor;
+        GUI.DrawTexture(
+            new Rect(x, top, barWidth * healthRatio, barHeight),
+            Texture2D.whiteTexture);
+
+        GUI.color = Color.white;
+        GUIStyle hpStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 12,
+            fontStyle = FontStyle.Bold
+        };
+        hpStyle.normal.textColor = Color.white;
+        GUI.Label(
+            new Rect(x - 12f, top - 19f, barWidth + 24f, 17f),
+            Mathf.CeilToInt(currentHealth) + " / " +
+                Mathf.CeilToInt(maximumHealth),
+            hpStyle);
     }
 
     private static Color GetTint(TowerDefenceGhostType type)

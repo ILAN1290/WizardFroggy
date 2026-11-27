@@ -43,11 +43,13 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private Sprite sellMinusButtonSprite;
     [SerializeField] private Sprite buildButtonSprite;
     [SerializeField] private Sprite timerBackgroundSprite;
+    [SerializeField] private Sprite statusBackgroundSprite;
     [SerializeField] private Sprite waveCountBackgroundSprite;
     [SerializeField] private Sprite grandpaHpBackgroundSprite;
     [SerializeField] private Sprite sellTowerIconSprite;
     [SerializeField] private Sprite upgradeTowerIconSprite;
     [SerializeField, Range(0.1f, 1f)] private float mushroomToGhostHeight = 0.5f;
+    [SerializeField, Min(0)] private int startingMushrooms = 30;
     [SerializeField] private TMP_FontAsset uiFontAsset;
 
     [Header("Здоровье дедушки")]
@@ -173,7 +175,7 @@ public class TowerDefenceManager : MonoBehaviour
 
         Instance = this;
         grandpaHealth = grandpaMaximumHealth;
-        mushrooms = 0;
+        mushrooms = startingMushrooms;
         waveSpawner = GetComponent<TowerDefenceWaveSpawner>();
         if (sellTowerIconSprite == null)
             runtimeSellIcon = CreatePixelActionIcon(true, out runtimeSellIconTexture);
@@ -412,8 +414,7 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void CreateStarterTower()
     {
-        // Бесплатная стартовая башня нужна, потому что личные атаки игрока
-        // в этом режиме выключены, а баланс грибов начинается строго с нуля.
+        // Бесплатная стартовая башня остаётся, а игрок начинает с 30 грибочками.
         Vector3Int cell = new Vector3Int(5, 1, 0);
         if (occupiedCells.Contains(cell))
             return;
@@ -1101,13 +1102,16 @@ public class TowerDefenceManager : MonoBehaviour
 
         if (Time.time < statusUntil && !string.IsNullOrEmpty(statusMessage))
         {
-            GUIStyle statusStyle = new GUIStyle(GUI.skin.box);
+            GUIStyle statusStyle = new GUIStyle(GUI.skin.label);
             statusStyle.fontSize = 18;
+            statusStyle.fontStyle = FontStyle.Bold;
             statusStyle.alignment = TextAnchor.MiddleCenter;
+            statusStyle.normal.textColor = Color.white;
             float statusY = Mathf.Clamp(154f, 8f, Mathf.Max(8f, Screen.height - 50f));
             Rect statusRect = new Rect(
                 Screen.width * 0.5f - 220f, statusY, 440f, 42f);
-            GUI.Box(statusRect, statusMessage, statusStyle);
+            DrawSprite(statusRect, statusBackgroundSprite);
+            GUI.Label(statusRect, statusMessage, statusStyle);
         }
 
         if (gameOver || victory)

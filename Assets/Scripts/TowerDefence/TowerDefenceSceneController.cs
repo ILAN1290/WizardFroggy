@@ -12,8 +12,12 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Персонажи")]
     [SerializeField] private Sprite grandpaSpriteAsset;
     [SerializeField] private Sprite roadTileSprite;
-    [SerializeField] private Sprite closedDoorSprite;
-    [SerializeField] private Sprite openDoorSprite;
+    [SerializeField] private Sprite topWallTileSprite;
+    [SerializeField] private Sprite leftWallCornerTileSprite;
+    [SerializeField] private Sprite rightWallCornerTileSprite;
+    [SerializeField] private Sprite[] closedDoorTileSprites = new Sprite[6];
+    [SerializeField] private Sprite[] openDoorTileSprites = new Sprite[6];
+    [SerializeField] private Sprite previousWallPatchSprite;
     [SerializeField] private Sprite keyPickupSprite;
     [SerializeField] private Item keyInventoryItem;
     [SerializeField] private Sprite frogIcon;
@@ -23,8 +27,9 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private float frogStartX = 10.5f;
     [SerializeField] private float frogStopX = -5.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
-    [SerializeField] private Vector3 centralDoorPosition = new Vector3(6.5f, 3f, 0.15f);
-    [SerializeField] private Vector2 centralDoorColliderSize = new Vector2(1f, 2f);
+    [SerializeField] private Vector3 centralDoorPosition = new Vector3(0f, 2.65f, 0.15f);
+    [SerializeField] private Vector2 centralDoorColliderSize = new Vector2(3f, 2f);
+    [SerializeField, Min(0.1f)] private float doorTileSize = 1f;
     [SerializeField, Min(0.5f)] private float doorInteractDistance = 1.5f;
 
     [SerializeField] private DialogueManager dialogueManager;
@@ -32,7 +37,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     private Camera sceneCamera;
     private GameObject grandpaObject;
     private GameObject centralDoorObject;
-    private SpriteRenderer centralDoorRenderer;
+    private SpriteRenderer[] centralDoorTileRenderers;
     private Collider2D centralDoorCollider;
     private Tile runtimeRoadTile;
     private bool doorOpened;
@@ -242,78 +247,211 @@ public class TowerDefenceSceneController : MonoBehaviour
         if (existingDoor != null)
             Destroy(existingDoor.gameObject);
 
-        // В стене оставляем проём из двух клеток под дверь.
-        Tilemap[] tilemaps = FindObjectsOfType<Tilemap>();
-        for (int i = 0; i < tilemaps.Length; i++)
+        Transform oldWall = transform.Find("Tower Defence Door Wall");
+        if (oldWall != null)
+            Destroy(oldWall.gameObject);
+        Transform oldPatch = transform.Find("Tower Defence Old Wall Patch");
+        if (oldPatch != null)
+            Destroy(oldPatch.gameObject);
+
+        Bounds wallBounds = GetAndOpenUpperWallBounds();
+        BuildDoorSideColliders(wallBounds);
+
+        // Кирпичная кладка собирается из настоящих 16x16 тайлов набора.
+        GameObject wallRoot = new GameObject("Tower Defence Door Wall");
+        wallRoot.transform.SetParent(transform, false);
+        int tileCount = Mathf.Max(3, Mathf.RoundToInt(wallBounds.size.x / doorTileSize));
+        int middleColumn = tileCount / 2;
+        int doorStartColumn = middleColumn - 1;
+        float firstTileX = wallBounds.center.x -
+            (tileCount - 1) * doorTileSize * 0.5f;
+
+        for (int column = 0; column < tileCount; column++)
         {
-            Tilemap tilemap = tilemaps[i];
-            if (tilemap == null || tilemap.gameObject.scene != gameObject.scene)
+            if (column >= doorStartColumn && column <= doorStartColumn + 2)
                 continue;
 
-            // Боковые кирпичи продолжают рисунок стены, а клетки по центру
-            // освобождаются под закрытую дверь шириной в одну клетку.
-            TileBase wallTile = tilemap.GetTile(new Vector3Int(6, 1, 0));
-            if (wallTile != null)
-            {
-                // Убираем возможные тайлы старой двери с черепом, сохраняя
-                // непрерывный рисунок кирпичной стены.
-                BoundsInt bounds = tilemap.cellBounds;
-                foreach (Vector3Int cell in bounds.allPositionsWithin)
-                {
-                    TileBase existingTile = tilemap.GetTile(cell);
-                    if (existingTile != null &&
-                        (existingTile.name.Contains("CageWithSkull") ||
-                         existingTile.name.ToLowerInvariant().Contains("skull")))
-                    {
-                        tilemap.SetTile(cell, wallTile);
-                    }
-                }
+            Sprite wallSprite = topWallTileSprite;
+            if (column == 0 && leftWallCornerTileSprite != null)
+                wallSprite = leftWallCornerTileSprite;
+            else if (column == tileCount - 1 && rightWallCornerTileSprite != null)
+                wallSprite = rightWallCornerTileSprite;
 
-                tilemap.SetTile(new Vector3Int(5, 2, 0), wallTile);
-                tilemap.SetTile(new Vector3Int(5, 3, 0), wallTile);
-                tilemap.SetTile(new Vector3Int(7, 2, 0), wallTile);
-                tilemap.SetTile(new Vector3Int(7, 3, 0), wallTile);
-
-                // На месте прежнего входа справа продолжаем ту же кирпичную кладку.
-                tilemap.SetTile(new Vector3Int(13, 2, 0), wallTile);
-                tilemap.SetTile(new Vector3Int(13, 3, 0), wallTile);
-            }
-
-            // Центральные две клетки освобождаются под новую закрытую дверь.
-            tilemap.SetTile(new Vector3Int(6, 2, 0), null);
-            tilemap.SetTile(new Vector3Int(6, 3, 0), null);
+            CreateTileVisual(
+                wallRoot.transform,
+                "Wall Tile " + column,
+                wallSprite,
+                new Vector3(
+                    firstTileX + column * doorTileSize,
+                    wallBounds.center.y,
+                    0.12f),
+                14);
         }
+
+        // Дверной проём и дверь всегда совпадают с центром верхней стены,
+        // а не с произвольной координатой старого спрайта.
+        centralDoorPosition = new Vector3(
+            wallBounds.center.x,
+            wallBounds.center.y + doorTileSize * 0.5f,
+            0.15f);
 
         centralDoorObject = new GameObject("Central Door");
         centralDoorObject.transform.SetParent(transform, false);
         centralDoorObject.transform.position = centralDoorPosition;
+        centralDoorTileRenderers = new SpriteRenderer[6];
 
-        centralDoorRenderer = centralDoorObject.AddComponent<SpriteRenderer>();
-        centralDoorRenderer.sprite = closedDoorSprite;
-        centralDoorRenderer.sortingLayerName = "Default";
-        centralDoorRenderer.sortingOrder = 14;
+        for (int index = 0; index < centralDoorTileRenderers.Length; index++)
+        {
+            int row = index / 3;
+            int column = index % 3;
+            GameObject tileObject = new GameObject("Door Tile " + index);
+            tileObject.transform.SetParent(centralDoorObject.transform, false);
+            tileObject.transform.localPosition = new Vector3(
+                (column - 1) * doorTileSize,
+                (0.5f - row) * doorTileSize,
+                0f);
 
-        Vector3 doorScale = Vector3.one;
-        if (closedDoorSprite != null)
-        {
-            Vector2 spriteSize = closedDoorSprite.bounds.size;
-            doorScale = new Vector3(
-                centralDoorColliderSize.x / Mathf.Max(0.001f, spriteSize.x),
-                centralDoorColliderSize.y / Mathf.Max(0.001f, spriteSize.y),
-                1f);
-            centralDoorObject.transform.localScale = doorScale;
+            SpriteRenderer renderer = tileObject.AddComponent<SpriteRenderer>();
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = 18;
+            centralDoorTileRenderers[index] = renderer;
         }
-        else
-        {
-            Debug.LogWarning("Tower Defence: назначь closedDoorSprite в инспекторе контроллера TDS.");
-        }
+
+        ApplyDoorTileSprites(closedDoorTileSprites);
 
         BoxCollider2D doorCollider = centralDoorObject.AddComponent<BoxCollider2D>();
-        doorCollider.size = new Vector2(
-            centralDoorColliderSize.x / Mathf.Max(0.001f, Mathf.Abs(doorScale.x)),
-            centralDoorColliderSize.y / Mathf.Max(0.001f, Mathf.Abs(doorScale.y)));
+        doorCollider.size = centralDoorColliderSize;
         doorCollider.isTrigger = false;
         centralDoorCollider = doorCollider;
+
+        CreatePreviousWallPatch();
+    }
+
+    private Bounds GetAndOpenUpperWallBounds()
+    {
+        Transform upperLimit = FindSceneTransform("Upper Limit");
+        BoxCollider2D upperCollider = upperLimit != null
+            ? upperLimit.GetComponent<BoxCollider2D>()
+            : null;
+
+        if (upperCollider != null)
+        {
+            Bounds bounds = upperCollider.bounds;
+            upperCollider.enabled = false;
+            return bounds;
+        }
+
+        return new Bounds(
+            new Vector3(centralDoorPosition.x, centralDoorPosition.y - 0.5f, 0f),
+            new Vector3(13f, 0.34f, 0.1f));
+    }
+
+    private void BuildDoorSideColliders(Bounds wallBounds)
+    {
+        float halfOpening = centralDoorColliderSize.x * 0.5f;
+        float openingLeft = wallBounds.center.x - halfOpening;
+        float openingRight = wallBounds.center.x + halfOpening;
+
+        CreateWallCollider(
+            "Upper Wall Left",
+            wallBounds.min.x,
+            Mathf.Min(openingLeft, wallBounds.max.x),
+            wallBounds);
+        CreateWallCollider(
+            "Upper Wall Right",
+            Mathf.Max(openingRight, wallBounds.min.x),
+            wallBounds.max.x,
+            wallBounds);
+    }
+
+    private void CreateWallCollider(
+        string objectName,
+        float minX,
+        float maxX,
+        Bounds sourceBounds)
+    {
+        float width = maxX - minX;
+        if (width <= 0.02f)
+            return;
+
+        GameObject wallObject = new GameObject(objectName);
+        wallObject.transform.SetParent(transform, false);
+        wallObject.transform.position = new Vector3(
+            (minX + maxX) * 0.5f,
+            sourceBounds.center.y,
+            sourceBounds.center.z);
+
+        BoxCollider2D collider = wallObject.AddComponent<BoxCollider2D>();
+        collider.size = new Vector2(width, sourceBounds.size.y);
+        collider.isTrigger = false;
+    }
+
+    private void CreatePreviousWallPatch()
+    {
+        if (previousWallPatchSprite == null)
+            return;
+
+        GameObject patchRoot = new GameObject("Tower Defence Old Wall Patch");
+        patchRoot.transform.SetParent(transform, false);
+
+        // В прежней стене проём занимал клетки (13, 2) и (13, 3).
+        CreateTileVisual(
+            patchRoot.transform,
+            "Old Wall Hole Patch Bottom",
+            previousWallPatchSprite,
+            new Vector3(13.5f, 2.5f, 0.1f),
+            16);
+        CreateTileVisual(
+            patchRoot.transform,
+            "Old Wall Hole Patch Top",
+            previousWallPatchSprite,
+            new Vector3(13.5f, 3.5f, 0.1f),
+            16);
+    }
+
+    private void ApplyDoorTileSprites(Sprite[] sprites)
+    {
+        if (centralDoorTileRenderers == null)
+            return;
+
+        for (int index = 0; index < centralDoorTileRenderers.Length; index++)
+        {
+            SpriteRenderer renderer = centralDoorTileRenderers[index];
+            if (renderer == null)
+                continue;
+
+            Sprite sprite = sprites != null && index < sprites.Length
+                ? sprites[index]
+                : null;
+            renderer.sprite = sprite;
+            renderer.enabled = sprite != null;
+        }
+    }
+
+    private void CreateTileVisual(
+        Transform parent,
+        string objectName,
+        Sprite sprite,
+        Vector3 localPosition,
+        int sortingOrder)
+    {
+        if (sprite == null)
+            return;
+
+        GameObject tileObject = new GameObject(objectName);
+        tileObject.transform.SetParent(parent, false);
+        tileObject.transform.localPosition = localPosition;
+
+        SpriteRenderer renderer = tileObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = sortingOrder;
+
+        Vector2 spriteSize = sprite.bounds.size;
+        tileObject.transform.localScale = new Vector3(
+            doorTileSize / Mathf.Max(0.001f, spriteSize.x),
+            doorTileSize / Mathf.Max(0.001f, spriteSize.y),
+            1f);
     }
 
     private void CreateGrandpa()
@@ -448,7 +586,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         Animator frogAnimator = frog.GetComponent<Animator>();
         if (frogAnimator == null)
             frogAnimator = frog.GetComponentInChildren<Animator>(true);
-        SetFrogWalkAnimation(frogAnimator, 1f);
+        SetFrogWalkAnimation(frogAnimator, -1f);
 
         while (Vector3.Distance(frog.position, target) > 0.025f)
         {
@@ -545,8 +683,7 @@ public class TowerDefenceSceneController : MonoBehaviour
             }
 
             doorOpened = true;
-            if (centralDoorRenderer != null && openDoorSprite != null)
-                centralDoorRenderer.sprite = openDoorSprite;
+            ApplyDoorTileSprites(openDoorTileSprites);
             if (centralDoorCollider != null)
                 centralDoorCollider.enabled = false;
 
@@ -608,7 +745,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         SpriteRenderer frogRenderer = frog.GetComponent<SpriteRenderer>();
         if (frogRenderer != null)
             frogRenderer.flipX = false;
-        SetFrogWalkAnimation(animator, 1f);
+        SetFrogWalkAnimation(animator, -1f);
 
         while (Vector3.Distance(frog.position, target) > 0.025f)
         {
