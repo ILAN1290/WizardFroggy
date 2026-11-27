@@ -1601,25 +1601,25 @@ public class TowerDefenceManager : MonoBehaviour
         for (int i = 0; i < pixels.Length; i++)
             pixels[i] = transparent;
 
-        // Filled first chevron.
+        // Две стрелки направлены вправо: это именно перемотка вперёд (|>>).
+        // Рисуем прежнюю форму зеркально по горизонтали.
         for (int step = 0; step <= 11; step++)
         {
-            int x = 3 + step;
+            int x = 14 - step;
             for (int y = 16 - step; y <= 16 + step; y++)
                 pixels[y * size + x] = ivory;
         }
 
-        // Filled second chevron.
         for (int step = 0; step <= 11; step++)
         {
-            int x = 14 + step;
+            int x = 25 - step;
             for (int y = 16 - step; y <= 16 + step; y++)
                 pixels[y * size + x] = ivory;
         }
 
-        // Vertical end bar, as on common media fast-forward controls.
+        // Вертикальная черта находится слева, как у стандартной кнопки вперёд.
         for (int y = 6; y <= 26; y++)
-            pixels[y * size + 27] = ivory;
+            pixels[y * size + 4] = ivory;
 
         texture.SetPixels32(pixels);
         texture.Apply();
