@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 
 [InitializeOnLoad]
 public static class TowerDefenceSceneBuilder
@@ -19,6 +20,9 @@ public static class TowerDefenceSceneBuilder
     private const string MushroomSpritePath = "Assets/Sprites/грибочек.png";
     private const string UpgradePlusPath = "Assets/Sprites/UI Game/Merchenant/кнопочка_плюс.png";
     private const string SellMinusPath = "Assets/Sprites/UI Game/Merchenant/кнопочка_минус.png";
+    private const string BuildButtonPath = "Assets/Sprites/UI Game/Merchenant/кнопочка.png";
+    private const string TdaFontPath = "Assets/Fonts/TDAText SDF.asset";
+    private const string ClosedDoorSpritePath = "Assets/Sprites/Tile Sprites/Room_Builder_free_48x48.png";
 
     private static bool autoBuildQueued;
 
@@ -201,6 +205,14 @@ public static class TowerDefenceSceneBuilder
                 bossObject.SetActive(false);
         }
 
+        GameObject leftShelves = FindInScene(targetScene, "Left Book Cases");
+        if (leftShelves != null)
+            leftShelves.SetActive(false);
+
+        GameObject rightShelves = FindInScene(targetScene, "Right Book Cases");
+        if (rightShelves != null)
+            rightShelves.SetActive(false);
+
         DisableLegacyBossFlow(targetScene);
 
         GameObject dialogueElements = FindInScene(targetScene, "DialogueElements");
@@ -294,6 +306,9 @@ public static class TowerDefenceSceneBuilder
         Sprite roadTile = LoadSprite(RoadTileSetPath, RoadTileSpriteName);
         Sprite plus = LoadSprite(UpgradePlusPath, null);
         Sprite minus = LoadSprite(SellMinusPath, null);
+        Sprite buildButton = LoadSprite(BuildButtonPath, null);
+        Sprite closedDoor = LoadSprite(ClosedDoorSpritePath, "Room_Builder_free_48x48_2");
+        TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
 
         TowerDefenceSceneController controller =
             controllerObject.GetComponent<TowerDefenceSceneController>();
@@ -302,6 +317,7 @@ public static class TowerDefenceSceneBuilder
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
+            SetObject(serialized, "closedDoorSprite", closedDoor);
             SetObject(serialized, "frogIcon", frogIcon);
             SetObject(serialized, "dialogueManager",
                 FindComponentInScene<DialogueManager>(controllerObject.scene));
@@ -329,7 +345,19 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "instructionBookSprite", book);
             SetObject(serialized, "upgradePlusButtonSprite", plus);
             SetObject(serialized, "sellMinusButtonSprite", minus);
+            SetObject(serialized, "buildButtonSprite", buildButton);
+            SetObject(serialized, "uiFontAsset", tdaFont);
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        if (tdaFont != null)
+        {
+            foreach (GameObject root in controllerObject.scene.GetRootGameObjects())
+            {
+                foreach (TMP_Text text in root.GetComponentsInChildren<TMP_Text>(true))
+                    text.font = tdaFont;
+            }
+        }
         }
 
         if (grandpa == null)
@@ -338,6 +366,12 @@ public static class TowerDefenceSceneBuilder
             Debug.LogError("Tower Defence: не найден спрайт призрака.");
         if (roadTile == null)
             Debug.LogError("Tower Defence: не найден тайл дорожки.");
+        if (closedDoor == null)
+            Debug.LogError("Tower Defence: не найден спрайт двери в " + ClosedDoorSpritePath);
+        if (buildButton == null)
+            Debug.LogError("Tower Defence: не найден спрайт кнопки строительства.");
+        if (tdaFont == null)
+            Debug.LogError("Tower Defence: не найден шрифт " + TdaFontPath);
         if (book == null)
             Debug.LogWarning("Tower Defence: не найден спрайт книги для инструкции.");
     }
