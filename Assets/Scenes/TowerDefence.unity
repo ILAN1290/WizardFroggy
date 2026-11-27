@@ -18300,10 +18300,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grandpaSpriteAsset: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
+  closedDoorSprite: {fileID: 942849371, guid: 0338353bdd35a5448b6e421ca3c204e2, type: 3}
   frogIcon: {fileID: 21300000, guid: 90a81166ee8d0f54496b9d53bd7dde18, type: 3}
-  grandpaPosition: {x: -8.5, y: -4.5, z: 0}
+  grandpaPosition: {x: -6.5, y: -4.5, z: 0}
   frogStartX: 10.5
-  frogStopX: -6.8
+  frogStopX: -5.8
   frogWalkSpeed: 3.8
   dialogueManager: {fileID: 1368409279}
 --- !u!114 &2190011004
@@ -18399,6 +18400,8 @@ MonoBehaviour:
   instructionBookSprite: {fileID: 497790256, guid: 5017c1a619c219b4da3d9195545f4b6a, type: 3}
   upgradePlusButtonSprite: {fileID: -1505932246928245792, guid: df285eabc66e97c4c8246b3f31bedfcd, type: 3}
   sellMinusButtonSprite: {fileID: 4505060559889354466, guid: 29a06ad9e584ef44596084ef32102902, type: 3}
+  buildButtonSprite: {fileID: -8510727349376626655, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
+  uiFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
   grandpaMaximumHealth: 300
   grandpaPotionHealAmount: 15
   whiteGhostHealth: 10
