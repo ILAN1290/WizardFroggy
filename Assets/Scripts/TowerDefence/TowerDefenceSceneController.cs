@@ -17,7 +17,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Положение персонажей")]
     [SerializeField] private Vector3 grandpaPosition = new Vector3(-6.5f, -4.5f, 0f);
     [SerializeField] private float frogStartX = 10.5f;
-    [SerializeField] private float frogStopX = -6.8f;
+    [SerializeField] private float frogStopX = -5.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
 
     [SerializeField] private DialogueManager dialogueManager;
