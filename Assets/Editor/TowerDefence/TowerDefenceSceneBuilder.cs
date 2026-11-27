@@ -323,7 +323,7 @@ public static class TowerDefenceSceneBuilder
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
-            SetObject(serialized, "closedDoorSprite", null);
+            // Closed-door sprite is not present in the repository; preserve any manual scene assignment.
             SetObject(serialized, "frogIcon", frogIcon);
             SetObject(serialized, "dialogueManager",
                 FindComponentInScene<DialogueManager>(controllerObject.scene));
