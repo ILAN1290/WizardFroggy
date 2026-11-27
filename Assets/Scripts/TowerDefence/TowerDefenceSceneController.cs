@@ -22,7 +22,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private float frogStartX = 10.5f;
     [SerializeField] private float frogStopX = -5.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
-    [SerializeField] private Vector3 centralDoorPosition = new Vector3(6.5f, 2.5f, 0.15f);
+    [SerializeField] private Vector3 centralDoorPosition = new Vector3(6.5f, 3f, 0.15f);
     [SerializeField] private Vector2 centralDoorColliderSize = new Vector2(1f, 2f);
     [SerializeField, Min(0.5f)] private float doorInteractDistance = 1.5f;
 
@@ -34,7 +34,6 @@ public class TowerDefenceSceneController : MonoBehaviour
     private SpriteRenderer centralDoorRenderer;
     private Collider2D centralDoorCollider;
     private Tile runtimeRoadTile;
-    private bool keyCollected;
     private bool doorOpened;
     private bool doorTransitionStarted;
     private bool postWaveSequenceStarted;
@@ -252,7 +251,7 @@ public class TowerDefenceSceneController : MonoBehaviour
 
             // Боковые кирпичи продолжают рисунок стены, а клетки по центру
             // освобождаются под закрытую дверь шириной в одну клетку.
-            TileBase wallTile = tilemap.GetTile(new Vector3Int(4, 2, 0));
+            TileBase wallTile = tilemap.GetTile(new Vector3Int(6, 1, 0));
             if (wallTile != null)
             {
                 tilemap.SetTile(new Vector3Int(5, 2, 0), wallTile);
@@ -693,7 +692,6 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     public void OnTowerDefenceKeyCollected()
     {
-        keyCollected = true;
         if (gameManager != null)
             gameManager.NotifyKeyCollected();
     }
