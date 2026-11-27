@@ -18308,6 +18308,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grandpaSpriteAsset: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
+  frogSpawnStairSprite: {fileID: 0}
   closedDoorTileSprites:
   - {fileID: -5225876556858284812, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
   - {fileID: -3094171731127790719, guid: ca1fe683d8872314481b6dbcd87cb1d1, type: 3}
@@ -18335,6 +18336,8 @@ MonoBehaviour:
   doorVerticalOffset: 0
   doorInteractDistance: 1.5
   dialogueManager: {fileID: 1368409279}
+  frogDialogueClip: {fileID: 8300000, guid: 238c21867846e1b44bdbf4188ed779fa, type: 3}
+  grandpaDialogueClip: {fileID: 8300000, guid: 7bde97a661d6e3a4ea4d862062776132, type: 3}
 --- !u!114 &2190011004
 MonoBehaviour:
   m_ObjectHideFlags: 0
