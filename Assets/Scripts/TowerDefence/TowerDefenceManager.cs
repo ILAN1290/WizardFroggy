@@ -1364,10 +1364,10 @@ public class TowerDefenceManager : MonoBehaviour
         const int starterX = 5;
         const int starterY = -1;
         HashSet<Vector3Int> desired = new HashSet<Vector3Int>();
-        desired.Add(new Vector3Int(starterX, starterY, 0));
 
-        // Use the same rule as CanPlaceTowerAt: only free cells within the
-        // road-side build band are marked. The starter tower cell is included.
+        // Все клетки под башнями, в том числе под бесплатной стартовой,
+        // считаются занятыми и остаются светлыми. В список попадают только
+        // клетки, на которых CanPlaceTowerAt разрешает новую башню.
         for (int y = -5; y <= 0; y++)
         {
             for (int x = -8; x <= 7; x++)
@@ -1409,7 +1409,7 @@ public class TowerDefenceManager : MonoBehaviour
                 1f / Mathf.Max(0.001f, spriteSize.y), 1f);
             SpriteRenderer renderer = marker.AddComponent<SpriteRenderer>();
             renderer.sprite = square;
-            renderer.color = new Color(0.08f, 0.08f, 0.08f, 0.68f);
+            renderer.color = new Color(0.14f, 0.14f, 0.14f, 0.58f);
             renderer.sortingLayerName = "Default";
             renderer.sortingOrder = 28;
             buildCellHighlights[cell] = renderer;
@@ -1621,7 +1621,15 @@ public class TowerDefenceManager : MonoBehaviour
         title.fontSize = 25;
         title.fontStyle = FontStyle.Bold;
         title.alignment = TextAnchor.MiddleCenter;
-        title.normal.textColor = new Color(0.25f, 0.2f, 0.12f, 1f);
+        Color tutorialTitleColor = new Color(0.25f, 0.2f, 0.12f, 1f);
+        title.normal.textColor = tutorialTitleColor;
+        title.hover.textColor = tutorialTitleColor;
+        title.active.textColor = tutorialTitleColor;
+        title.focused.textColor = tutorialTitleColor;
+        title.onNormal.textColor = tutorialTitleColor;
+        title.onHover.textColor = tutorialTitleColor;
+        title.onActive.textColor = tutorialTitleColor;
+        title.onFocused.textColor = tutorialTitleColor;
         GUI.Label(new Rect(page.x + 76f, page.y + 62f, page.width - 152f, 44f),
             "КАК ЗАЩИЩАТЬ ДЕДА", title);
 
