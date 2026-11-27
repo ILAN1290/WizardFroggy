@@ -292,6 +292,18 @@ public static class TowerDefenceSceneBuilder
         GameObject candle = FindInScene(scene, "candle");
         if (candle != null)
             candle.SetActive(false);
+
+        GameObject grave = FindInScene(scene, "Grave");
+        if (grave != null)
+            grave.SetActive(false);
+
+        GameObject greenCandlestickLeft = FindInScene(scene, "green candlestick 1");
+        if (greenCandlestickLeft != null)
+            greenCandlestickLeft.SetActive(false);
+
+        GameObject greenCandlestickRight = FindInScene(scene, "green candlestick 2");
+        if (greenCandlestickRight != null)
+            greenCandlestickRight.SetActive(false);
     }
 
     private static void EnsureExistingSceneSystems(Scene scene)
