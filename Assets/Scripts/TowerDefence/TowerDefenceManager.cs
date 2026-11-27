@@ -1140,22 +1140,23 @@ public class TowerDefenceManager : MonoBehaviour
 
         if (countdownActive)
         {
-            Rect timerPanel = new Rect(Screen.width * 0.5f - 120f, 72f, 240f, 76f);
+            // Пропорции фонового спрайта длинные, поэтому панель не растягиваем по высоте.
+            Rect timerPanel = new Rect(Screen.width * 0.5f - 150f, 72f, 300f, 55f);
             DrawSprite(timerPanel, timerBackgroundSprite);
 
             GUIStyle timerCaption = new GUIStyle(GUI.skin.label);
-            timerCaption.fontSize = 12;
+            timerCaption.fontSize = 13;
             timerCaption.fontStyle = FontStyle.Bold;
             timerCaption.alignment = TextAnchor.MiddleCenter;
             timerCaption.normal.textColor = Color.white;
-            GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 5f, timerPanel.width - 20f, 20f),
+            GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 2f, timerPanel.width - 20f, 17f),
                 "ОСТАЛОСЬ ВРЕМЕНИ",
                 timerCaption);
 
             GUIStyle timerNumber = new GUIStyle(heading);
-            timerNumber.fontSize = 25;
+            timerNumber.fontSize = 24;
             timerNumber.alignment = TextAnchor.MiddleCenter;
-            GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 28f, timerPanel.width - 20f, 39f),
+            GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 18f, timerPanel.width - 20f, 32f),
                 Mathf.CeilToInt(Mathf.Max(0f, countdown)).ToString() + " сек.", timerNumber);
         }
     }
