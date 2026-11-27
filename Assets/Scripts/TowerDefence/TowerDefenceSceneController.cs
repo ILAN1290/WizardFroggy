@@ -667,6 +667,7 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         GameObject keyObject = new GameObject("Tower Defence Key");
         keyObject.transform.position = grandpaObject.transform.position + Vector3.up * 0.7f;
+        keyObject.transform.localScale = Vector3.one * 0.4f;
 
         SpriteRenderer renderer = keyObject.AddComponent<SpriteRenderer>();
         renderer.sprite = keyPickupSprite;
