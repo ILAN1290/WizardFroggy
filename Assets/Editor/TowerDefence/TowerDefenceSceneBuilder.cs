@@ -384,7 +384,9 @@ public static class TowerDefenceSceneBuilder
         {
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
-            SetObject(serialized, "roadTileSprite", roadTile);
+            // Назначаем тайл по умолчанию только при первом создании сцены.
+            // Пользовательский выбор в Inspector не должен перезаписываться автосборкой.
+            SetObjectIfNull(serialized, "roadTileSprite", roadTile);
             SetObject(serialized, "previousWallPatchSprite", previousWallPatch);
             SetSpriteArray(serialized, "closedDoorTileSprites", closedDoorTiles);
             SetSpriteArray(serialized, "openDoorTileSprites", openDoorTiles);
@@ -422,7 +424,6 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "blackGhostSprite", ghost);
             SetObject(serialized, "bossGhostSprite", ghost);
             SetObject(serialized, "grandpaSprite", grandpa);
-            SetObject(serialized, "roadTileSprite", roadTile);
             SetObject(serialized, "mushroomSprite", mushroom);
             SetObject(serialized, "instructionBookSprite", tdsBookPage);
             SetObject(serialized, "instructionButtonSprite", buildButton);
@@ -606,6 +607,16 @@ public static class TowerDefenceSceneBuilder
         property.arraySize = sprites.Length;
         for (int i = 0; i < sprites.Length; i++)
             property.GetArrayElementAtIndex(i).objectReferenceValue = sprites[i];
+    }
+
+    private static void SetObjectIfNull(
+        SerializedObject serialized,
+        string propertyName,
+        Object value)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property != null && property.objectReferenceValue == null)
+            property.objectReferenceValue = value;
     }
 
     private static void SetObject(
