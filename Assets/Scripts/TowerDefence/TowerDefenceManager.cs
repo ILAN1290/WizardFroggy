@@ -767,6 +767,11 @@ public class TowerDefenceManager : MonoBehaviour
 
     private bool CanPlaceTowerAt(Vector3Int cell)
     {
+        // Башни можно ставить только внутри границ игровой площадки,
+        // не за боковыми стенами и не за верхней/нижней перегородками.
+        if (cell.x < -8 || cell.x > 7 || cell.y < -5 || cell.y > 0)
+            return false;
+
         if (roadCells.Contains(cell) || occupiedCells.Contains(cell))
             return false;
 
@@ -819,8 +824,7 @@ public class TowerDefenceManager : MonoBehaviour
 
         towerObject.AddComponent<BoxCollider2D>();
         TowerDefenceTower tower = towerObject.AddComponent<TowerDefenceTower>();
-        float pixelsPerUnit = roadTileSprite != null ? roadTileSprite.pixelsPerUnit : 64f;
-        tower.Initialize(this, type, GetStats(type), sprite, freeStarter, pixelsPerUnit);
+        tower.Initialize(this, type, GetStats(type), sprite, freeStarter);
         towers.Add(tower);
     }
 
