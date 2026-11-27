@@ -12,6 +12,9 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Персонажи")]
     [SerializeField] private Sprite grandpaSpriteAsset;
     [SerializeField] private Sprite roadTileSprite;
+    [Header("Декор стартовой клетки лягушки")]
+    [Tooltip("Спрайт лестницы в клетке, где лягушка появляется в начале сцены.")]
+    [SerializeField] private Sprite frogSpawnStairSprite;
     [SerializeField] private Sprite[] closedDoorTileSprites = new Sprite[6];
     [SerializeField] private Sprite[] openDoorTileSprites = new Sprite[6];
     [SerializeField] private Sprite previousWallPatchSprite;
@@ -32,7 +35,9 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField, Min(0.5f)] private float doorInteractDistance = 1.5f;
 
     [SerializeField] private DialogueManager dialogueManager;
-    [SerializeField] private AudioClip dialogueVoiceClip;
+    [Header("Голоса персонажей")]
+    [SerializeField] private AudioClip frogDialogueClip;
+    [SerializeField] private AudioClip grandpaDialogueClip;
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
@@ -244,6 +249,27 @@ public class TowerDefenceSceneController : MonoBehaviour
         runtimeRoadStartTile.color = new Color(1f, 0.22f, 0.22f, 1f);
         runtimeRoadStartTile.colliderType = Tile.ColliderType.None;
         tilemap.SetTile(Vector3Int.FloorToInt(spawnPosition), runtimeRoadStartTile);
+
+        // Декорируем именно стартовую клетку лягушки в начальной катсцене.
+        // Спрайт лестницы можно будет назначить позже в Inspector.
+        if (frogSpawnStairSprite != null)
+        {
+            float frogSpawnY = grandpaPosition.y - GetPixelWorldSize(80f);
+            Vector3Int frogCell = new Vector3Int(
+                Mathf.FloorToInt(frogStartX),
+                Mathf.FloorToInt(frogSpawnY),
+                0);
+            Vector3 stairCenter = new Vector3(
+                frogCell.x + 0.5f,
+                frogCell.y + 0.5f,
+                0.02f);
+            CreateTileVisual(
+                pathRoot.transform,
+                "Frog Spawn Stair",
+                frogSpawnStairSprite,
+                stairCenter,
+                3);
+        }
     }
 
     private static void AddRoadPolyline(HashSet<Vector3Int> cells, Vector3[] points)
@@ -553,7 +579,9 @@ public class TowerDefenceSceneController : MonoBehaviour
             personName = personName,
             icon = icon,
             text = text,
-            clip = dialogueVoiceClip,
+            clip = personName == "Лягушка"
+                ? frogDialogueClip
+                : grandpaDialogueClip,
             emotion = "Idle"
         };
     }

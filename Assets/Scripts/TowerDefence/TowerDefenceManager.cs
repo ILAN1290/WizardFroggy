@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using TMPro;
+using UnityEngine.UI;
 
 [System.Serializable]
 public class TowerDefenceTowerStats
@@ -66,6 +67,7 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private Sprite grandpaHpBackgroundSprite;
     [SerializeField] private Sprite sellTowerIconSprite;
     [SerializeField] private Sprite upgradeTowerIconSprite;
+    [SerializeField] private Sprite skipWaveIconSprite;
     [SerializeField, Range(0.1f, 1f)] private float mushroomToGhostHeight = 0.5f;
     [SerializeField, Min(0)] private int startingMushrooms = 5;
     [SerializeField] private Item[] waveRewardItems = new Item[0];
@@ -181,6 +183,13 @@ public class TowerDefenceManager : MonoBehaviour
     private bool wavesFinished;
     private AudioSource soundSource;
     private AudioSource ambientSource;
+    private Canvas grandpaHealthCanvas;
+    private Image grandpaHealthFill;
+    private TMP_Text grandpaHealthLabel;
+    private readonly Dictionary<Vector3Int, SpriteRenderer> buildCellHighlights =
+        new Dictionary<Vector3Int, SpriteRenderer>();
+    private Sprite runtimeSkipWaveIcon;
+    private Texture2D runtimeSkipWaveIconTexture;
 
     public event System.Action AllWavesDefeated;
 
@@ -233,6 +242,8 @@ public class TowerDefenceManager : MonoBehaviour
             runtimeUpgradeIcon = CreatePixelActionIcon(false, out runtimeUpgradeIconTexture);
         else
             runtimeUpgradeIcon = upgradeTowerIconSprite;
+        if (skipWaveIconSprite == null)
+            runtimeSkipWaveIcon = CreateSkipWaveIcon(out runtimeSkipWaveIconTexture);
         DisablePlayerCombat();
     }
 
@@ -255,12 +266,25 @@ public class TowerDefenceManager : MonoBehaviour
             Destroy(runtimeSellIconTexture);
         if (runtimeUpgradeIconTexture != null)
             Destroy(runtimeUpgradeIconTexture);
+        if (runtimeSkipWaveIcon != null)
+            Destroy(runtimeSkipWaveIcon);
+        if (runtimeSkipWaveIconTexture != null)
+            Destroy(runtimeSkipWaveIconTexture);
+        if (grandpaHealthCanvas != null)
+            Destroy(grandpaHealthCanvas.gameObject);
+        ClearBuildCellHighlights();
     }
 
     private void Update()
     {
+        UpdateGrandpaHealthWorldCanvas();
         if (gameOver || victory)
+        {
+            ClearBuildCellHighlights();
             return;
+        }
+        if (gameStarted && !instructionsOpen)
+            UpdateBuildCellHighlights();
 
         if (Time.time >= speedPotionUntil)
             speedPotionMultiplier = 1f;
@@ -292,6 +316,7 @@ public class TowerDefenceManager : MonoBehaviour
     public void SetGrandpa(Transform grandpa)
     {
         grandpaTransform = grandpa;
+        EnsureGrandpaHealthWorldCanvas();
         if (grandpaTransform != null && grandpaSprite != null)
         {
             SpriteRenderer renderer = grandpaTransform.GetComponent<SpriteRenderer>();
@@ -928,6 +953,9 @@ public class TowerDefenceManager : MonoBehaviour
             mousePosition.x,
             Screen.height - mousePosition.y);
 
+        if (countdownActive && GetSkipWaveButtonRect().Contains(guiPosition))
+            return;
+
         if (buildMenuOpen && GetBuildPanelRect().Contains(guiPosition))
             return;
         if (selectedTower != null && GetTowerPanelRect().Contains(guiPosition))
@@ -1229,7 +1257,6 @@ public class TowerDefenceManager : MonoBehaviour
     private void OnGUI()
     {
         // Keep the health overlay behind inventory/build overlays.
-        GUI.depth = 100;
         if (!gameStarted && !instructionsOpen && string.IsNullOrEmpty(statusMessage))
             return;
 
@@ -1239,7 +1266,6 @@ public class TowerDefenceManager : MonoBehaviour
             GUI.skin.font = uiFontAsset.sourceFontFile;
 
         DrawHud();
-        DrawStarterAdjacentCellTint();
 
         if (instructionsOpen)
         {
@@ -1281,7 +1307,6 @@ public class TowerDefenceManager : MonoBehaviour
         heading.fontStyle = FontStyle.Bold;
         heading.normal.textColor = Color.white;
 
-        DrawGrandpaHealthBar();
 
         Rect moneyPanel = new Rect(Screen.width - 285f, 18f, 265f, 64f);
         GUI.Box(moneyPanel, GUIContent.none);
@@ -1321,40 +1346,248 @@ public class TowerDefenceManager : MonoBehaviour
             timerNumber.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 21f, timerPanel.width - 20f, 36f),
                 Mathf.CeilToInt(Mathf.Max(0f, countdown)).ToString() + " сек.", timerNumber);
+            DrawSkipWaveButton(timerPanel);
         }
     }
 
-    private void DrawStarterAdjacentCellTint()
+    private void UpdateBuildCellHighlights()
     {
-        if (Camera.main == null || instructionsOpen || !gameStarted)
+        const int starterX = 5;
+        const int starterY = -1;
+        HashSet<Vector3Int> desired = new HashSet<Vector3Int>();
+        desired.Add(new Vector3Int(starterX, starterY, 0));
+
+        // Use the same rule as CanPlaceTowerAt: only free cells within the
+        // road-side build band are marked. The starter tower cell is included.
+        for (int y = -5; y <= 0; y++)
+        {
+            for (int x = -8; x <= 7; x++)
+            {
+                Vector3Int cell = new Vector3Int(x, y, 0);
+                if (cell.x == starterX && cell.y == starterY)
+                    continue;
+                if (CanPlaceTowerAt(cell))
+                    desired.Add(cell);
+            }
+        }
+
+        List<Vector3Int> stale = new List<Vector3Int>();
+        foreach (KeyValuePair<Vector3Int, SpriteRenderer> pair in buildCellHighlights)
+            if (!desired.Contains(pair.Key) || pair.Value == null)
+                stale.Add(pair.Key);
+        for (int i = 0; i < stale.Count; i++)
+        {
+            if (buildCellHighlights.TryGetValue(stale[i], out SpriteRenderer oldRenderer) &&
+                oldRenderer != null)
+                Destroy(oldRenderer.gameObject);
+            buildCellHighlights.Remove(stale[i]);
+        }
+
+        Sprite square = GetRuntimeSquareSprite();
+        Vector2 spriteSize = square != null ? square.bounds.size : Vector2.one;
+        foreach (Vector3Int cell in desired)
+        {
+            if (buildCellHighlights.ContainsKey(cell) || square == null)
+                continue;
+            GameObject marker = new GameObject("Buildable Cell • " + cell.x + "_" + cell.y);
+            marker.transform.position = new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0.05f);
+            marker.transform.localScale = new Vector3(
+                1f / Mathf.Max(0.001f, spriteSize.x),
+                1f / Mathf.Max(0.001f, spriteSize.y), 1f);
+            SpriteRenderer renderer = marker.AddComponent<SpriteRenderer>();
+            renderer.sprite = square;
+            renderer.color = new Color(0.08f, 0.08f, 0.08f, 0.68f);
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = 28;
+            buildCellHighlights[cell] = renderer;
+        }
+    }
+
+    private void ClearBuildCellHighlights()
+    {
+        foreach (SpriteRenderer renderer in buildCellHighlights.Values)
+            if (renderer != null)
+                Destroy(renderer.gameObject);
+        buildCellHighlights.Clear();
+    }
+
+    private void EnsureGrandpaHealthWorldCanvas()
+    {
+        if (grandpaTransform == null || grandpaHealthCanvas != null)
             return;
 
-        // Four buildable cells directly adjacent to the free tower at (5,-1).
-        Vector3Int[] cells =
+        GameObject root = new GameObject(
+            "Grandpa Health Bar • World Canvas",
+            typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+        RectTransform rootRect = root.GetComponent<RectTransform>();
+        rootRect.sizeDelta = new Vector2(204f, 26f);
+        rootRect.pivot = new Vector2(0.5f, 0.5f);
+
+        grandpaHealthCanvas = root.GetComponent<Canvas>();
+        grandpaHealthCanvas.renderMode = RenderMode.WorldSpace;
+        grandpaHealthCanvas.worldCamera = Camera.main;
+        grandpaHealthCanvas.overrideSorting = true;
+        grandpaHealthCanvas.sortingLayerName = "Default";
+        grandpaHealthCanvas.sortingOrder = 9;
+
+        CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+        scaler.referencePixelsPerUnit = 100f;
+        scaler.dynamicPixelsPerUnit = 10f;
+
+        GameObject trackObject = new GameObject(
+            "Health Track", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        trackObject.transform.SetParent(root.transform, false);
+        RectTransform trackRect = trackObject.GetComponent<RectTransform>();
+        trackRect.anchorMin = Vector2.zero;
+        trackRect.anchorMax = Vector2.one;
+        trackRect.offsetMin = Vector2.zero;
+        trackRect.offsetMax = Vector2.zero;
+        Image track = trackObject.GetComponent<Image>();
+        track.sprite = grandpaHpBackgroundSprite;
+        track.color = grandpaHpBackgroundSprite != null
+            ? Color.white
+            : new Color(0.1f, 0.07f, 0.06f, 0.98f);
+        track.raycastTarget = false;
+
+        GameObject fillObject = new GameObject(
+            "Health Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        fillObject.transform.SetParent(root.transform, false);
+        RectTransform fillRect = fillObject.GetComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = new Vector2(4f, 4f);
+        fillRect.offsetMax = new Vector2(-4f, -4f);
+        grandpaHealthFill = fillObject.GetComponent<Image>();
+        grandpaHealthFill.color = new Color(0.29f, 0.78f, 0.31f, 1f);
+        grandpaHealthFill.type = Image.Type.Filled;
+        grandpaHealthFill.fillMethod = Image.FillMethod.Horizontal;
+        grandpaHealthFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        grandpaHealthFill.raycastTarget = false;
+
+        GameObject labelObject = new GameObject(
+            "Health Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        labelObject.transform.SetParent(root.transform, false);
+        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        grandpaHealthLabel = labelObject.GetComponent<TextMeshProUGUI>();
+        grandpaHealthLabel.text = "";
+        grandpaHealthLabel.alignment = TextAlignmentOptions.Center;
+        grandpaHealthLabel.fontSize = 14f;
+        grandpaHealthLabel.fontStyle = FontStyles.Bold;
+        grandpaHealthLabel.color = Color.white;
+        if (uiFontAsset != null)
+            grandpaHealthLabel.font = uiFontAsset;
+        grandpaHealthLabel.raycastTarget = false;
+
+        UpdateGrandpaHealthWorldCanvas();
+    }
+
+    private void UpdateGrandpaHealthWorldCanvas()
+    {
+        if (grandpaTransform == null)
+            return;
+        if (grandpaHealthCanvas == null)
         {
-            new Vector3Int(4, -1, 0),
-            new Vector3Int(6, -1, 0),
-            new Vector3Int(5, 0, 0),
-            new Vector3Int(5, -2, 0)
-        };
+            EnsureGrandpaHealthWorldCanvas();
+            if (grandpaHealthCanvas == null)
+                return;
+        }
 
         Camera camera = Camera.main;
-        GUI.color = new Color(0.35f, 0.35f, 0.35f, 0.23f);
-        for (int i = 0; i < cells.Length; i++)
+        if (camera != null)
         {
-            Vector3 center = camera.WorldToScreenPoint(cells[i] + new Vector3(0.5f, 0.5f, 0f));
-            Vector3 left = camera.WorldToScreenPoint(cells[i]);
-            Vector3 right = camera.WorldToScreenPoint(cells[i] + Vector3.right);
-            Vector3 top = camera.WorldToScreenPoint(cells[i] + Vector3.up);
-            float width = Mathf.Abs(right.x - left.x);
-            float height = Mathf.Abs(top.y - left.y);
-            Rect rect = new Rect(
-                center.x - width * 0.5f,
-                Screen.height - center.y - height * 0.5f,
-                width, height);
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            grandpaHealthCanvas.worldCamera = camera;
+            if (camera.orthographic && camera.pixelHeight > 0)
+            {
+                float pixelsPerWorldUnit = camera.pixelHeight /
+                    Mathf.Max(0.01f, camera.orthographicSize * 2f);
+                grandpaHealthCanvas.transform.localScale =
+                    Vector3.one / Mathf.Max(1f, pixelsPerWorldUnit);
+                grandpaHealthCanvas.transform.rotation = camera.transform.rotation;
+            }
         }
-        GUI.color = Color.white;
+
+        grandpaHealthCanvas.transform.position =
+            grandpaTransform.position + Vector3.down * 0.68f;
+        float ratio = Mathf.Clamp01(grandpaHealth / Mathf.Max(1f, grandpaMaximumHealth));
+        if (grandpaHealthFill != null)
+        {
+            grandpaHealthFill.fillAmount = ratio;
+            grandpaHealthFill.color = ratio > 0.55f
+                ? new Color(0.29f, 0.78f, 0.31f, 1f)
+                : ratio > 0.25f
+                    ? new Color(0.95f, 0.68f, 0.2f, 1f)
+                    : new Color(0.88f, 0.24f, 0.19f, 1f);
+        }
+        if (grandpaHealthLabel != null)
+            grandpaHealthLabel.text =
+                Mathf.CeilToInt(grandpaHealth) + " / " +
+                Mathf.CeilToInt(grandpaMaximumHealth);
+    }
+
+    private void DrawSkipWaveButton(Rect timerPanel)
+    {
+        Rect rect = GetSkipWaveButtonRect(timerPanel);
+        DrawSprite(rect, buildButtonSprite);
+        Sprite icon = skipWaveIconSprite != null ? skipWaveIconSprite : runtimeSkipWaveIcon;
+        if (icon != null)
+            DrawSprite(new Rect(rect.x + 8f, rect.y + 8f, rect.width - 16f, rect.height - 16f), icon);
+
+        GUIStyle invisibleButton = new GUIStyle(GUI.skin.button)
+        {
+            normal = { background = null },
+            hover = { background = null },
+            active = { background = null },
+            focused = { background = null },
+            border = new RectOffset(0, 0, 0, 0),
+            padding = new RectOffset(0, 0, 0, 0)
+        };
+        if (GUI.Button(rect, GUIContent.none, invisibleButton))
+            countdown = 0f;
+    }
+
+    private Rect GetSkipWaveButtonRect()
+    {
+        Rect panel = new Rect(Screen.width * 0.5f - 165f, 84f, 330f, 62f);
+        return GetSkipWaveButtonRect(panel);
+    }
+
+    private static Rect GetSkipWaveButtonRect(Rect panel)
+    {
+        return new Rect(panel.xMax + 10f, panel.y + 3f, 56f, 56f);
+    }
+
+    private Sprite CreateSkipWaveIcon(out Texture2D texture)
+    {
+        const int size = 32;
+        texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = "Tower Defence • Skip Wave";
+        texture.filterMode = FilterMode.Point;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        Color32[] pixels = new Color32[size * size];
+        Color32 ink = new Color32(255, 242, 210, 255);
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = new Color32(0, 0, 0, 0);
+
+        // Две пиксельные стрелки вправо — значок ускоренной перемотки.
+        for (int step = 0; step <= 10; step++)
+        {
+            int top = 16 - step;
+            int bottom = 16 + step;
+            pixels[top * size + 4 + step] = ink;
+            pixels[bottom * size + 4 + step] = ink;
+            pixels[top * size + 17 + step] = ink;
+            pixels[bottom * size + 17 + step] = ink;
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, size, size),
+            new Vector2(0.5f, 0.5f), size);
     }
 
     private void DrawInstructions()

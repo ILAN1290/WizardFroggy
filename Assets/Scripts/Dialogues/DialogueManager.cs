@@ -30,7 +30,20 @@ public class DialogueManager : MonoBehaviour
 
     private void Awake()
     {
-        if (instance == null) instance = this;
+        if (instance == null)
+            instance = this;
+
+        // Use the same dedicated dialogue channel as the Boss scene.
+        if (dialogueAudioSource == null)
+            dialogueAudioSource = GetComponentInChildren<AudioSource>(true);
+        if (dialogueAudioSource == null)
+            dialogueAudioSource = gameObject.AddComponent<AudioSource>();
+
+        dialogueAudioSource.playOnAwake = false;
+        dialogueAudioSource.loop = false;
+        dialogueAudioSource.mute = false;
+        dialogueAudioSource.volume = 1f;
+        dialogueAudioSource.spatialBlend = 0f;
     }
 
     public void StartDialogue(int index)
@@ -111,8 +124,16 @@ public class DialogueManager : MonoBehaviour
 
             if (currentLine.clip != null && dialogueAudioSource != null)
             {
+                dialogueAudioSource.Stop();
                 dialogueAudioSource.clip = currentLine.clip;
+                dialogueAudioSource.volume = 1f;
                 dialogueAudioSource.Play();
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "DialogueManager: для реплики " + currentLine.personName +
+                    " не назначен AudioClip или AudioSource.", this);
             }
 
             nameArea.text = currentLine.personName;
