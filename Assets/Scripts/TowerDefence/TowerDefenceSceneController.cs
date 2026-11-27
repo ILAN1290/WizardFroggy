@@ -12,6 +12,9 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private Sprite grandpaSpriteAsset;
     [SerializeField] private Sprite roadTileSprite;
     [SerializeField] private Sprite closedDoorSprite;
+    [SerializeField] private Sprite openDoorSprite;
+    [SerializeField] private Sprite keyPickupSprite;
+    [SerializeField] private Item keyInventoryItem;
     [SerializeField] private Sprite frogIcon;
 
     [Header("Положение персонажей")]
@@ -19,12 +22,21 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private float frogStartX = 10.5f;
     [SerializeField] private float frogStopX = -5.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
+    [SerializeField] private Vector3 centralDoorPosition = new Vector3(6.5f, 2.5f, 0.15f);
+    [SerializeField] private Vector2 centralDoorColliderSize = new Vector2(1f, 2f);
+    [SerializeField, Min(0.5f)] private float doorInteractDistance = 1.5f;
 
     [SerializeField] private DialogueManager dialogueManager;
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
+    private GameObject centralDoorObject;
+    private SpriteRenderer centralDoorRenderer;
+    private Collider2D centralDoorCollider;
     private Tile runtimeRoadTile;
+    private bool keyCollected;
+    private bool doorOpened;
+    private bool postWaveSequenceStarted;
     private TowerDefenceManager gameManager;
     private readonly HashSet<Vector3Int> generatedRoadCells = new HashSet<Vector3Int>();
     private Vector3[] routeA;
@@ -100,6 +112,7 @@ public class TowerDefenceSceneController : MonoBehaviour
             gameManager.SetGrandpa(grandpaObject.transform);
         gameManager.ConfigureRoutes(
             routeA, routeB, generatedRoadCells, spawnPosition);
+        gameManager.AllWavesDefeated += HandleAllWavesDefeated;
 
         ConfigureIntroDialogue();
 
@@ -124,6 +137,8 @@ public class TowerDefenceSceneController : MonoBehaviour
     {
         if (dialogueManager != null)
             dialogueManager.OnLineDisplayed -= HandleLineDisplayed;
+        if (gameManager != null)
+            gameManager.AllWavesDefeated -= HandleAllWavesDefeated;
 
         if (runtimeRoadTile != null)
             Destroy(runtimeRoadTile);
@@ -226,22 +241,43 @@ public class TowerDefenceSceneController : MonoBehaviour
         if (existingDoor != null)
             Destroy(existingDoor.gameObject);
 
-        if (closedDoorSprite == null)
+        // В стене оставляем проём из двух клеток под дверь.
+        Tilemap[] tilemaps = FindObjectsOfType<Tilemap>();
+        for (int i = 0; i < tilemaps.Length; i++)
         {
-            Debug.LogWarning("Tower Defence: в проекте не найден отдельный спрайт закрытой двери. Дверь не будет подменяться рамкой или процедурной графикой.");
-            return;
+            if (tilemaps[i] == null || tilemaps[i].gameObject.scene != gameObject.scene)
+                continue;
+
+            tilemaps[i].SetTile(new Vector3Int(6, 2, 0), null);
+            tilemaps[i].SetTile(new Vector3Int(6, 3, 0), null);
         }
 
-        GameObject door = new GameObject("Central Door");
-        door.transform.SetParent(transform, false);
-        // Дверь стоит в свободном промежутке между верхними прямыми дорожки.
-        door.transform.localPosition = new Vector3(0f, -0.5f, 0.15f);
+        centralDoorObject = new GameObject("Central Door");
+        centralDoorObject.transform.SetParent(transform, false);
+        centralDoorObject.transform.position = centralDoorPosition;
 
-        SpriteRenderer renderer = door.AddComponent<SpriteRenderer>();
-        renderer.sprite = closedDoorSprite;
-        renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = 8;
-        renderer.transform.localScale = Vector3.one * 0.5f;
+        centralDoorRenderer = centralDoorObject.AddComponent<SpriteRenderer>();
+        centralDoorRenderer.sprite = closedDoorSprite;
+        centralDoorRenderer.sortingLayerName = "Default";
+        centralDoorRenderer.sortingOrder = 14;
+
+        if (closedDoorSprite != null)
+        {
+            Vector2 spriteSize = closedDoorSprite.bounds.size;
+            centralDoorObject.transform.localScale = new Vector3(
+                centralDoorColliderSize.x / Mathf.Max(0.001f, spriteSize.x),
+                centralDoorColliderSize.y / Mathf.Max(0.001f, spriteSize.y),
+                1f);
+        }
+        else
+        {
+            Debug.LogWarning("Tower Defence: назначь closedDoorSprite в инспекторе контроллера TDS.");
+        }
+
+        BoxCollider2D doorCollider = centralDoorObject.AddComponent<BoxCollider2D>();
+        doorCollider.size = centralDoorColliderSize;
+        doorCollider.isTrigger = false;
+        centralDoorCollider = doorCollider;
     }
 
     private void CreateGrandpa()
@@ -299,7 +335,7 @@ public class TowerDefenceSceneController : MonoBehaviour
                 grandpaObject,
                 "Дед",
                 oldManIcon,
-                "Аааа, милок, конечно я тебе помогу! Только послушай, это место очень страшное! Тут обитают духи! Моя женушка говорила: «ОДЕВАЙ ШАПКУ МЯУРОН!», а я не одевал, да что ты понимаешь, какое поколение пошло, вы ни дать ни взять совсем бес....."),
+                "Аааа, милок, конечно я тебе помогу! Моя женушка всегда говорила будь добрым и стрекозы будут петь в 4 утра! Но вы разве послушаете, какое поколение пошло, ни дать, ни взять совсем бесто..."),
             MakeLine(frogObject, "Лягушка", playerIcon, "?!"),
             MakeLine(grandpaObject, "Дед", oldManIcon, "ПРИЗРАКИ, ОНИ ИДУТ!")
         };
@@ -354,6 +390,10 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         Rigidbody2D body = frog.GetComponent<Rigidbody2D>();
         bool restoreSimulation = body != null && body.simulated;
+        PlayerController frogController = frog.GetComponent<PlayerController>();
+        bool restoreController = frogController != null && frogController.enabled;
+        if (frogController != null)
+            frogController.enabled = false;
         if (body != null)
         {
             body.linearVelocity = Vector2.zero;
@@ -368,7 +408,11 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         SpriteRenderer frogRenderer = frog.GetComponent<SpriteRenderer>();
         if (frogRenderer != null)
-            frogRenderer.flipX = true;
+            frogRenderer.flipX = false;
+        Animator frogAnimator = frog.GetComponent<Animator>();
+        if (frogAnimator == null)
+            frogAnimator = frog.GetComponentInChildren<Animator>(true);
+        SetFrogWalkAnimation(frogAnimator, 1f);
 
         while (Vector3.Distance(frog.position, target) > 0.025f)
         {
@@ -380,6 +424,8 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         frog.position = target;
+        if (frogAnimator != null)
+            frogAnimator.SetFloat("Speed", 0f);
         if (body != null)
         {
             body.position = target;
@@ -422,6 +468,8 @@ public class TowerDefenceSceneController : MonoBehaviour
             yield break;
         }
 
+        if (restoreController && frogController != null)
+            frogController.enabled = true;
         if (InputManager.PlayerInput != null)
             InputManager.PlayerInput.SwitchCurrentActionMap("Player");
 
@@ -429,10 +477,236 @@ public class TowerDefenceSceneController : MonoBehaviour
             gameManager.BeginAfterIntro();
     }
 
+    private void SetFrogWalkAnimation(Animator animator, float directionX)
+    {
+        if (animator == null)
+            return;
+
+        animator.SetFloat("MoveX", directionX);
+        animator.SetFloat("MoveY", 0f);
+        animator.SetFloat("Speed", 1f);
+    }
+
     private void HandleLineDisplayed(DialogueLine line)
     {
         if (line != null && line.personName == "Лягушка" && line.text == "?!")
             StartCoroutine(ShakeCamera(0.75f, 0.18f));
+    }
+
+    private void Update()
+    {
+        if (doorOpened || !keyCollected || centralDoorObject == null ||
+            InputManager.instance == null || !InputManager.instance.InteractionInput)
+            return;
+
+        if (frog == null ||
+            Vector2.Distance(frog.position, centralDoorObject.transform.position) > doorInteractDistance)
+            return;
+
+        if (!TryConsumeKeyFromInventory())
+        {
+            keyCollected = false;
+            ShowKeyPickupMessage("Ключ не найден в инвентаре");
+            return;
+        }
+
+        StartCoroutine(OpenDoorAndFinishStage());
+    }
+
+    private void HandleAllWavesDefeated()
+    {
+        if (postWaveSequenceStarted)
+            return;
+
+        postWaveSequenceStarted = true;
+        StartCoroutine(PlayPostWaveSequence());
+    }
+
+    private IEnumerator PlayPostWaveSequence()
+    {
+        if (frog == null || dialogueManager == null || gameManager == null)
+            yield break;
+
+        if (InputManager.PlayerInput == null)
+        {
+            InputManager inputManager = FindObjectOfType<InputManager>();
+            if (inputManager != null)
+                InputManager.PlayerInput = inputManager.GetComponent<PlayerInput>();
+        }
+
+        if (InputManager.PlayerInput != null)
+            InputManager.PlayerInput.SwitchCurrentActionMap("Cutscene");
+
+        Rigidbody2D body = frog.GetComponent<Rigidbody2D>();
+        bool restoreSimulation = body != null && body.simulated;
+        PlayerController frogController = frog.GetComponent<PlayerController>();
+        bool restoreController = frogController != null && frogController.enabled;
+        if (frogController != null)
+            frogController.enabled = false;
+        if (body != null)
+        {
+            body.linearVelocity = Vector2.zero;
+            body.simulated = false;
+        }
+
+        // Лягушка делает короткий шаг вправо к дедушке перед разговором.
+        Vector3 target = grandpaPosition + new Vector3(1.05f, 0.15f, frog.position.z);
+        Animator animator = frog.GetComponent<Animator>();
+        if (animator == null)
+            animator = frog.GetComponentInChildren<Animator>(true);
+        SpriteRenderer frogRenderer = frog.GetComponent<SpriteRenderer>();
+        if (frogRenderer != null)
+            frogRenderer.flipX = false;
+        SetFrogWalkAnimation(animator, 1f);
+
+        while (Vector3.Distance(frog.position, target) > 0.025f)
+        {
+            frog.position = Vector3.MoveTowards(
+                frog.position, target, frogWalkSpeed * Time.deltaTime);
+            yield return null;
+        }
+        frog.position = target;
+        if (animator != null)
+            animator.SetFloat("Speed", 0f);
+        if (body != null)
+            body.position = target;
+
+        yield return new WaitForSeconds(0.2f);
+
+        GameObject frogObject = frog.gameObject;
+        Sprite playerIcon = frogIcon;
+        if (playerIcon == null && frogRenderer != null)
+            playerIcon = frogRenderer.sprite;
+        Sprite oldManIcon = grandpaSpriteAsset != null ? grandpaSpriteAsset : playerIcon;
+
+        List<DialogueLine> lines = new List<DialogueLine>
+        {
+            MakeLine(grandpaObject, "Дед", oldManIcon, "Оххх... Спасибо маленький! Как звать то тебя?"),
+            MakeLine(frogObject, "Лягушка", playerIcon, "Ква-ква"),
+            MakeLine(grandpaObject, "Дед", oldManIcon, "Какое интересное имя, не то что в мое время. Раньше все было проще: и трава зеленее и я моложе. Ну ничего на вас вся надежда. Вот слушай, однажды я..."),
+            MakeLine(frogObject, "Лягушка", playerIcon, "КВА"),
+            MakeLine(grandpaObject, "Дед", oldManIcon, "Ой, что-то я заговорился совсем, держи ключ, за той дверью находятся нужные тебе книги, только остерегайся большого цербера! Он такой непоседа...")
+        };
+
+        dialogueManager.dialogues.Clear();
+        dialogueManager.dialogues.Add(new Dialogue { dialogueLines = lines });
+        dialogueManager.dialogues[0].isPassed = false;
+        if (!dialogueManager.TryStartDialogue(0))
+        {
+            Debug.LogError("Tower Defence: финальный диалог не удалось запустить.");
+            if (restoreSimulation && body != null) body.simulated = true;
+            if (restoreController && frogController != null) frogController.enabled = true;
+            if (InputManager.PlayerInput != null)
+                InputManager.PlayerInput.SwitchCurrentActionMap("Player");
+            yield break;
+        }
+
+        yield return new WaitUntil(() => dialogueManager == null ||
+            dialogueManager.dialogues == null || dialogueManager.dialogues.Count == 0 ||
+            dialogueManager.dialogues[0] == null || dialogueManager.dialogues[0].isPassed);
+
+        if (dialogueManager == null || dialogueManager.dialogues.Count == 0 ||
+            dialogueManager.dialogues[0] == null || !dialogueManager.dialogues[0].isPassed)
+            yield break;
+
+        yield return ThrowKeyToFloor();
+
+        if (body != null)
+        {
+            body.linearVelocity = Vector2.zero;
+            body.simulated = restoreSimulation;
+        }
+        if (restoreController && frogController != null)
+            frogController.enabled = true;
+        if (InputManager.PlayerInput != null)
+            InputManager.PlayerInput.SwitchCurrentActionMap("Player");
+
+        if (gameManager != null)
+            gameManager.ShowStatusMessage("Подбери ключ и открой дверь в центре стены");
+    }
+
+    private IEnumerator ThrowKeyToFloor()
+    {
+        if (keyPickupSprite == null || keyInventoryItem == null || grandpaObject == null)
+        {
+            Debug.LogWarning("Tower Defence: назначь keyPickupSprite и keyInventoryItem в инспекторе.");
+            yield break;
+        }
+
+        GameObject keyObject = new GameObject("Tower Defence Key");
+        keyObject.transform.position = grandpaObject.transform.position + Vector3.up * 0.7f;
+
+        SpriteRenderer renderer = keyObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = keyPickupSprite;
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = 40;
+
+        Vector3 destination = grandpaObject.transform.position + new Vector3(1.25f, 0.05f, 0f);
+        Vector3 start = keyObject.transform.position;
+        float elapsed = 0f;
+        const float throwDuration = 0.55f;
+        while (elapsed < throwDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / throwDuration);
+            Vector3 position = Vector3.Lerp(start, destination, t);
+            position.y += Mathf.Sin(t * Mathf.PI) * 0.55f;
+            keyObject.transform.position = position;
+            yield return null;
+        }
+        keyObject.transform.position = destination;
+
+        keyObject.AddComponent<CircleCollider2D>();
+        keyObject.AddComponent<Rigidbody2D>();
+        keyObject.AddComponent<TowerDefenceKeyPickup>()
+            .Initialize(keyInventoryItem, this);
+    }
+
+    public void OnTowerDefenceKeyCollected()
+    {
+        keyCollected = true;
+        if (gameManager != null)
+            gameManager.NotifyKeyCollected();
+    }
+
+    public void ShowKeyPickupMessage(string message)
+    {
+        if (gameManager != null)
+            gameManager.ShowStatusMessage(message);
+    }
+
+    private bool TryConsumeKeyFromInventory()
+    {
+        Inventory inventory = Inventory.Instance;
+        if (inventory == null || keyInventoryItem == null)
+            return false;
+
+        for (int i = 0; i < inventory.Size; i++)
+        {
+            ItemStack stack = inventory.GetSlot(i);
+            if (stack != null && !stack.IsEmpty && stack.item == keyInventoryItem)
+            {
+                inventory.RemoveAt(i, 1);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private IEnumerator OpenDoorAndFinishStage()
+    {
+        doorOpened = true;
+        if (centralDoorRenderer != null && openDoorSprite != null)
+            centralDoorRenderer.sprite = openDoorSprite;
+        if (centralDoorCollider != null)
+            centralDoorCollider.enabled = false;
+
+        FloorFadeTransition fade = GetComponent<FloorFadeTransition>();
+        if (fade != null)
+            yield return fade.FadeToBlack(0.9f);
+
+        if (gameManager != null)
+            gameManager.CompleteAfterDoor();
     }
 
     private IEnumerator ShakeCamera(float duration, float magnitude)
