@@ -17,6 +17,10 @@ public class TowerDefenceTower : MonoBehaviour
     private float attackTimer;
     private int level = 1;
     private int totalInvested;
+    private SpriteRenderer spriteRenderer;
+    private Vector2 baseSpriteSize;
+    private int lastScreenHeight;
+    private float lastOrthoSize;
 
     public TowerDefenceTowerType Type => type;
     public int Level => level;
@@ -38,21 +42,54 @@ public class TowerDefenceTower : MonoBehaviour
         level = 1;
         totalInvested = freeStarter ? 0 : Mathf.Max(0, stats.mushroomCost);
 
-        SpriteRenderer renderer = GetComponent<SpriteRenderer>();
-        if (renderer == null)
-            renderer = gameObject.AddComponent<SpriteRenderer>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
 
-        renderer.sprite = sprite;
-        renderer.color = GetTint(type);
-        renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = 30;
+        spriteRenderer.sprite = sprite;
+        spriteRenderer.color = GetTint(type);
+        spriteRenderer.sortingLayerName = "Default";
+        spriteRenderer.sortingOrder = 30;
+        baseSpriteSize = sprite != null ? sprite.bounds.size : Vector2.one;
+        ApplyPixelSize();
 
-        transform.localScale = new Vector3(1.5f, 1f, 1f);
         BoxCollider2D collider = GetComponent<BoxCollider2D>();
         collider.size = Vector2.one;
         collider.isTrigger = true;
 
         attackTimer = Random.Range(0f, Mathf.Max(0.05f, stats.attackInterval));
+    }
+
+    private void LateUpdate()
+    {
+        Camera camera = Camera.main;
+        if (camera == null)
+            return;
+
+        if (lastScreenHeight != camera.pixelHeight ||
+            !Mathf.Approximately(lastOrthoSize, camera.orthographicSize))
+            ApplyPixelSize();
+    }
+
+    private void ApplyPixelSize()
+    {
+        Camera camera = Camera.main;
+        if (camera == null || spriteRenderer == null ||
+            baseSpriteSize.x <= 0f || baseSpriteSize.y <= 0f)
+            return;
+
+        float pixelsPerWorldUnit = camera.pixelHeight /
+            Mathf.Max(0.01f, camera.orthographicSize * 2f);
+        float targetWidth = 40f / pixelsPerWorldUnit;
+        float targetHeight = 70f / pixelsPerWorldUnit;
+
+        transform.localScale = new Vector3(
+            targetWidth / baseSpriteSize.x,
+            targetHeight / baseSpriteSize.y,
+            1f);
+
+        lastScreenHeight = camera.pixelHeight;
+        lastOrthoSize = camera.orthographicSize;
     }
 
     private void Update()
