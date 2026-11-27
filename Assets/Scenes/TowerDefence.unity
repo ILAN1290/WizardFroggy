@@ -18440,6 +18440,7 @@ MonoBehaviour:
   grandpaHpBackgroundSprite: {fileID: 21300000, guid: bd3c2af87e1c3fa4ba6614a099b8c9f9, type: 3}
   sellTowerIconSprite: {fileID: 0}
   upgradeTowerIconSprite: {fileID: 0}
+  mushroomToGhostHeight: 0.5
   uiFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
   grandpaMaximumHealth: 300
   grandpaPotionHealAmount: 15
