@@ -15,6 +15,8 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Оформление дорожки")]
     [Tooltip("Спрайт одного тайла дорожки. Выбери здесь любой нарезанный Sprite из набора тайлов — дорожка будет использовать его при создании сцены.")]
     [SerializeField] private Sprite roadTileSprite;
+    [Tooltip("Материал с мягким коричневым радиальным градиентом. Настраивай оттенки и силу в самом Material Inspector.")]
+    [SerializeField] private Material roadTileGradientMaterial;
     [Header("Декор стартовой клетки лягушки")]
     [Tooltip("Спрайт лестницы в клетке, где лягушка появляется в начале сцены.")]
     [SerializeField] private Sprite frogSpawnStairSprite;
@@ -236,6 +238,10 @@ public class TowerDefenceSceneController : MonoBehaviour
         TilemapRenderer renderer = pathRoot.AddComponent<TilemapRenderer>();
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = -6;
+        if (roadTileGradientMaterial != null)
+            renderer.sharedMaterial = roadTileGradientMaterial;
+        else
+            Debug.LogWarning("Tower Defence: не назначен Road Tile Gradient Material — дорожка будет без радиального фильтра.", this);
 
         runtimeRoadTile = ScriptableObject.CreateInstance<Tile>();
         runtimeRoadTile.name = "Runtime Tower Defence Road Tile";
