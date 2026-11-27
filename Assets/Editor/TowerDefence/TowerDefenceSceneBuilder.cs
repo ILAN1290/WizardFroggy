@@ -14,6 +14,7 @@ public static class TowerDefenceSceneBuilder
     private const string GrandpaSpritePath = "Assets/Sprites/дед.png";
     private const string RoadTileSetPath = "Assets/Sprites/Tile Sprites/Tileset_48x48_9.png";
     private const string RoadTileSpriteName = "Tileset_48x48_9_15";
+    private const string RoadTileGradientMaterialPath = "Assets/Materials/TowerDefenceRoadGradient.mat";
     private const string FrogIconPath = "Assets/Sprites/UI Game/Dialogue/ЛЯГУХА Иконка.png";
     private const string GhostSpritePath = "Assets/Sprites/призрак.png";
     private const string BookSpritePath = "Assets/Sprites/книги фрогги.png";
@@ -325,6 +326,8 @@ public static class TowerDefenceSceneBuilder
         Sprite mushroom = LoadSprite(MushroomSpritePath, null);
         Sprite frogIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FrogIconPath);
         Sprite roadTile = LoadSprite(RoadTileSetPath, RoadTileSpriteName);
+        Material roadTileGradientMaterial =
+            AssetDatabase.LoadAssetAtPath<Material>(RoadTileGradientMaterialPath);
         Sprite plus = LoadSprite(UpgradePlusPath, null);
         Sprite minus = LoadSprite(SellMinusPath, null);
         Sprite buildButton = LoadSprite(BuildButtonPath, null);
@@ -387,6 +390,7 @@ public static class TowerDefenceSceneBuilder
             // Назначаем тайл по умолчанию только при первом создании сцены.
             // Пользовательский выбор в Inspector не должен перезаписываться автосборкой.
             SetObjectIfNull(serialized, "roadTileSprite", roadTile);
+            SetObjectIfNull(serialized, "roadTileGradientMaterial", roadTileGradientMaterial);
             SetObject(serialized, "previousWallPatchSprite", previousWallPatch);
             SetSpriteArray(serialized, "closedDoorTileSprites", closedDoorTiles);
             SetSpriteArray(serialized, "openDoorTileSprites", openDoorTiles);
@@ -530,6 +534,8 @@ public static class TowerDefenceSceneBuilder
             Debug.LogError("Tower Defence: не найден спрайт призрака.");
         if (roadTile == null)
             Debug.LogError("Tower Defence: не найден тайл дорожки.");
+        if (roadTileGradientMaterial == null)
+            Debug.LogWarning("Tower Defence: не найден материал " + RoadTileGradientMaterialPath);
         if (buildButton == null)
             Debug.LogError("Tower Defence: не найден спрайт кнопки строительства.");
         if (tdaFont == null)
