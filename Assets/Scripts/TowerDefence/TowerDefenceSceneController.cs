@@ -11,10 +11,11 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Персонажи")]
     [SerializeField] private Sprite grandpaSpriteAsset;
     [SerializeField] private Sprite roadTileSprite;
+    [SerializeField] private Sprite closedDoorSprite;
     [SerializeField] private Sprite frogIcon;
 
     [Header("Положение персонажей")]
-    [SerializeField] private Vector3 grandpaPosition = new Vector3(-8.5f, -4.5f, 0f);
+    [SerializeField] private Vector3 grandpaPosition = new Vector3(-6.5f, -4.5f, 0f);
     [SerializeField] private float frogStartX = 10.5f;
     [SerializeField] private float frogStopX = -6.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
@@ -23,14 +24,13 @@ public class TowerDefenceSceneController : MonoBehaviour
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
-    private Texture2D solidTexture;
-    private Sprite solidSprite;
+    private Sprite runtimeDoorSprite;
     private Tile runtimeRoadTile;
     private TowerDefenceManager gameManager;
     private readonly HashSet<Vector3Int> generatedRoadCells = new HashSet<Vector3Int>();
     private Vector3[] routeA;
     private Vector3[] routeB;
-    private readonly Vector3 spawnPosition = new Vector3(9.5f, 4.5f, 0f);
+    private readonly Vector3 spawnPosition = new Vector3(7.5f, 0.5f, 0f);
 
     private void Awake()
     {
@@ -128,10 +128,8 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         if (runtimeRoadTile != null)
             Destroy(runtimeRoadTile);
-        if (solidSprite != null)
-            Destroy(solidSprite);
-        if (solidTexture != null)
-            Destroy(solidTexture);
+        if (runtimeDoorSprite != null)
+            Destroy(runtimeDoorSprite);
     }
 
     private void CreateRoad()
@@ -148,39 +146,25 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         generatedRoadCells.Clear();
 
-        // Общая дорожка приходит из правого верхнего угла к развилке.
-        // После развилки два маршрута снова сходятся перед дедушкой.
-        Vector3[] trunk =
+        // Длинная змейка по всей доступной площади комнаты.
+        // Все отрезки строго горизонтальные или вертикальные.
+        Vector3[] route =
         {
             spawnPosition,
-            new Vector3(7.5f, 3.8f, 0f),
-            new Vector3(5.5f, 3.0f, 0f),
-            new Vector3(3.5f, 2.2f, 0f),
-            new Vector3(1.5f, 1.5f, 0f)
-        };
-
-        routeA = new Vector3[]
-        {
-            trunk[0], trunk[1], trunk[2], trunk[3], trunk[4],
-            new Vector3(-0.5f, 3.5f, 0f),
-            new Vector3(-3.5f, 3.0f, 0f),
-            new Vector3(-5.5f, 0.5f, 0f),
-            new Vector3(-7.0f, -2.0f, 0f),
+            new Vector3(-7.5f, 0.5f, 0f),
+            new Vector3(-7.5f, -1.5f, 0f),
+            new Vector3(7.5f, -1.5f, 0f),
+            new Vector3(7.5f, -3.5f, 0f),
+            new Vector3(-7.5f, -3.5f, 0f),
+            new Vector3(-7.5f, -4.5f, 0f),
             grandpaPosition
         };
 
-        routeB = new Vector3[]
-        {
-            trunk[0], trunk[1], trunk[2], trunk[3], trunk[4],
-            new Vector3(-0.5f, -1.5f, 0f),
-            new Vector3(-3.5f, -2.5f, 0f),
-            new Vector3(-5.5f, 0.5f, 0f),
-            new Vector3(-7.0f, -2.0f, 0f),
-            grandpaPosition
-        };
-
+        // Обе ветки используют длинный маршрут, чтобы каждый призрак
+        // проходил всю дорожку, а не срезал путь к дедушке.
+        routeA = (Vector3[])route.Clone();
+        routeB = (Vector3[])route.Clone();
         AddRoadPolyline(generatedRoadCells, routeA);
-        AddRoadPolyline(generatedRoadCells, routeB);
 
         GameObject pathRoot = new GameObject("Tower Defence Paths");
         pathRoot.transform.SetParent(transform, false);
@@ -211,93 +195,55 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         for (int segment = 0; segment < points.Length - 1; segment++)
         {
-            Vector3 from = points[segment];
-            Vector3 to = points[segment + 1];
-            float distance = Vector3.Distance(from, to);
-            int steps = Mathf.Max(1, Mathf.CeilToInt(distance * 5f));
+            int x0 = Mathf.FloorToInt(points[segment].x);
+            int y0 = Mathf.FloorToInt(points[segment].y);
+            int x1 = Mathf.FloorToInt(points[segment + 1].x);
+            int y1 = Mathf.FloorToInt(points[segment + 1].y);
 
-            for (int step = 0; step <= steps; step++)
+            if (x0 != x1 && y0 != y1)
             {
-                Vector3 point = Vector3.Lerp(from, to, step / (float)steps);
-                int centreX = Mathf.FloorToInt(point.x);
-                int centreY = Mathf.FloorToInt(point.y);
+                Debug.LogError("Tower Defence: маршрут должен состоять только из прямых участков под 90 градусов.");
+                continue;
+            }
 
-                // Дорожка шириной две клетки, чтобы развилки читались
-                // на игровом экране и призраки не шли по тонкой линии.
-                for (int x = -1; x <= 0; x++)
-                {
-                    for (int y = -1; y <= 0; y++)
-                        cells.Add(new Vector3Int(centreX + x, centreY + y, 0));
-                }
+            if (x0 == x1)
+            {
+                int minY = Mathf.Min(y0, y1);
+                int maxY = Mathf.Max(y0, y1);
+                for (int y = minY; y <= maxY; y++)
+                    cells.Add(new Vector3Int(x0, y, 0));
+            }
+            else
+            {
+                int minX = Mathf.Min(x0, x1);
+                int maxX = Mathf.Max(x0, x1);
+                for (int x = minX; x <= maxX; x++)
+                    cells.Add(new Vector3Int(x, y0, 0));
             }
         }
     }
 
     private void CreateCenterDoor()
     {
-        if (transform.Find("Central Door") != null)
+        Transform existingDoor = transform.Find("Central Door");
+        if (existingDoor != null)
+            Destroy(existingDoor.gameObject);
+
+        if (closedDoorSprite == null)
+        {
+            Debug.LogError("Tower Defence: не назначен спрайт закрытой двери.");
             return;
+        }
 
-        CreateSolidSprite();
+        GameObject door = new GameObject("Central Door");
+        door.transform.SetParent(transform, false);
+        door.transform.localPosition = new Vector3(grandpaPosition.x, grandpaPosition.y + 1.05f, 0.15f);
 
-        GameObject doorRoot = new GameObject("Central Door");
-        doorRoot.transform.SetParent(transform, false);
-        doorRoot.transform.localPosition = new Vector3(0f, 0.6f, 0.25f);
-
-        Color frame = new Color(0.18f, 0.085f, 0.045f, 1f);
-        Color wood = new Color(0.43f, 0.22f, 0.115f, 1f);
-        Color plank = new Color(0.57f, 0.31f, 0.16f, 1f);
-        Color inset = new Color(0.31f, 0.15f, 0.075f, 1f);
-        Color metal = new Color(0.82f, 0.63f, 0.24f, 1f);
-
-        CreateDoorPart(doorRoot.transform, "Left Frame", new Vector3(-0.92f, 1.15f, 0f), new Vector2(0.24f, 2.45f), frame, -2);
-        CreateDoorPart(doorRoot.transform, "Right Frame", new Vector3(0.92f, 1.15f, 0f), new Vector2(0.24f, 2.45f), frame, -2);
-        CreateDoorPart(doorRoot.transform, "Top Frame", new Vector3(0f, 2.36f, 0f), new Vector2(2.08f, 0.28f), frame, -2);
-        CreateDoorPart(doorRoot.transform, "Door Leaf", new Vector3(0f, 1.13f, 0.02f), new Vector2(1.58f, 2.18f), wood, -1);
-        CreateDoorPart(doorRoot.transform, "Left Door Panel", new Vector3(-0.37f, 1.22f, 0f), new Vector2(0.50f, 1.58f), inset, 0);
-        CreateDoorPart(doorRoot.transform, "Right Door Panel", new Vector3(0.37f, 1.22f, 0f), new Vector2(0.50f, 1.58f), inset, 0);
-        CreateDoorPart(doorRoot.transform, "Left Plank", new Vector3(-0.37f, 1.22f, -0.01f), new Vector2(0.40f, 1.43f), plank, 1);
-        CreateDoorPart(doorRoot.transform, "Right Plank", new Vector3(0.37f, 1.22f, -0.01f), new Vector2(0.40f, 1.43f), plank, 1);
-        CreateDoorPart(doorRoot.transform, "Door Crossbar", new Vector3(0f, 0.88f, -0.02f), new Vector2(1.35f, 0.14f), wood, 2);
-        CreateDoorPart(doorRoot.transform, "Door Handle", new Vector3(0.53f, 1.13f, -0.03f), new Vector2(0.12f, 0.12f), metal, 3);
-    }
-
-    private void CreateSolidSprite()
-    {
-        if (solidSprite != null)
-            return;
-
-        solidTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-        solidTexture.name = "Tower Defence Solid Pixel";
-        solidTexture.filterMode = FilterMode.Point;
-        solidTexture.SetPixel(0, 0, Color.white);
-        solidTexture.Apply();
-
-        solidSprite = Sprite.Create(
-            solidTexture,
-            new Rect(0f, 0f, 1f, 1f),
-            new Vector2(0.5f, 0.5f),
-            1f);
-    }
-
-    private void CreateDoorPart(
-        Transform parent,
-        string objectName,
-        Vector3 localPosition,
-        Vector2 size,
-        Color color,
-        int sortingOrder)
-    {
-        GameObject part = new GameObject(objectName);
-        part.transform.SetParent(parent, false);
-        part.transform.localPosition = localPosition;
-        part.transform.localScale = new Vector3(size.x, size.y, 1f);
-
-        SpriteRenderer renderer = part.AddComponent<SpriteRenderer>();
-        renderer.sprite = solidSprite;
-        renderer.color = color;
+        SpriteRenderer renderer = door.AddComponent<SpriteRenderer>();
+        renderer.sprite = closedDoorSprite;
         renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = sortingOrder;
+        renderer.sortingOrder = 8;
+        renderer.transform.localScale = Vector3.one * 0.0125f;
     }
 
     private void CreateGrandpa()
@@ -316,7 +262,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         grandpaObject.transform.position = grandpaPosition;
 
         // Дедушка стоит в конце обеих веток, в нижнем левом углу арены.
-        grandpaObject.transform.localScale = Vector3.one * 0.085f;
+        grandpaObject.transform.localScale = Vector3.one * 0.06f;
 
         SpriteRenderer renderer = grandpaObject.AddComponent<SpriteRenderer>();
         renderer.sprite = grandpaSpriteAsset;
