@@ -323,10 +323,10 @@ public static class TowerDefenceSceneBuilder
                 FindComponentInScene<DialogueManager>(controllerObject.scene));
             SerializedProperty position = serialized.FindProperty("grandpaPosition");
             if (position != null)
-                position.vector3Value = new Vector3(-8.5f, -4.5f, 0f);
+                position.vector3Value = new Vector3(-6.5f, -4.5f, 0f);
             SerializedProperty frogStop = serialized.FindProperty("frogStopX");
             if (frogStop != null)
-                frogStop.floatValue = -6.8f;
+                frogStop.floatValue = -5.8f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -357,7 +357,6 @@ public static class TowerDefenceSceneBuilder
                 foreach (TMP_Text text in root.GetComponentsInChildren<TMP_Text>(true))
                     text.font = tdaFont;
             }
-        }
         }
 
         if (grandpa == null)
