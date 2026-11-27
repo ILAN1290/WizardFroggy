@@ -1159,9 +1159,9 @@ public class TowerDefenceManager : MonoBehaviour
 
         // Тот же лист бумаги, который используется в Boss при чтении книг.
         Rect page = new Rect(
-            Screen.width * 0.5f - 390f,
-            Screen.height * 0.5f - 300f,
-            780f, 600f);
+            Screen.width * 0.5f - 325f,
+            Screen.height * 0.5f - 325f,
+            650f, 650f);
         DrawSprite(page, instructionBookSprite);
 
         GUIStyle title = new GUIStyle(GUI.skin.label);
@@ -1169,7 +1169,7 @@ public class TowerDefenceManager : MonoBehaviour
         title.fontStyle = FontStyle.Bold;
         title.alignment = TextAnchor.MiddleCenter;
         title.normal.textColor = new Color(0.25f, 0.2f, 0.12f, 1f);
-        GUI.Label(new Rect(page.x + 100f, page.y + 56f, page.width - 170f, 44f),
+        GUI.Label(new Rect(page.x + 76f, page.y + 62f, page.width - 152f, 44f),
             "КАК ЗАЩИЩАТЬ ДЕДА", title);
 
         GUIStyle text = new GUIStyle(GUI.skin.label);
@@ -1177,7 +1177,7 @@ public class TowerDefenceManager : MonoBehaviour
         text.wordWrap = true;
         text.richText = true;
         text.normal.textColor = new Color(0.22f, 0.18f, 0.12f, 1f);
-        GUI.Label(new Rect(page.x + 118f, page.y + 116f, page.width - 225f, 354f),
+        GUI.Label(new Rect(page.x + 108f, page.y + 120f, page.width - 216f, 392f),
             "• Призраки идут по дорожке к деду. Если доберутся — отнимут у него здоровье.\n\n" +
             "• Нажми на свободную клетку рядом с дорожкой, чтобы построить башню.\n\n" +
             "• Обычная башня стоит 1 грибочек, пулемётная — 2, пушечная — 4.\n\n" +
@@ -1189,7 +1189,7 @@ public class TowerDefenceManager : MonoBehaviour
         GUIStyle button = new GUIStyle(GUI.skin.button);
         button.fontSize = 17;
         button.fontStyle = FontStyle.Bold;
-        Rect closeRect = new Rect(page.x + 160f, page.yMax - 92f, page.width - 320f, 48f);
+        Rect closeRect = new Rect(page.x + 120f, page.yMax - 88f, page.width - 240f, 48f);
         if (GUI.Button(closeRect, "Понятно, начинаем подготовку", button))
             instructionsOpen = false;
     }
