@@ -1122,9 +1122,12 @@ public class TowerDefenceManager : MonoBehaviour
         int totalWaves = waveSpawner != null ? waveSpawner.TotalWaves : 15;
         Rect wavePanel = new Rect(Screen.width * 0.5f - 110f, 18f, 220f, 48f);
         DrawSprite(wavePanel, waveCountBackgroundSprite);
+        string waveText = wavesFinished
+            ? "Волны: " + completedWaves + " / " + totalWaves
+            : !gameStarted ? "Подготовка" :
+                "Волна: " + currentWave + " / " + totalWaves;
         GUI.Label(new Rect(wavePanel.x + 8f, wavePanel.y + 5f, wavePanel.width - 16f, 38f),
-            !gameStarted ? "Волны: 0 / " + totalWaves :
-                "Волна: " + currentWave + " / " + totalWaves, heading);
+            waveText, heading);
 
         if (countdownActive)
         {
