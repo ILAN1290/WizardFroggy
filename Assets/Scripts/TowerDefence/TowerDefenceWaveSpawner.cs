@@ -26,12 +26,12 @@ public class TowerDefenceWaveSpawner : MonoBehaviour
         new TowerDefenceWaveDefinition { whiteGhosts = 11, blueGhosts = 6, redGhosts = 4 },
         new TowerDefenceWaveDefinition { whiteGhosts = 12, blueGhosts = 7, redGhosts = 5 },
         new TowerDefenceWaveDefinition { whiteGhosts = 13, blueGhosts = 8, redGhosts = 6 },
-        new TowerDefenceWaveDefinition { whiteGhosts = 15, blueGhosts = 10, redGhosts = 8, blackGhosts = 3 },
+        new TowerDefenceWaveDefinition { whiteGhosts = 15, blueGhosts = 10, redGhosts = 8, blackGhosts = 2 },
         new TowerDefenceWaveDefinition { whiteGhosts = 18, blueGhosts = 12, redGhosts = 9, blackGhosts = 4 },
         new TowerDefenceWaveDefinition { whiteGhosts = 20, blueGhosts = 13, redGhosts = 10, blackGhosts = 4 },
         new TowerDefenceWaveDefinition { whiteGhosts = 22, blueGhosts = 15, redGhosts = 12, blackGhosts = 5 },
         new TowerDefenceWaveDefinition { whiteGhosts = 24, blueGhosts = 16, redGhosts = 13, blackGhosts = 6 },
-        new TowerDefenceWaveDefinition { whiteGhosts = 26, blueGhosts = 18, redGhosts = 15, blackGhosts = 7 }
+        new TowerDefenceWaveDefinition { whiteGhosts = 26, blueGhosts = 18, redGhosts = 15, blackGhosts = 3 }
     };
 
     public int TotalWaves => waves != null ? waves.Length : 0;

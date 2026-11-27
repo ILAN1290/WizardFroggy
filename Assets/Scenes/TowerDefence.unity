@@ -18387,7 +18387,7 @@ MonoBehaviour:
   - whiteGhosts: 15
     blueGhosts: 10
     redGhosts: 8
-    blackGhosts: 3
+    blackGhosts: 2
   - whiteGhosts: 18
     blueGhosts: 12
     redGhosts: 9
@@ -18407,7 +18407,7 @@ MonoBehaviour:
   - whiteGhosts: 26
     blueGhosts: 18
     redGhosts: 15
-    blackGhosts: 7
+    blackGhosts: 3
 --- !u!114 &2190011006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18432,15 +18432,18 @@ MonoBehaviour:
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
   mushroomSprite: {fileID: -8804783980236045272, guid: b0f578d14ecafc14386ac662666ccd19, type: 3}
   instructionBookSprite: {fileID: 21300000, guid: 07df931a772281a44b6c26e8951b89a7, type: 3}
+  instructionButtonSprite: {fileID: -8510727349376626655, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
   upgradePlusButtonSprite: {fileID: -1505932246928245792, guid: df285eabc66e97c4c8246b3f31bedfcd, type: 3}
   sellMinusButtonSprite: {fileID: 4505060559889354466, guid: 29a06ad9e584ef44596084ef32102902, type: 3}
   buildButtonSprite: {fileID: -8510727349376626655, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
   timerBackgroundSprite: {fileID: 21300000, guid: 7c98c87a2052dd743a90cbc199059455, type: 3}
+  statusBackgroundSprite: {fileID: 21300000, guid: 7c98c87a2052dd743a90cbc199059455, type: 3}
   waveCountBackgroundSprite: {fileID: 21300000, guid: 7c98c87a2052dd743a90cbc199059455, type: 3}
   grandpaHpBackgroundSprite: {fileID: 21300000, guid: bd3c2af87e1c3fa4ba6614a099b8c9f9, type: 3}
   sellTowerIconSprite: {fileID: 0}
   upgradeTowerIconSprite: {fileID: 0}
   mushroomToGhostHeight: 0.5
+  startingMushrooms: 30
   uiFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
   grandpaMaximumHealth: 300
   grandpaPotionHealAmount: 15
@@ -18475,7 +18478,7 @@ MonoBehaviour:
   cannonStats:
     mushroomCost: 4
     damage: 18
-    attackInterval: 2.45
+    attackInterval: 1.5
     range: 1.375
     projectileSpeed: 4.8
     projectileSize: 0.19

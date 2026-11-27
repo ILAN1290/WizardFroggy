@@ -12,9 +12,6 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Персонажи")]
     [SerializeField] private Sprite grandpaSpriteAsset;
     [SerializeField] private Sprite roadTileSprite;
-    [SerializeField] private Sprite topWallTileSprite;
-    [SerializeField] private Sprite leftWallCornerTileSprite;
-    [SerializeField] private Sprite rightWallCornerTileSprite;
     [SerializeField] private Sprite[] closedDoorTileSprites = new Sprite[6];
     [SerializeField] private Sprite[] openDoorTileSprites = new Sprite[6];
     [SerializeField] private Sprite previousWallPatchSprite;
@@ -25,11 +22,11 @@ public class TowerDefenceSceneController : MonoBehaviour
     [Header("Положение персонажей")]
     [SerializeField] private Vector3 grandpaPosition = new Vector3(-6.5f, -4.5f, 0f);
     [SerializeField] private float frogStartX = 10.5f;
-    [SerializeField] private float frogStopX = -5.8f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
     [SerializeField] private Vector3 centralDoorPosition = new Vector3(0f, 2.65f, 0.15f);
     [SerializeField] private Vector2 centralDoorColliderSize = new Vector2(3f, 2f);
     [SerializeField, Min(0.1f)] private float doorTileSize = 1f;
+    [SerializeField, Min(0f)] private float doorVerticalOffset = 0.06f;
     [SerializeField, Min(0.5f)] private float doorInteractDistance = 1.5f;
 
     [SerializeField] private DialogueManager dialogueManager;
@@ -40,6 +37,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     private SpriteRenderer[] centralDoorTileRenderers;
     private Collider2D centralDoorCollider;
     private Tile runtimeRoadTile;
+    private Tile runtimeRoadStartTile;
     private bool doorOpened;
     private bool doorTransitionStarted;
     private bool postWaveSequenceStarted;
@@ -148,6 +146,8 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         if (runtimeRoadTile != null)
             Destroy(runtimeRoadTile);
+        if (runtimeRoadStartTile != null)
+            Destroy(runtimeRoadStartTile);
     }
 
     private void CreateRoad()
@@ -204,6 +204,14 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         foreach (Vector3Int cell in generatedRoadCells)
             tilemap.SetTile(cell, runtimeRoadTile);
+
+        // Tint the first path tile red so the ghost spawn point is obvious.
+        runtimeRoadStartTile = ScriptableObject.CreateInstance<Tile>();
+        runtimeRoadStartTile.name = "Runtime Tower Defence Road Start";
+        runtimeRoadStartTile.sprite = roadTileSprite;
+        runtimeRoadStartTile.color = new Color(1f, 0.22f, 0.22f, 1f);
+        runtimeRoadStartTile.colliderType = Tile.ColliderType.None;
+        tilemap.SetTile(Vector3Int.FloorToInt(spawnPosition), runtimeRoadStartTile);
     }
 
     private static void AddRoadPolyline(HashSet<Vector3Int> cells, Vector3[] points)
@@ -257,42 +265,10 @@ public class TowerDefenceSceneController : MonoBehaviour
         Bounds wallBounds = GetAndOpenUpperWallBounds();
         BuildDoorSideColliders(wallBounds);
 
-        // Кирпичная кладка собирается из настоящих 16x16 тайлов набора.
-        GameObject wallRoot = new GameObject("Tower Defence Door Wall");
-        wallRoot.transform.SetParent(transform, false);
-        int tileCount = Mathf.Max(3, Mathf.RoundToInt(wallBounds.size.x / doorTileSize));
-        int middleColumn = tileCount / 2;
-        int doorStartColumn = middleColumn - 1;
-        float firstTileX = wallBounds.center.x -
-            (tileCount - 1) * doorTileSize * 0.5f;
-
-        for (int column = 0; column < tileCount; column++)
-        {
-            if (column >= doorStartColumn && column <= doorStartColumn + 2)
-                continue;
-
-            Sprite wallSprite = topWallTileSprite;
-            if (column == 0 && leftWallCornerTileSprite != null)
-                wallSprite = leftWallCornerTileSprite;
-            else if (column == tileCount - 1 && rightWallCornerTileSprite != null)
-                wallSprite = rightWallCornerTileSprite;
-
-            CreateTileVisual(
-                wallRoot.transform,
-                "Wall Tile " + column,
-                wallSprite,
-                new Vector3(
-                    firstTileX + column * doorTileSize,
-                    wallBounds.center.y,
-                    0.12f),
-                14);
-        }
-
-        // Дверной проём и дверь всегда совпадают с центром верхней стены,
-        // а не с произвольной координатой старого спрайта.
+        // Keep the original brick wall artwork; do not overlay Top_Wall_Tile.
         centralDoorPosition = new Vector3(
             wallBounds.center.x,
-            wallBounds.center.y + doorTileSize * 0.5f,
+            wallBounds.center.y + doorTileSize * 0.5f + doorVerticalOffset,
             0.15f);
 
         centralDoorObject = new GameObject("Central Door");
@@ -574,7 +550,10 @@ public class TowerDefenceSceneController : MonoBehaviour
             body.simulated = false;
         }
 
-        Vector3 target = new Vector3(frogStopX, grandpaPosition.y + 0.15f, frog.position.z);
+        Vector3 target = new Vector3(
+            grandpaPosition.x + 2f,
+            grandpaPosition.y + 0.15f,
+            frog.position.z);
         frog.position = new Vector3(frogStartX, target.y, frog.position.z);
 
         if (body != null)
@@ -738,7 +717,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         // Лягушка делает короткий шаг вправо к дедушке перед разговором.
-        Vector3 target = grandpaPosition + new Vector3(1.05f, 0.15f, frog.position.z);
+        Vector3 target = grandpaPosition + new Vector3(2f, 0.15f, frog.position.z);
         Animator animator = frog.GetComponent<Animator>();
         if (animator == null)
             animator = frog.GetComponentInChildren<Animator>(true);

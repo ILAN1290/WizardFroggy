@@ -27,8 +27,6 @@ public static class TowerDefenceSceneBuilder
     private const string GrandpaHpBackgroundPath = "Assets/Sprites/UI Game/Bars/pixil-frame-0 - 2025-08-04T212751.079.png";
     private const string KeySpritePath = "Assets/Sprites/Item/ключ 1.png";
     private const string KeyItemPath = "Assets/Prefabs/Item/TowerDefenceKey.asset";
-    private const string ClosedDoorSpritePath = "Assets/Sprites/TowerDefence/TDS_Door_Closed.png";
-    private const string OpenDoorSpritePath = "Assets/Sprites/TowerDefence/TDS_Door_Open.png";
     private const string DungeonTilesetPath = "Assets/2D Dungeon PixelArt Tileset/Dungeon-2D-PixelArt-Tileset.png";
 
     private static bool autoBuildQueued;
@@ -334,9 +332,6 @@ public static class TowerDefenceSceneBuilder
         Sprite timerBackground = AssetDatabase.LoadAssetAtPath<Sprite>(TimerBackgroundPath);
         Sprite grandpaHpBackground = AssetDatabase.LoadAssetAtPath<Sprite>(GrandpaHpBackgroundPath);
         Sprite keySprite = LoadSprite(KeySpritePath, "ключ 1_0");
-        Sprite topWallTile = LoadSprite(DungeonTilesetPath, "Top_Wall_Tile");
-        Sprite leftWallCornerTile = LoadSprite(DungeonTilesetPath, "Top_Left_Corner_Tile");
-        Sprite rightWallCornerTile = LoadSprite(DungeonTilesetPath, "Top_Right_Corner_Tile");
         Sprite previousWallPatch = LoadSprite(
             DungeonTilesetPath, "Dungeon-2D-PixelArt-Tileset_5");
         Sprite[] closedDoorTiles =
@@ -367,9 +362,6 @@ public static class TowerDefenceSceneBuilder
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
-            SetObject(serialized, "topWallTileSprite", topWallTile);
-            SetObject(serialized, "leftWallCornerTileSprite", leftWallCornerTile);
-            SetObject(serialized, "rightWallCornerTileSprite", rightWallCornerTile);
             SetObject(serialized, "previousWallPatchSprite", previousWallPatch);
             SetSpriteArray(serialized, "closedDoorTileSprites", closedDoorTiles);
             SetSpriteArray(serialized, "openDoorTileSprites", openDoorTiles);
@@ -384,12 +376,12 @@ public static class TowerDefenceSceneBuilder
             SerializedProperty tileSize = serialized.FindProperty("doorTileSize");
             if (tileSize != null)
                 tileSize.floatValue = 1f;
+            SerializedProperty doorOffset = serialized.FindProperty("doorVerticalOffset");
+            if (doorOffset != null)
+                doorOffset.floatValue = 0.06f;
             SerializedProperty position = serialized.FindProperty("grandpaPosition");
             if (position != null)
                 position.vector3Value = new Vector3(-6.5f, -4.5f, 0f);
-            SerializedProperty frogStop = serialized.FindProperty("frogStopX");
-            if (frogStop != null)
-                frogStop.floatValue = -5.8f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -406,6 +398,7 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "roadTileSprite", roadTile);
             SetObject(serialized, "mushroomSprite", mushroom);
             SetObject(serialized, "instructionBookSprite", tdsBookPage);
+            SetObject(serialized, "instructionButtonSprite", buildButton);
             SetObject(serialized, "timerBackgroundSprite", timerBackground);
             SetObject(serialized, "statusBackgroundSprite", timerBackground);
             SetObject(serialized, "waveCountBackgroundSprite", timerBackground);
@@ -417,6 +410,23 @@ public static class TowerDefenceSceneBuilder
             SerializedProperty startingMushrooms = serialized.FindProperty("startingMushrooms");
             if (startingMushrooms != null)
                 startingMushrooms.intValue = 30;
+            SerializedProperty cannonStats = serialized.FindProperty("cannonStats");
+            SerializedProperty cannonInterval = cannonStats != null
+                ? cannonStats.FindPropertyRelative("attackInterval") : null;
+            if (cannonInterval != null)
+                cannonInterval.floatValue = 1.5f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        TowerDefenceWaveSpawner spawner =
+            controllerObject.GetComponent<TowerDefenceWaveSpawner>();
+        if (spawner != null)
+        {
+            SerializedObject serialized = new SerializedObject(spawner);
+            SerializedProperty waves = serialized.FindProperty("waves");
+            SetBlackGhostCount(waves, 4, 1);
+            SetBlackGhostCount(waves, 9, 2);
+            SetBlackGhostCount(waves, 14, 3);
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -439,15 +449,16 @@ public static class TowerDefenceSceneBuilder
             Debug.LogError("Tower Defence: не найден спрайт кнопки строительства.");
         if (tdaFont == null)
             Debug.LogError("Tower Defence: не найден шрифт " + TdaFontPath);
+        if (buildButton == null)
+            Debug.LogWarning("Tower Defence: не найдена текстура кнопки обучения.");
         if (tdsBookPage == null)
             Debug.LogWarning("Tower Defence: не найден лист бумаги для обучения.");
         if (timerBackground == null || grandpaHpBackground == null)
             Debug.LogWarning("Tower Defence: не найдены текстуры панелей HUD.");
         if (keySprite == null || keyItem == null)
             Debug.LogWarning("Tower Defence: не найдены спрайт или предмет ключа.");
-        if (topWallTile == null || leftWallCornerTile == null ||
-            rightWallCornerTile == null || previousWallPatch == null)
-            Debug.LogWarning("Tower Defence: не найдены тайлы стены из Dungeon-2D-PixelArt-Tileset.");
+        if (previousWallPatch == null)
+            Debug.LogWarning("Tower Defence: не найден тайл для закрытия старого проёма.");
         if (closedDoorTiles.Any(sprite => sprite == null) ||
             openDoorTiles.Any(sprite => sprite == null))
             Debug.LogWarning("Tower Defence: не все спрайты двери найдены в Dungeon-2D-PixelArt-Tileset.");
@@ -468,6 +479,21 @@ public static class TowerDefenceSceneBuilder
         }
 
         return sprites.Length > 0 ? sprites[0] : null;
+    }
+
+    private static void SetBlackGhostCount(
+        SerializedProperty waves,
+        int waveIndex,
+        int count)
+    {
+        if (waves == null || !waves.isArray ||
+            waveIndex < 0 || waveIndex >= waves.arraySize)
+            return;
+
+        SerializedProperty wave = waves.GetArrayElementAtIndex(waveIndex);
+        SerializedProperty blackGhosts = wave.FindPropertyRelative("blackGhosts");
+        if (blackGhosts != null)
+            blackGhosts.intValue = count;
     }
 
     private static void SetSpriteArray(
