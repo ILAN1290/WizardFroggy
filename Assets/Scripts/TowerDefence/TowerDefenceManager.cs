@@ -50,7 +50,9 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private Sprite sellTowerIconSprite;
     [SerializeField] private Sprite upgradeTowerIconSprite;
     [SerializeField, Range(0.1f, 1f)] private float mushroomToGhostHeight = 0.5f;
-    [SerializeField, Min(0)] private int startingMushrooms = 30;
+    [SerializeField, Min(0)] private int startingMushrooms = 5;
+    [SerializeField] private Item[] waveRewardItems = new Item[0];
+    [SerializeField, Range(0f, 1f)] private float waveRewardDropChance = 0.7f;
     [SerializeField] private TMP_FontAsset uiFontAsset;
 
     [Header("Здоровье дедушки")]
@@ -75,12 +77,12 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private TowerDefenceTowerStats machineGunStats = new TowerDefenceTowerStats
     {
         mushroomCost = 2, damage = 2.2f, attackInterval = 0.28f,
-        range = 1.575f, projectileSpeed = 7f, projectileSize = 0.105f
+        range = 2.325f, projectileSpeed = 7f, projectileSize = 0.105f
     };
     [SerializeField] private TowerDefenceTowerStats standardStats = new TowerDefenceTowerStats
     {
         mushroomCost = 1, damage = 5f, attackInterval = 0.88f,
-        range = 2.325f, projectileSpeed = 5.4f, projectileSize = 0.14f
+        range = 1.575f, projectileSpeed = 5.4f, projectileSize = 0.14f
     };
     [SerializeField] private TowerDefenceTowerStats cannonStats = new TowerDefenceTowerStats
     {
@@ -368,6 +370,7 @@ public class TowerDefenceManager : MonoBehaviour
             }
 
             completedWaves = wave;
+            CreateWaveRewardDrop(wave);
 
             if (wave < totalWaves)
             {
@@ -415,7 +418,7 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void CreateStarterTower()
     {
-        // Бесплатная стартовая башня остаётся, а игрок начинает с 30 грибочками.
+        // Бесплатная стартовая башня остаётся, а игрок начинает с 5 грибочками.
         Vector3Int cell = new Vector3Int(5, 1, 0);
         if (occupiedCells.Contains(cell))
             return;
@@ -501,8 +504,12 @@ public class TowerDefenceManager : MonoBehaviour
     public void OnGhostDefeated(TowerDefenceGhost ghost, Vector3 position)
     {
         activeGhosts.Remove(ghost);
-        CreateMushroomDrop(position);
-        ShowStatus("Выпал грибочек — подбери его!");
+        int mushroomReward = ghost != null &&
+            ghost.Type == TowerDefenceGhostType.Black ? 3 : 1;
+        CreateMushroomDrop(position, mushroomReward);
+        ShowStatus(mushroomReward > 1
+            ? "Босс повержен! Выпало 3 грибочка!"
+            : "Выпал грибочек — подбери его!");
     }
 
     public void OnGhostReachedGrandpa(TowerDefenceGhost ghost, float remainingHealth)
@@ -520,42 +527,98 @@ public class TowerDefenceManager : MonoBehaviour
         }
     }
 
-    private void CreateMushroomDrop(Vector3 position)
+    private void CreateMushroomDrop(Vector3 position, int amount)
     {
         if (mushroomSprite == null)
             return;
 
-        GameObject drop = new GameObject("Выпавший грибочек");
-        drop.transform.position = position + Vector3.up * 0.12f;
+        amount = Mathf.Max(1, amount);
         float mushroomHeight = mushroomSprite.bounds.size.y;
         float whiteGhostHeight = 0.72f * Mathf.Max(0.1f, whiteGhostSize);
         float targetMushroomHeight = whiteGhostHeight * mushroomToGhostHeight;
-        drop.transform.localScale = Vector3.one *
-            (mushroomHeight > 0.001f
-                ? targetMushroomHeight / mushroomHeight
-                : targetMushroomHeight);
+        float mushroomScale = mushroomHeight > 0.001f
+            ? targetMushroomHeight / mushroomHeight
+            : targetMushroomHeight;
 
-        SpriteRenderer renderer = drop.AddComponent<SpriteRenderer>();
-        renderer.sprite = mushroomSprite;
-        renderer.sortingLayerName = "Default";
-        renderer.sortingOrder = 35;
+        // Bosses visibly scatter three separate mushrooms rather than a single
+        // pickup that only increments the balance by three.
+        for (int i = 0; i < amount; i++)
+        {
+            Vector2 scatter = amount == 1
+                ? Vector2.zero
+                : new Vector2((i - 1) * 0.28f, (i % 2) * 0.12f);
 
-        CircleCollider2D trigger = drop.AddComponent<CircleCollider2D>();
-        trigger.isTrigger = true;
-        trigger.radius = 0.24f;
+            GameObject drop = new GameObject("Выпавший грибочек");
+            drop.transform.position = position +
+                new Vector3(scatter.x, 0.12f + scatter.y, 0f);
+            drop.transform.localScale = Vector3.one * mushroomScale;
 
-        Rigidbody2D body = drop.AddComponent<Rigidbody2D>();
-        body.bodyType = RigidbodyType2D.Kinematic;
-        body.gravityScale = 0f;
+            SpriteRenderer renderer = drop.AddComponent<SpriteRenderer>();
+            renderer.sprite = mushroomSprite;
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = 35;
 
-        drop.AddComponent<TowerDefenceMushroomPickup>()
-            .Initialize(this, 20f);
+            CircleCollider2D trigger = drop.AddComponent<CircleCollider2D>();
+            trigger.isTrigger = true;
+            trigger.radius = 0.24f;
+
+            Rigidbody2D body = drop.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.gravityScale = 0f;
+
+            drop.AddComponent<TowerDefenceMushroomPickup>()
+                .Initialize(this, 20f, 1);
+        }
     }
 
-    public void CollectMushroom()
+    private void CreateWaveRewardDrop(int waveNumber)
     {
-        mushrooms++;
-        ShowStatus("+1 грибочек");
+        if (waveRewardItems == null || waveRewardItems.Length == 0 ||
+            Random.value > waveRewardDropChance)
+            return;
+
+        List<Item> availableItems = new List<Item>();
+        for (int i = 0; i < waveRewardItems.Length; i++)
+            if (waveRewardItems[i] != null && waveRewardItems[i].icon != null)
+                availableItems.Add(waveRewardItems[i]);
+
+        if (availableItems.Count == 0)
+            return;
+
+        Item reward = availableItems[Random.Range(0, availableItems.Count)];
+        Vector2 dropPosition = new Vector2(0f, -2.5f) +
+            Random.insideUnitCircle * 0.55f;
+
+        GameObject pickup = new GameObject("Награда волны " + waveNumber + " • " + reward.itemName);
+        pickup.transform.position = new Vector3(dropPosition.x, dropPosition.y, -0.05f);
+
+        GameObject visual = new GameObject("Иконка награды");
+        visual.transform.SetParent(pickup.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = reward.icon;
+        renderer.color = Color.white;
+        renderer.sortingLayerName = "Default";
+        renderer.sortingOrder = 36;
+
+        Vector2 spriteSize = reward.icon.bounds.size;
+        float targetSize = 0.72f;
+        visual.transform.localScale = new Vector3(
+            targetSize / Mathf.Max(0.001f, spriteSize.x),
+            targetSize / Mathf.Max(0.001f, spriteSize.y),
+            1f);
+
+        CircleCollider2D trigger = pickup.AddComponent<CircleCollider2D>();
+        trigger.isTrigger = true;
+        trigger.radius = 0.38f;
+
+        pickup.AddComponent<RoguelikePickup>().SetupItem(reward, 1);
+    }
+
+    public void CollectMushroom(int amount = 1)
+    {
+        amount = Mathf.Max(1, amount);
+        mushrooms += amount;
+        ShowStatus("+" + amount + (amount == 1 ? " грибочек" : " грибочка"));
     }
 
     public void NotifyKeyCollected()
@@ -1044,7 +1107,7 @@ public class TowerDefenceManager : MonoBehaviour
     {
         Camera camera = Camera.main;
         if (camera == null)
-            return new Rect(20f, 20f, 248f, 112f);
+            return new Rect(20f, 20f, 320f, 148f);
 
         Vector3 worldPosition = new Vector3(
             pendingBuildCell.x + 0.5f,
@@ -1052,13 +1115,12 @@ public class TowerDefenceManager : MonoBehaviour
             0f);
         Vector3 screenPosition = camera.WorldToScreenPoint(worldPosition);
 
-        const float width = 248f;
-        const float height = 112f;
+        const float width = 320f;
+        const float height = 148f;
         float x = Mathf.Clamp(screenPosition.x - width * 0.5f,
             8f, Mathf.Max(8f, Screen.width - width - 8f));
         float y = Screen.height - screenPosition.y - height - 12f;
 
-        // Если над клеткой мало места, переносим ряд под неё.
         if (y < 8f)
             y = Screen.height - screenPosition.y + 22f;
 
@@ -1069,9 +1131,7 @@ public class TowerDefenceManager : MonoBehaviour
     private Rect GetTowerPanelRect()
     {
         Rect row = GetBuildPanelRect();
-        // Захватываем заголовок и подписи под тремя кнопками, чтобы клик
-        // по тексту не проходил сквозь интерфейс в игровое поле.
-        return new Rect(row.x, row.y - 32f, row.width, row.height + 56f);
+        return new Rect(row.x, row.y - 36f, row.width, row.height + 70f);
     }
 
     private void OnGUI()
@@ -1220,17 +1280,17 @@ public class TowerDefenceManager : MonoBehaviour
     private void DrawBuildMenu()
     {
         Rect row = GetBuildPanelRect();
-        const float buttonSize = 68f;
-        const float gap = 14f;
+        const float buttonSize = 88f;
+        const float gap = 16f;
 
         DrawBuildButton(
-            new Rect(row.x, row.y, buttonSize, buttonSize),
+            new Rect(row.x + 6f, row.y, buttonSize, buttonSize),
             TowerDefenceTowerType.Standard, "Обычная", "О", standardStats.mushroomCost);
         DrawBuildButton(
-            new Rect(row.x + buttonSize + gap, row.y, buttonSize, buttonSize),
+            new Rect(row.x + buttonSize + gap + 6f, row.y, buttonSize, buttonSize),
             TowerDefenceTowerType.MachineGun, "Пулемёт", "П", machineGunStats.mushroomCost);
         DrawBuildButton(
-            new Rect(row.x + (buttonSize + gap) * 2f, row.y, buttonSize, buttonSize),
+            new Rect(row.x + (buttonSize + gap) * 2f + 6f, row.y, buttonSize, buttonSize),
             TowerDefenceTowerType.Cannon, "Пушка", "К", cannonStats.mushroomCost);
     }
 
@@ -1246,6 +1306,21 @@ public class TowerDefenceManager : MonoBehaviour
         DrawSprite(rect, buildButtonSprite);
         GUI.color = Color.white;
 
+        GUIStyle symbolStyle = new GUIStyle(GUI.skin.label);
+        symbolStyle.fontSize = 34;
+        symbolStyle.fontStyle = FontStyle.Bold;
+        symbolStyle.alignment = TextAnchor.MiddleCenter;
+        symbolStyle.normal.textColor = canAfford ? Color.white : new Color(0.72f, 0.72f, 0.72f, 1f);
+        GUI.Label(rect, symbol, symbolStyle);
+
+        GUIStyle priceStyle = new GUIStyle(GUI.skin.label);
+        priceStyle.fontSize = 18;
+        priceStyle.alignment = TextAnchor.MiddleCenter;
+        priceStyle.wordWrap = true;
+        priceStyle.normal.textColor = canAfford ? Color.white : new Color(0.68f, 0.68f, 0.68f, 1f);
+        GUI.Label(new Rect(rect.x - 8f, rect.yMax + 3f, rect.width + 16f, 42f),
+            label + "\n" + cost + " гриб.", priceStyle);
+
         GUIStyle hitArea = new GUIStyle(GUI.skin.button)
         {
             normal = { background = null },
@@ -1256,25 +1331,12 @@ public class TowerDefenceManager : MonoBehaviour
             padding = new RectOffset(0, 0, 0, 0)
         };
 
-        GUIStyle symbolStyle = new GUIStyle(GUI.skin.label);
-        symbolStyle.fontSize = 28;
-        symbolStyle.fontStyle = FontStyle.Bold;
-        symbolStyle.alignment = TextAnchor.MiddleCenter;
-        symbolStyle.normal.textColor = canAfford ? Color.white : new Color(0.72f, 0.72f, 0.72f, 1f);
-        GUI.Label(rect, symbol, symbolStyle);
-
-        GUIStyle priceStyle = new GUIStyle(GUI.skin.label);
-        priceStyle.fontSize = 15;
-        priceStyle.alignment = TextAnchor.MiddleCenter;
-        priceStyle.wordWrap = true;
-        priceStyle.normal.textColor = canAfford ? Color.white : new Color(0.68f, 0.68f, 0.68f, 1f);
-        GUI.Label(new Rect(rect.x - 7f, rect.yMax + 2f, rect.width + 14f, 36f),
-            label + "\n" + cost + " гриб.", priceStyle);
-
         GUI.enabled = canAfford;
-        if (GUI.Button(rect, GUIContent.none, hitArea))
-            TryBuyTower(type);
+        bool clicked = GUI.Button(rect, GUIContent.none, hitArea);
         GUI.enabled = true;
+
+        if (clicked)
+            TryBuyTower(type);
     }
 
     private void DrawSelectedTowerPanel()
@@ -1283,27 +1345,23 @@ public class TowerDefenceManager : MonoBehaviour
             return;
 
         Rect row = GetTowerPanelRect();
-        const float buttonSize = 64f;
-        const float gap = 14f;
+        const float buttonSize = 82f;
+        const float gap = 16f;
 
-        Rect sellRect = new Rect(row.x, row.y, buttonSize, buttonSize);
-        Rect upgradeRect = new Rect(row.x + buttonSize + gap, row.y, buttonSize, buttonSize);
-        Rect statsRect = new Rect(row.x + (buttonSize + gap) * 2f, row.y, buttonSize, buttonSize);
+        Rect sellRect = new Rect(row.x + 6f, row.y, buttonSize, buttonSize);
+        Rect upgradeRect = new Rect(row.x + buttonSize + gap + 6f, row.y, buttonSize, buttonSize);
+        Rect statsRect = new Rect(row.x + (buttonSize + gap) * 2f + 6f, row.y, buttonSize, buttonSize);
 
         DrawSprite(sellRect, buildButtonSprite);
         DrawSprite(upgradeRect, buildButtonSprite);
         DrawSprite(statsRect, buildButtonSprite);
-        DrawSprite(new Rect(sellRect.x + 15f, sellRect.y + 15f, 34f, 34f), runtimeSellIcon);
-        DrawSprite(new Rect(upgradeRect.x + 15f, upgradeRect.y + 15f, 34f, 34f), runtimeUpgradeIcon);
 
-        TowerDefenceTowerStats stats = GetStats(selectedTower.Type);
-        float currentDamage = stats.damage *
-            (1f + (selectedTower.Level - 1) * upgradeDamagePerLevel);
-        float attacksPerSecond = 1f / Mathf.Max(0.05f, stats.attackInterval);
+        float currentDamage = selectedTower.CurrentDamage;
+        float attacksPerSecond = selectedTower.AttacksPerSecond;
 
         GUIStyle info = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 13,
+            fontSize = 15,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true
@@ -1316,21 +1374,19 @@ public class TowerDefenceManager : MonoBehaviour
 
         GUIStyle priceStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 12,
+            fontSize = 16,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true
         };
         priceStyle.normal.textColor = Color.white;
-        GUI.Label(new Rect(sellRect.x - 8f, sellRect.yMax + 2f, sellRect.width + 16f, 36f),
+        GUI.Label(new Rect(sellRect.x - 8f, sellRect.yMax + 3f, sellRect.width + 16f, 40f),
             "Продать\n+" + selectedTower.GetSellRefund(), priceStyle);
 
         int upgradeCost = selectedTower.GetNextUpgradeCost();
         bool canUpgrade = selectedTower.CanUpgrade && mushrooms >= upgradeCost;
-        GUI.Label(new Rect(upgradeRect.x - 8f, upgradeRect.yMax + 2f, upgradeRect.width + 16f, 36f),
+        GUI.Label(new Rect(upgradeRect.x - 8f, upgradeRect.yMax + 3f, upgradeRect.width + 16f, 40f),
             selectedTower.CanUpgrade ? "Улучшить\n" + upgradeCost : "Макс. уровень",
             priceStyle);
-
-        // Третья кнопка показывает параметры башни прямо внутри квадрата.
 
         GUIStyle hitArea = new GUIStyle(GUI.skin.button)
         {
@@ -1342,24 +1398,34 @@ public class TowerDefenceManager : MonoBehaviour
             padding = new RectOffset(0, 0, 0, 0)
         };
 
-        if (GUI.Button(sellRect, GUIContent.none, hitArea))
-            SellSelectedTower();
-
+        bool sellClicked = GUI.Button(sellRect, GUIContent.none, hitArea);
         GUI.enabled = canUpgrade;
-        if (GUI.Button(upgradeRect, GUIContent.none, hitArea))
-            TryUpgradeSelectedTower();
+        bool upgradeClicked = GUI.Button(upgradeRect, GUIContent.none, hitArea);
         GUI.enabled = true;
 
-        // Third tile is an information tile, intentionally not a purchase action.
+        // Draw icons after the invisible hit buttons so the button skin cannot hide them.
+        Rect sellIconRect = new Rect(sellRect.x + 16f, sellRect.y + 16f, 50f, 50f);
+        Rect upgradeIconRect = new Rect(upgradeRect.x + 16f, upgradeRect.y + 16f, 50f, 50f);
+        GUI.color = Color.white;
+        DrawSprite(sellIconRect, runtimeSellIcon);
+        DrawSprite(upgradeIconRect, runtimeUpgradeIcon);
+
+        if (sellClicked)
+            SellSelectedTower();
+        else if (upgradeClicked)
+            TryUpgradeSelectedTower();
+
         GUIStyle towerNameStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 14,
+            fontSize = 16,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter
         };
         towerNameStyle.normal.textColor = Color.white;
-        GUI.Label(new Rect(row.x, row.y - 27f, row.width, 22f),
-            selectedTower.GetDisplayName() + " • ур. " + selectedTower.Level,
+        GUI.Label(new Rect(row.x, row.y - 30f, row.width, 24f),
+            selectedTower != null
+                ? selectedTower.GetDisplayName() + " • ур. " + selectedTower.Level
+                : string.Empty,
             towerNameStyle);
     }
 
@@ -1412,30 +1478,35 @@ public class TowerDefenceManager : MonoBehaviour
         if (screen.z < 0f)
             return;
 
-        const float width = 190f;
-        const float height = 28f;
-        Rect bar = new Rect(screen.x - width * 0.5f,
-            Screen.height - screen.y - height * 0.5f, width, height);
+        const float width = 204f;
+        const float height = 26f;
+        Rect outer = new Rect(
+            screen.x - width * 0.5f,
+            Screen.height - screen.y - height * 0.5f,
+            width,
+            height);
 
-        DrawSprite(bar, grandpaHpBackgroundSprite);
+        // Один непрерывный трек без центрального разрыва и картинки поверх HP.
+        GUI.color = new Color(0.12f, 0.08f, 0.07f, 0.96f);
+        GUI.DrawTexture(outer, Texture2D.whiteTexture);
 
-        float progress = Mathf.Clamp01(grandpaHealth / Mathf.Max(1f, grandpaMaximumHealth));
-        float segmentWidth = 56f;
-        Rect leftSegment = new Rect(bar.x + 12f, bar.y + 10f, segmentWidth, 8f);
-        Rect rightSegment = new Rect(bar.x + width - 12f - segmentWidth,
-            bar.y + 10f, segmentWidth, 8f);
+        Rect inner = new Rect(outer.x + 3f, outer.y + 3f,
+            outer.width - 6f, outer.height - 6f);
+        GUI.color = new Color(0.18f, 0.15f, 0.14f, 1f);
+        GUI.DrawTexture(inner, Texture2D.whiteTexture);
 
-        GUI.color = new Color(0.16f, 0.12f, 0.12f, 0.92f);
-        GUI.DrawTexture(leftSegment, Texture2D.whiteTexture);
-        GUI.DrawTexture(rightSegment, Texture2D.whiteTexture);
+        float progress = Mathf.Clamp01(
+            grandpaHealth / Mathf.Max(1f, grandpaMaximumHealth));
+        Color fillColor = progress > 0.55f
+            ? new Color(0.29f, 0.78f, 0.31f, 1f)
+            : progress > 0.25f
+                ? new Color(0.95f, 0.68f, 0.2f, 1f)
+                : new Color(0.88f, 0.24f, 0.19f, 1f);
 
-        float totalFill = progress * segmentWidth * 2f;
-        GUI.color = new Color(0.35f, 0.88f, 0.34f, 1f);
-        GUI.DrawTexture(new Rect(leftSegment.x, leftSegment.y,
-            Mathf.Min(segmentWidth, totalFill), leftSegment.height), Texture2D.whiteTexture);
-        float rightFill = Mathf.Clamp(totalFill - segmentWidth, 0f, segmentWidth);
-        GUI.DrawTexture(new Rect(rightSegment.x, rightSegment.y,
-            rightFill, rightSegment.height), Texture2D.whiteTexture);
+        Rect fill = new Rect(inner.x, inner.y,
+            inner.width * progress, inner.height);
+        GUI.color = fillColor;
+        GUI.DrawTexture(fill, Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         GUIStyle hpStyle = new GUIStyle(GUI.skin.label)
@@ -1445,9 +1516,10 @@ public class TowerDefenceManager : MonoBehaviour
             alignment = TextAnchor.MiddleCenter
         };
         hpStyle.normal.textColor = Color.white;
-        GUI.Label(new Rect(bar.x, bar.yMax + 3f, bar.width, 19f),
-            "HP " + Mathf.CeilToInt(grandpaHealth) + " / " +
-            Mathf.CeilToInt(grandpaMaximumHealth), hpStyle);
+        GUI.Label(outer,
+            Mathf.CeilToInt(grandpaHealth) + " / " +
+            Mathf.CeilToInt(grandpaMaximumHealth),
+            hpStyle);
     }
 
     private Sprite CreatePixelActionIcon(bool trash, out Texture2D texture)

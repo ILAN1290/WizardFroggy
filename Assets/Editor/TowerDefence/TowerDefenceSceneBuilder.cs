@@ -353,6 +353,13 @@ public static class TowerDefenceSceneBuilder
             LoadSprite(DungeonTilesetPath, "Bottom_Right_Dungeon_Door_Opened")
         };
         Item keyItem = AssetDatabase.LoadAssetAtPath<Item>(KeyItemPath);
+        Item[] waveRewardItems =
+        {
+            AssetDatabase.LoadAssetAtPath<Item>("Assets/Prefabs/Item/HealingPotion.asset"),
+            AssetDatabase.LoadAssetAtPath<Item>("Assets/Prefabs/Item/SpeedPotion.asset"),
+            AssetDatabase.LoadAssetAtPath<Item>("Assets/Prefabs/Item/StrengthPotion.asset"),
+            AssetDatabase.LoadAssetAtPath<Item>("Assets/Prefabs/Item/Bomb.asset")
+        };
         TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
 
         TowerDefenceSceneController controller =
@@ -407,9 +414,23 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "sellMinusButtonSprite", minus);
             SetObject(serialized, "buildButtonSprite", buildButton);
             SetObject(serialized, "uiFontAsset", tdaFont);
+            SetObjectArray(serialized, "waveRewardItems", waveRewardItems);
+            SerializedProperty rewardChance = serialized.FindProperty("waveRewardDropChance");
+            if (rewardChance != null)
+                rewardChance.floatValue = 0.7f;
             SerializedProperty startingMushrooms = serialized.FindProperty("startingMushrooms");
             if (startingMushrooms != null)
-                startingMushrooms.intValue = 30;
+                startingMushrooms.intValue = 5;
+            SerializedProperty machineGunStats = serialized.FindProperty("machineGunStats");
+            SerializedProperty machineGunRange = machineGunStats != null
+                ? machineGunStats.FindPropertyRelative("range") : null;
+            if (machineGunRange != null)
+                machineGunRange.floatValue = 2.325f;
+            SerializedProperty standardStats = serialized.FindProperty("standardStats");
+            SerializedProperty standardRange = standardStats != null
+                ? standardStats.FindPropertyRelative("range") : null;
+            if (standardRange != null)
+                standardRange.floatValue = 1.575f;
             SerializedProperty cannonStats = serialized.FindProperty("cannonStats");
             SerializedProperty cannonInterval = cannonStats != null
                 ? cannonStats.FindPropertyRelative("attackInterval") : null;
@@ -494,6 +515,20 @@ public static class TowerDefenceSceneBuilder
         SerializedProperty blackGhosts = wave.FindPropertyRelative("blackGhosts");
         if (blackGhosts != null)
             blackGhosts.intValue = count;
+    }
+
+    private static void SetObjectArray(
+        SerializedObject serialized,
+        string propertyName,
+        UnityEngine.Object[] values)
+    {
+        SerializedProperty property = serialized.FindProperty(propertyName);
+        if (property == null || !property.isArray || values == null)
+            return;
+
+        property.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
     }
 
     private static void SetSpriteArray(

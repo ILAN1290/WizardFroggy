@@ -91,9 +91,16 @@ public class RoguelikePickup : MonoBehaviour
             return;
         }
 
-        if (Inventory.Instance != null && item != null && Inventory.Instance.Add(item, count))
+        Inventory inventory = Inventory.EnsureInstance();
+        if (inventory != null && inventory.Size == 0)
+            inventory.Init(20);
+
+        if (inventory != null && item != null && inventory.Add(item, count))
         {
-            if (RoguelikeSession.Instance != null)
+            if (TowerDefenceManager.Instance != null &&
+                TowerDefenceManager.Instance.IsGameSessionRunning)
+                TowerDefenceManager.Instance.ShowStatusMessage("Получено: " + item.itemName);
+            else if (RoguelikeSession.Instance != null)
                 RoguelikeSession.Instance.ShowHint("Получен предмет: " + item.itemName);
             if (pickupSound != null)
                 AudioSource.PlayClipAtPoint(pickupSound, transform.position, 0.55f);

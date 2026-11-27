@@ -118,7 +118,13 @@ public class BombProjectile : MonoBehaviour
 
             if (target == gameObject || !damaged.Add(target)) continue;
 
-            if (target.CompareTag("Enemy"))
+            TowerDefenceGhost towerGhost =
+                target.GetComponentInParent<TowerDefenceGhost>();
+            if (towerGhost != null)
+            {
+                towerGhost.TakeDamage(ghostDamage);
+            }
+            else if (target.CompareTag("Enemy"))
             {
                 IDamageable damageable = target.GetComponentInParent<IDamageable>();
                 if (damageable != null)

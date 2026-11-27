@@ -18456,7 +18456,13 @@ MonoBehaviour:
   sellTowerIconSprite: {fileID: 0}
   upgradeTowerIconSprite: {fileID: 0}
   mushroomToGhostHeight: 0.5
-  startingMushrooms: 30
+  startingMushrooms: 5
+  waveRewardItems:
+  - {fileID: 11400000, guid: 52104eae654630146a029c62d622345c, type: 2}
+  - {fileID: 11400000, guid: 80e0c0c51550e074d8c520b2bd1ad6ce, type: 2}
+  - {fileID: 11400000, guid: 04ad346f22c014e448f5316d5c0fde9c, type: 2}
+  - {fileID: 11400000, guid: 53fa3334be69b804c8ecdbd9a01aa5a8, type: 2}
+  waveRewardDropChance: 0.7
   uiFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
   grandpaMaximumHealth: 300
   grandpaPotionHealAmount: 15
@@ -18476,7 +18482,7 @@ MonoBehaviour:
     mushroomCost: 2
     damage: 2.2
     attackInterval: 0.28
-    range: 1.575
+    range: 2.325
     projectileSpeed: 7
     projectileSize: 0.105
     splashRadius: 0
@@ -18484,7 +18490,7 @@ MonoBehaviour:
     mushroomCost: 1
     damage: 5
     attackInterval: 0.88
-    range: 2.325
+    range: 1.575
     projectileSpeed: 5.4
     projectileSize: 0.14
     splashRadius: 0

@@ -7,12 +7,14 @@ public class TowerDefenceMushroomPickup : MonoBehaviour
     private TowerDefenceManager manager;
     private float lifetime;
     private float age;
+    private int mushroomAmount = 1;
     private Vector3 basePosition;
 
-    public void Initialize(TowerDefenceManager owner, float lifeSeconds)
+    public void Initialize(TowerDefenceManager owner, float lifeSeconds, int amount = 1)
     {
         manager = owner;
         lifetime = Mathf.Max(1f, lifeSeconds);
+        mushroomAmount = Mathf.Max(1, amount);
         basePosition = transform.position;
     }
 
@@ -35,7 +37,7 @@ public class TowerDefenceMushroomPickup : MonoBehaviour
             other.GetComponentInParent<PlayerController>() == null)
             return;
 
-        manager.CollectMushroom();
+        manager.CollectMushroom(mushroomAmount);
         Destroy(gameObject);
     }
 }

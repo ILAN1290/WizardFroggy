@@ -370,19 +370,25 @@ public class TowerDefenceSceneController : MonoBehaviour
         GameObject patchRoot = new GameObject("Tower Defence Old Wall Patch");
         patchRoot.transform.SetParent(transform, false);
 
-        // В прежней стене проём занимал клетки (13, 2) и (13, 3).
-        CreateTileVisual(
-            patchRoot.transform,
-            "Old Wall Hole Patch Bottom",
-            previousWallPatchSprite,
-            new Vector3(13.5f, 2.5f, 0.1f),
-            16);
-        CreateTileVisual(
-            patchRoot.transform,
-            "Old Wall Hole Patch Top",
-            previousWallPatchSprite,
-            new Vector3(13.5f, 3.5f, 0.1f),
-            16);
+        // Закрываем весь старый проём справа от двери сеткой 3x2.
+        // Высокий sorting order не даёт деревянной панели перекрыть тайлы.
+        const float patchCenterX = 13.5f;
+        const float firstRowY = 3.5f;
+        for (int row = 0; row < 2; row++)
+        {
+            for (int column = -1; column <= 1; column++)
+            {
+                CreateTileVisual(
+                    patchRoot.transform,
+                    "Old Wall Hole Patch " + row + "_" + column,
+                    previousWallPatchSprite,
+                    new Vector3(
+                        patchCenterX + column * doorTileSize,
+                        firstRowY + row * doorTileSize,
+                        0.1f),
+                    40);
+            }
+        }
     }
 
     private void ApplyDoorTileSprites(Sprite[] sprites)
@@ -552,7 +558,7 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         Vector3 target = new Vector3(
             grandpaPosition.x + 2f,
-            grandpaPosition.y + 0.15f,
+            grandpaPosition.y,
             frog.position.z);
         frog.position = new Vector3(frogStartX, target.y, frog.position.z);
 
@@ -717,7 +723,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         // Лягушка делает короткий шаг вправо к дедушке перед разговором.
-        Vector3 target = grandpaPosition + new Vector3(2f, 0.15f, frog.position.z);
+        Vector3 target = grandpaPosition + new Vector3(2f, 0f, frog.position.z);
         Animator animator = frog.GetComponent<Animator>();
         if (animator == null)
             animator = frog.GetComponentInChildren<Animator>(true);
