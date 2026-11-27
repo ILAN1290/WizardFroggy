@@ -255,13 +255,31 @@ public class TowerDefenceSceneController : MonoBehaviour
             TileBase wallTile = tilemap.GetTile(new Vector3Int(6, 1, 0));
             if (wallTile != null)
             {
+                // Убираем возможные тайлы старой двери с черепом, сохраняя
+                // непрерывный рисунок кирпичной стены.
+                BoundsInt bounds = tilemap.cellBounds;
+                foreach (Vector3Int cell in bounds.allPositionsWithin)
+                {
+                    TileBase existingTile = tilemap.GetTile(cell);
+                    if (existingTile != null &&
+                        (existingTile.name.Contains("CageWithSkull") ||
+                         existingTile.name.ToLowerInvariant().Contains("skull")))
+                    {
+                        tilemap.SetTile(cell, wallTile);
+                    }
+                }
+
                 tilemap.SetTile(new Vector3Int(5, 2, 0), wallTile);
                 tilemap.SetTile(new Vector3Int(5, 3, 0), wallTile);
                 tilemap.SetTile(new Vector3Int(7, 2, 0), wallTile);
                 tilemap.SetTile(new Vector3Int(7, 3, 0), wallTile);
+
+                // На месте прежнего входа справа продолжаем ту же кирпичную кладку.
                 tilemap.SetTile(new Vector3Int(13, 2, 0), wallTile);
+                tilemap.SetTile(new Vector3Int(13, 3, 0), wallTile);
             }
 
+            // Центральные две клетки освобождаются под новую закрытую дверь.
             tilemap.SetTile(new Vector3Int(6, 2, 0), null);
             tilemap.SetTile(new Vector3Int(6, 3, 0), null);
         }
