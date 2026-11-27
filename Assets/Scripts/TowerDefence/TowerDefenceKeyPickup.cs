@@ -34,7 +34,25 @@ public class TowerDefenceKeyPickup : MonoBehaviour
             return;
 
         Inventory inventory = Inventory.EnsureInstance();
-        if (inventory == null || !inventory.Add(keyItem, 1))
+        if (inventory == null)
+            return;
+
+        inventory.Add(keyItem, 1);
+        bool itemWasAdded = false;
+        if (inventory.slots != null)
+        {
+            for (int i = 0; i < inventory.slots.Count; i++)
+            {
+                ItemStack stack = inventory.slots[i];
+                if (stack != null && !stack.IsEmpty && stack.item == keyItem)
+                {
+                    itemWasAdded = true;
+                    break;
+                }
+            }
+        }
+
+        if (!itemWasAdded)
         {
             if (sceneController != null)
                 sceneController.ShowKeyPickupMessage("В инвентаре нет свободного места для ключа");
