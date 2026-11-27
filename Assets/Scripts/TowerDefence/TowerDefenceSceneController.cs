@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEngine.SceneManagement;
@@ -718,10 +719,34 @@ public class TowerDefenceSceneController : MonoBehaviour
             ItemStack stack = inventory.slots[i];
             if (stack != null && !stack.IsEmpty && stack.item == keyInventoryItem)
             {
-                inventory.RemoveAt(i, 1);
-                return true;
+                return RemoveOneKeyFromInventory(inventory, i);
             }
         }
+        return false;
+    }
+
+    private static bool RemoveOneKeyFromInventory(Inventory inventory, int slotIndex)
+    {
+        if (inventory == null)
+            return false;
+
+        MethodInfo removeWithAmount = inventory.GetType().GetMethod(
+            "RemoveAt", new[] { typeof(int), typeof(int) });
+        if (removeWithAmount != null)
+        {
+            removeWithAmount.Invoke(inventory, new object[] { slotIndex, 1 });
+            return true;
+        }
+
+        MethodInfo removeSingle = inventory.GetType().GetMethod(
+            "RemoveAt", new[] { typeof(int) });
+        if (removeSingle != null)
+        {
+            removeSingle.Invoke(inventory, new object[] { slotIndex });
+            return true;
+        }
+
+        Debug.LogError("Tower Defence: Inventory.RemoveAt не найден.");
         return false;
     }
 
