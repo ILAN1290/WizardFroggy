@@ -27,6 +27,8 @@ public static class TowerDefenceSceneBuilder
     private const string GrandpaHpBackgroundPath = "Assets/Sprites/UI Game/Bars/pixil-frame-0 - 2025-08-04T212751.079.png";
     private const string KeySpritePath = "Assets/Sprites/Item/ключ 1.png";
     private const string KeyItemPath = "Assets/Prefabs/Item/TowerDefenceKey.asset";
+    private const string ClosedDoorSpritePath = "Assets/Sprites/TowerDefence/TDS_Door_Closed.png";
+    private const string OpenDoorSpritePath = "Assets/Sprites/TowerDefence/TDS_Door_Open.png";
 
     private static bool autoBuildQueued;
 
@@ -320,7 +322,6 @@ public static class TowerDefenceSceneBuilder
     {
         Sprite grandpa = LoadSprite(GrandpaSpritePath, "дед_0");
         Sprite ghost = LoadSprite(GhostSpritePath, "призрак_0");
-        Sprite book = LoadSprite(BookSpritePath, "книги фрогги_0");
         Sprite mushroom = LoadSprite(MushroomSpritePath, null);
         Sprite frogIcon = AssetDatabase.LoadAssetAtPath<Sprite>(FrogIconPath);
         Sprite roadTile = LoadSprite(RoadTileSetPath, RoadTileSpriteName);
@@ -331,6 +332,8 @@ public static class TowerDefenceSceneBuilder
         Sprite timerBackground = AssetDatabase.LoadAssetAtPath<Sprite>(TimerBackgroundPath);
         Sprite grandpaHpBackground = AssetDatabase.LoadAssetAtPath<Sprite>(GrandpaHpBackgroundPath);
         Sprite keySprite = LoadSprite(KeySpritePath, "ключ 1_0");
+        Sprite closedDoor = LoadSprite(ClosedDoorSpritePath, null);
+        Sprite openDoor = LoadSprite(OpenDoorSpritePath, null);
         Item keyItem = AssetDatabase.LoadAssetAtPath<Item>(KeyItemPath);
         TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
 
@@ -341,7 +344,8 @@ public static class TowerDefenceSceneBuilder
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
-            // Closed-door sprite is not present in the repository; preserve any manual scene assignment.
+            SetObject(serialized, "closedDoorSprite", closedDoor);
+            SetObject(serialized, "openDoorSprite", openDoor);
             SetObject(serialized, "frogIcon", frogIcon);
             SetObject(serialized, "keyPickupSprite", keySprite);
             SetObject(serialized, "keyInventoryItem", keyItem);
@@ -404,6 +408,8 @@ public static class TowerDefenceSceneBuilder
             Debug.LogWarning("Tower Defence: не найдены текстуры панелей HUD.");
         if (keySprite == null || keyItem == null)
             Debug.LogWarning("Tower Defence: не найдены спрайт или предмет ключа.");
+        if (closedDoor == null || openDoor == null)
+            Debug.LogWarning("Tower Defence: не найдены текстуры закрытой/открытой двери.");
     }
 
     private static Sprite LoadSprite(string path, string preferredName)
