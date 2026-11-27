@@ -22,6 +22,11 @@ public static class TowerDefenceSceneBuilder
     private const string SellMinusPath = "Assets/Sprites/UI Game/Merchenant/кнопочка_минус.png";
     private const string BuildButtonPath = "Assets/Sprites/UI Game/Merchenant/кнопочка.png";
     private const string TdaFontPath = "Assets/Fonts/TDAText SDF.asset";
+    private const string TdsBookPagePath = "Assets/Sprites/UI Game/Studying/Leaflet.png";
+    private const string TimerBackgroundPath = "Assets/Sprites/UI Game/Death Menu/pixil-frame-0 - 2025-08-06T220919.278.png";
+    private const string GrandpaHpBackgroundPath = "Assets/Sprites/UI Game/Bars/pixil-frame-0 - 2025-08-04T212751.079.png";
+    private const string KeySpritePath = "Assets/Sprites/Item/ключ 1.png";
+    private const string KeyItemPath = "Assets/Prefabs/Item/TowerDefenceKey.asset";
 
     private static bool autoBuildQueued;
 
@@ -212,6 +217,10 @@ public static class TowerDefenceSceneBuilder
         if (rightShelves != null)
             rightShelves.SetActive(false);
 
+        GameObject candle = FindInScene(targetScene, "candle");
+        if (candle != null)
+            candle.SetActive(false);
+
         DisableLegacyBossFlow(targetScene);
 
         GameObject dialogueElements = FindInScene(targetScene, "DialogueElements");
@@ -277,6 +286,10 @@ public static class TowerDefenceSceneBuilder
         GameObject rightShelves = FindInScene(scene, "Right Book Cases");
         if (rightShelves != null)
             rightShelves.SetActive(false);
+
+        GameObject candle = FindInScene(scene, "candle");
+        if (candle != null)
+            candle.SetActive(false);
     }
 
     private static void EnsureExistingSceneSystems(Scene scene)
@@ -314,6 +327,11 @@ public static class TowerDefenceSceneBuilder
         Sprite plus = LoadSprite(UpgradePlusPath, null);
         Sprite minus = LoadSprite(SellMinusPath, null);
         Sprite buildButton = LoadSprite(BuildButtonPath, null);
+        Sprite tdsBookPage = AssetDatabase.LoadAssetAtPath<Sprite>(TdsBookPagePath);
+        Sprite timerBackground = AssetDatabase.LoadAssetAtPath<Sprite>(TimerBackgroundPath);
+        Sprite grandpaHpBackground = AssetDatabase.LoadAssetAtPath<Sprite>(GrandpaHpBackgroundPath);
+        Sprite keySprite = LoadSprite(KeySpritePath, "ключ 1_0");
+        Item keyItem = AssetDatabase.LoadAssetAtPath<Item>(KeyItemPath);
         TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
 
         TowerDefenceSceneController controller =
@@ -325,6 +343,8 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "roadTileSprite", roadTile);
             // Closed-door sprite is not present in the repository; preserve any manual scene assignment.
             SetObject(serialized, "frogIcon", frogIcon);
+            SetObject(serialized, "keyPickupSprite", keySprite);
+            SetObject(serialized, "keyInventoryItem", keyItem);
             SetObject(serialized, "dialogueManager",
                 FindComponentInScene<DialogueManager>(controllerObject.scene));
             SerializedProperty position = serialized.FindProperty("grandpaPosition");
@@ -348,7 +368,10 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "grandpaSprite", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
             SetObject(serialized, "mushroomSprite", mushroom);
-            SetObject(serialized, "instructionBookSprite", book);
+            SetObject(serialized, "instructionBookSprite", tdsBookPage);
+            SetObject(serialized, "timerBackgroundSprite", timerBackground);
+            SetObject(serialized, "waveCountBackgroundSprite", timerBackground);
+            SetObject(serialized, "grandpaHpBackgroundSprite", grandpaHpBackground);
             SetObject(serialized, "upgradePlusButtonSprite", plus);
             SetObject(serialized, "sellMinusButtonSprite", minus);
             SetObject(serialized, "buildButtonSprite", buildButton);
@@ -375,8 +398,12 @@ public static class TowerDefenceSceneBuilder
             Debug.LogError("Tower Defence: не найден спрайт кнопки строительства.");
         if (tdaFont == null)
             Debug.LogError("Tower Defence: не найден шрифт " + TdaFontPath);
-        if (book == null)
-            Debug.LogWarning("Tower Defence: не найден спрайт книги для инструкции.");
+        if (tdsBookPage == null)
+            Debug.LogWarning("Tower Defence: не найден лист бумаги для обучения.");
+        if (timerBackground == null || grandpaHpBackground == null)
+            Debug.LogWarning("Tower Defence: не найдены текстуры панелей HUD.");
+        if (keySprite == null || keyItem == null)
+            Debug.LogWarning("Tower Defence: не найдены спрайт или предмет ключа.");
     }
 
     private static Sprite LoadSprite(string path, string preferredName)
