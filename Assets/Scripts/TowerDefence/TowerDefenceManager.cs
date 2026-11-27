@@ -38,6 +38,12 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private AudioClip purchaseSound;
     [SerializeField] private AudioClip sellSound;
     [SerializeField] private AudioClip upgradeSound;
+    [Header("Обучение и окружение")]
+    [SerializeField] private AudioClip tutorialOpenSound;
+    [SerializeField] private AudioClip tutorialCloseSound;
+    [SerializeField] private AudioClip ambientSound;
+    [SerializeField, Range(0f, 1f)] private float ambientVolume = 0.18f;
+    [SerializeField] private AudioClip dialogueVoiceClip;
 
     [Header("Спрайты башен")]
     [SerializeField] private Sprite machineGunTowerSprite;
@@ -174,6 +180,7 @@ public class TowerDefenceManager : MonoBehaviour
     private Texture2D runtimeUpgradeIconTexture;
     private bool wavesFinished;
     private AudioSource soundSource;
+    private AudioSource ambientSource;
 
     public event System.Action AllWavesDefeated;
 
@@ -206,6 +213,17 @@ public class TowerDefenceManager : MonoBehaviour
         soundSource.playOnAwake = false;
         soundSource.loop = false;
         soundSource.spatialBlend = 0f;
+
+        if (ambientSound != null)
+        {
+            ambientSource = gameObject.AddComponent<AudioSource>();
+            ambientSource.clip = ambientSound;
+            ambientSource.loop = true;
+            ambientSource.playOnAwake = false;
+            ambientSource.spatialBlend = 0f;
+            ambientSource.volume = Mathf.Clamp01(ambientVolume);
+            ambientSource.Play();
+        }
 
         if (sellTowerIconSprite == null)
             runtimeSellIcon = CreatePixelActionIcon(true, out runtimeSellIconTexture);
@@ -325,6 +343,7 @@ public class TowerDefenceManager : MonoBehaviour
         }
 
         instructionsOpen = true;
+        PlaySound(tutorialOpenSound, 0.55f);
         yield return new WaitUntil(() => !instructionsOpen || gameOver);
 
         if (gameOver)
@@ -762,7 +781,7 @@ public class TowerDefenceManager : MonoBehaviour
                 impactPosition,
                 effectRadius,
                 new Color(1f, 0.65f, 0.25f, 0.95f));
-            PlaySound(cannonImpactSound, 0.55f);
+            PlaySound(cannonImpactSound, 0.22f);
         }
 
         if (splashRadius <= 0f)
@@ -862,13 +881,13 @@ public class TowerDefenceManager : MonoBehaviour
 
     public void PlayGhostHitSound()
     {
-        PlaySound(ghostHitSound, 0.3f);
+        // Sound of a hit intentionally disabled per user request.
     }
 
     public void PlayTowerShot(TowerDefenceTowerType type)
     {
         PlaySound(towerShotSound,
-            type == TowerDefenceTowerType.Cannon ? 0.42f : 0.22f);
+            type == TowerDefenceTowerType.Cannon ? 0.18f : 0.09f);
     }
 
     private void ShowGrandpaPhrase()
@@ -1209,6 +1228,8 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void OnGUI()
     {
+        // Keep the health overlay behind inventory/build overlays.
+        GUI.depth = 100;
         if (!gameStarted && !instructionsOpen && string.IsNullOrEmpty(statusMessage))
             return;
 
@@ -1349,8 +1370,12 @@ public class TowerDefenceManager : MonoBehaviour
         button.hover.background = null;
         button.active.background = null;
         button.focused.background = null;
+        button.normal.textColor = button.hover.textColor = button.active.textColor = button.focused.textColor = Color.white;
         if (GUI.Button(closeRect, "Понятно, начинаем подготовку", button))
+        {
+            PlaySound(tutorialCloseSound, 0.55f);
             instructionsOpen = false;
+        }
     }
 
     private void DrawBuildMenu()

@@ -32,6 +32,7 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField, Min(0.5f)] private float doorInteractDistance = 1.5f;
 
     [SerializeField] private DialogueManager dialogueManager;
+    [SerializeField] private AudioClip dialogueVoiceClip;
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
@@ -552,6 +553,7 @@ public class TowerDefenceSceneController : MonoBehaviour
             personName = personName,
             icon = icon,
             text = text,
+            clip = dialogueVoiceClip,
             emotion = "Idle"
         };
     }

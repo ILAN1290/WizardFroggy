@@ -18451,6 +18451,11 @@ MonoBehaviour:
   purchaseSound: {fileID: 8300000, guid: 7c679dfa3c09620468013aaa5742f880, type: 3}
   sellSound: {fileID: 8300000, guid: 7b9ef384061ef4b4686c1b0b7c240e35, type: 3}
   upgradeSound: {fileID: 8300000, guid: d20174feaf9d8504db985cad060b9c7a, type: 3}
+  tutorialOpenSound: {fileID: 8300000, guid: f30a6390022a82b4eb8fe7a6bc48ce19, type: 3}
+  tutorialCloseSound: {fileID: 8300000, guid: 3ded22ee0b73ce2479255e32ea15f08b, type: 3}
+  ambientSound: {fileID: 8300000, guid: 4a840930f352cb944bfba23375110a0a, type: 3}
+  ambientVolume: 0.18
+  dialogueVoiceClip: {fileID: 8300000, guid: 040d04d59196980488d4cc1eb07ea127, type: 3}
   grandpaSprite: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 107796029, guid: 88b90e64fa4e36e4ca267d4bcbaf6923, type: 3}
   mushroomSprite: {fileID: -8804783980236045272, guid: b0f578d14ecafc14386ac662666ccd19, type: 3}
