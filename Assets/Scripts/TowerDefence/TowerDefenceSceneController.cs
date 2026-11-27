@@ -709,13 +709,13 @@ public class TowerDefenceSceneController : MonoBehaviour
 
     private bool TryConsumeKeyFromInventory()
     {
-        Inventory inventory = Inventory.Instance;
-        if (inventory == null || keyInventoryItem == null)
+        Inventory inventory = Inventory.EnsureInstance();
+        if (inventory == null || keyInventoryItem == null || inventory.slots == null)
             return false;
 
-        for (int i = 0; i < inventory.Size; i++)
+        for (int i = 0; i < inventory.slots.Count; i++)
         {
-            ItemStack stack = inventory.GetSlot(i);
+            ItemStack stack = inventory.slots[i];
             if (stack != null && !stack.IsEmpty && stack.item == keyInventoryItem)
             {
                 inventory.RemoveAt(i, 1);
