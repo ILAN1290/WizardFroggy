@@ -1346,6 +1346,7 @@ public class TowerDefenceManager : MonoBehaviour
             timerNumber.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 21f, timerPanel.width - 20f, 36f),
                 Mathf.CeilToInt(Mathf.Max(0f, countdown)).ToString() + " сек.", timerNumber);
+            DrawSkipWaveButton(timerPanel);
         }
     }
 
@@ -1526,6 +1527,67 @@ public class TowerDefenceManager : MonoBehaviour
             grandpaHealthLabel.text =
                 Mathf.CeilToInt(grandpaHealth) + " / " +
                 Mathf.CeilToInt(grandpaMaximumHealth);
+    }
+
+    private void DrawSkipWaveButton(Rect timerPanel)
+    {
+        Rect rect = GetSkipWaveButtonRect(timerPanel);
+        DrawSprite(rect, buildButtonSprite);
+        Sprite icon = skipWaveIconSprite != null ? skipWaveIconSprite : runtimeSkipWaveIcon;
+        if (icon != null)
+            DrawSprite(new Rect(rect.x + 8f, rect.y + 8f, rect.width - 16f, rect.height - 16f), icon);
+
+        GUIStyle invisibleButton = new GUIStyle(GUI.skin.button)
+        {
+            normal = { background = null },
+            hover = { background = null },
+            active = { background = null },
+            focused = { background = null },
+            border = new RectOffset(0, 0, 0, 0),
+            padding = new RectOffset(0, 0, 0, 0)
+        };
+        if (GUI.Button(rect, GUIContent.none, invisibleButton))
+            countdown = 0f;
+    }
+
+    private Rect GetSkipWaveButtonRect()
+    {
+        Rect panel = new Rect(Screen.width * 0.5f - 165f, 84f, 330f, 62f);
+        return GetSkipWaveButtonRect(panel);
+    }
+
+    private static Rect GetSkipWaveButtonRect(Rect panel)
+    {
+        return new Rect(panel.xMax + 10f, panel.y + 3f, 56f, 56f);
+    }
+
+    private Sprite CreateSkipWaveIcon(out Texture2D texture)
+    {
+        const int size = 32;
+        texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.name = "Tower Defence • Skip Wave";
+        texture.filterMode = FilterMode.Point;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        Color32[] pixels = new Color32[size * size];
+        Color32 ink = new Color32(255, 242, 210, 255);
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = new Color32(0, 0, 0, 0);
+
+        // Две пиксельные стрелки вправо — значок ускоренной перемотки.
+        for (int step = 0; step <= 10; step++)
+        {
+            int top = 16 - step;
+            int bottom = 16 + step;
+            pixels[top * size + 4 + step] = ink;
+            pixels[bottom * size + 4 + step] = ink;
+            pixels[top * size + 17 + step] = ink;
+            pixels[bottom * size + 17 + step] = ink;
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, size, size),
+            new Vector2(0.5f, 0.5f), size);
     }
 
     private void DrawInstructions()
