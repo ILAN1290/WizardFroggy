@@ -243,7 +243,7 @@ public class TowerDefenceSceneController : MonoBehaviour
         renderer.sprite = closedDoorSprite;
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 8;
-        renderer.transform.localScale = Vector3.one * 0.0125f;
+        renderer.transform.localScale = Vector3.one;
     }
 
     private void CreateGrandpa()
