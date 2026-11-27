@@ -54,16 +54,16 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField, Min(0f)] private float grandpaPotionHealAmount = 15f;
 
     [Header("Параметры призраков")]
-    [SerializeField, Min(1f)] private float whiteGhostHealth = 10f;
+    [SerializeField, Min(1f)] private float whiteGhostHealth = 40f;
     [SerializeField, Min(0.05f)] private float whiteGhostSpeed = 0.72f;
     [SerializeField, Min(0.1f)] private float whiteGhostSize = 0.72f;
-    [SerializeField, Min(1f)] private float blueGhostHealth = 10f;
+    [SerializeField, Min(1f)] private float blueGhostHealth = 40f;
     [SerializeField, Min(1f)] private float blueGhostSpeedMultiplier = 2f;
     [SerializeField, Min(0.1f)] private float blueGhostSize = 0.88f;
-    [SerializeField, Min(1f)] private float redGhostHealth = 30f;
+    [SerializeField, Min(1f)] private float redGhostHealth = 120f;
     [SerializeField, Min(0.1f)] private float redGhostSpeedMultiplier = 1f;
     [SerializeField, Min(0.1f)] private float redGhostSize = 1.05f;
-    [SerializeField, Min(1f)] private float blackGhostHealth = 200f;
+    [SerializeField, Min(1f)] private float blackGhostHealth = 800f;
     [SerializeField, Min(0.1f)] private float blackGhostSpeedMultiplier = 0.5f;
     [SerializeField, Min(0.1f)] private float blackGhostSize = 1.35f;
 
