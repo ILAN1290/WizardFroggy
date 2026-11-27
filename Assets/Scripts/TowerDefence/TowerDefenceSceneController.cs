@@ -274,13 +274,15 @@ public class TowerDefenceSceneController : MonoBehaviour
         centralDoorRenderer.sortingLayerName = "Default";
         centralDoorRenderer.sortingOrder = 14;
 
+        Vector3 doorScale = Vector3.one;
         if (closedDoorSprite != null)
         {
             Vector2 spriteSize = closedDoorSprite.bounds.size;
-            centralDoorObject.transform.localScale = new Vector3(
+            doorScale = new Vector3(
                 centralDoorColliderSize.x / Mathf.Max(0.001f, spriteSize.x),
                 centralDoorColliderSize.y / Mathf.Max(0.001f, spriteSize.y),
                 1f);
+            centralDoorObject.transform.localScale = doorScale;
         }
         else
         {
@@ -288,7 +290,9 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         BoxCollider2D doorCollider = centralDoorObject.AddComponent<BoxCollider2D>();
-        doorCollider.size = centralDoorColliderSize;
+        doorCollider.size = new Vector2(
+            centralDoorColliderSize.x / Mathf.Max(0.001f, Mathf.Abs(doorScale.x)),
+            centralDoorColliderSize.y / Mathf.Max(0.001f, Mathf.Abs(doorScale.y)));
         doorCollider.isTrigger = false;
         centralDoorCollider = doorCollider;
     }
