@@ -454,7 +454,7 @@ public class TowerDefenceManager : MonoBehaviour
     private void CreateStarterTower()
     {
         // Бесплатная стартовая башня остаётся, а игрок начинает с 5 грибочками.
-        Vector3Int cell = new Vector3Int(5, 1, 0);
+        Vector3Int cell = new Vector3Int(5, -1, 0);
         if (occupiedCells.Contains(cell))
             return;
 

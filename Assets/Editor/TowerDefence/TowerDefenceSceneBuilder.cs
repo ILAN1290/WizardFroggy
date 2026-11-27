@@ -396,12 +396,15 @@ public static class TowerDefenceSceneBuilder
             SerializedProperty doorSize = serialized.FindProperty("centralDoorColliderSize");
             if (doorSize != null)
                 doorSize.vector2Value = new Vector2(3f, 2f);
+            SerializedProperty doorPosition = serialized.FindProperty("centralDoorPosition");
+            if (doorPosition != null)
+                doorPosition.vector3Value = new Vector3(2.6472082f, 2.1551251f, 0.15f);
             SerializedProperty tileSize = serialized.FindProperty("doorTileSize");
             if (tileSize != null)
                 tileSize.floatValue = 1f;
             SerializedProperty doorOffset = serialized.FindProperty("doorVerticalOffset");
             if (doorOffset != null)
-                doorOffset.floatValue = 0.06f;
+                doorOffset.floatValue = 0f;
             SerializedProperty position = serialized.FindProperty("grandpaPosition");
             if (position != null)
                 position.vector3Value = new Vector3(-6.5f, -4.5f, 0f);

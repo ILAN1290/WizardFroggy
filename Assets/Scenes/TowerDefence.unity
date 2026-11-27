@@ -18329,10 +18329,10 @@ MonoBehaviour:
   grandpaPosition: {x: -6.5, y: -4.5, z: 0}
   frogStartX: 10.5
   frogWalkSpeed: 3.8
-  centralDoorPosition: {x: 0, y: 2, z: 0}
-  centralDoorColliderSize: {x: 0, y: 2}
+  centralDoorPosition: {x: 2.6472082, y: 2.1551251, z: 0.15}
+  centralDoorColliderSize: {x: 3, y: 2}
   doorTileSize: 1
-  doorVerticalOffset: 0.06
+  doorVerticalOffset: 0
   doorInteractDistance: 1.5
   dialogueManager: {fileID: 1368409279}
 --- !u!114 &2190011004

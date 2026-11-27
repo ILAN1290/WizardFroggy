@@ -59,6 +59,20 @@ public class TowerDefenceSceneController : MonoBehaviour
         sceneCamera = Camera.main;
     }
 
+    private float GetPixelWorldSize(float pixelCount)
+    {
+        Camera camera = sceneCamera != null ? sceneCamera : Camera.main;
+        if (camera == null || !camera.orthographic)
+            return pixelCount / 100f;
+
+        float pixelHeight = camera.pixelHeight > 0
+            ? camera.pixelHeight
+            : Mathf.Max(1f, Screen.height);
+        float pixelsPerWorldUnit = pixelHeight /
+            Mathf.Max(0.01f, camera.orthographicSize * 2f);
+        return pixelCount / Mathf.Max(1f, pixelsPerWorldUnit);
+    }
+
     private void SetFrogSortingOrder()
     {
         if (frog == null)
@@ -278,15 +292,25 @@ public class TowerDefenceSceneController : MonoBehaviour
         Transform oldPatch = transform.Find("Tower Defence Old Wall Patch");
         if (oldPatch != null)
             Destroy(oldPatch.gameObject);
+        Transform oldLeft = transform.Find("Upper Wall Left");
+        if (oldLeft != null)
+            Destroy(oldLeft.gameObject);
+        Transform oldRight = transform.Find("Upper Wall Right");
+        if (oldRight != null)
+            Destroy(oldRight.gameObject);
 
         Bounds wallBounds = GetAndOpenUpperWallBounds();
-        BuildDoorSideColliders(wallBounds);
 
-        // Keep the original brick wall artwork; do not overlay Top_Wall_Tile.
+        // The serialized Upper Limit collider is the source of truth:
+        // its centre is the centre of the brick wall, not the top edge.
         centralDoorPosition = new Vector3(
             wallBounds.center.x,
-            wallBounds.center.y + doorTileSize * 0.5f + doorVerticalOffset,
+            wallBounds.center.y + doorVerticalOffset,
             0.15f);
+
+        // Split the original wall collider only after the actual doorway centre
+        // and width are known. This leaves an opening exactly behind the door.
+        BuildDoorSideColliders(wallBounds);
 
         centralDoorObject = new GameObject("Central Door");
         centralDoorObject.transform.SetParent(transform, false);
@@ -306,14 +330,17 @@ public class TowerDefenceSceneController : MonoBehaviour
 
             SpriteRenderer renderer = tileObject.AddComponent<SpriteRenderer>();
             renderer.sortingLayerName = "Default";
-            renderer.sortingOrder = 18;
+            renderer.sortingOrder = 39;
             centralDoorTileRenderers[index] = renderer;
         }
 
         ApplyDoorTileSprites(closedDoorTileSprites);
 
+        // A non-trigger collider keeps the frog outside while the door is shut.
+        // It is disabled only after the key is used in the existing door flow.
         BoxCollider2D doorCollider = centralDoorObject.AddComponent<BoxCollider2D>();
         doorCollider.size = centralDoorColliderSize;
+        doorCollider.offset = Vector2.zero;
         doorCollider.isTrigger = false;
         centralDoorCollider = doorCollider;
 
@@ -335,15 +362,15 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         return new Bounds(
-            new Vector3(centralDoorPosition.x, centralDoorPosition.y - 0.5f, 0f),
-            new Vector3(13f, 0.34f, 0.1f));
+            new Vector3(2.6472082f, 2.1551251f, -0.01917313f),
+            new Vector3(13.121123f, 0.33929998f, 0.1f));
     }
 
     private void BuildDoorSideColliders(Bounds wallBounds)
     {
         float halfOpening = centralDoorColliderSize.x * 0.5f;
-        float openingLeft = wallBounds.center.x - halfOpening;
-        float openingRight = wallBounds.center.x + halfOpening;
+        float openingLeft = centralDoorPosition.x - halfOpening;
+        float openingRight = centralDoorPosition.x + halfOpening;
 
         CreateWallCollider(
             "Upper Wall Left",
@@ -382,28 +409,31 @@ public class TowerDefenceSceneController : MonoBehaviour
     private void CreatePreviousWallPatch()
     {
         if (previousWallPatchSprite == null)
+        {
+            Debug.LogError("Tower Defence: не назначен тайл Dungeon-2D-PixelArt-Tileset_5.");
             return;
+        }
 
         GameObject patchRoot = new GameObject("Tower Defence Old Wall Patch");
         patchRoot.transform.SetParent(transform, false);
 
-        // Закрываем весь старый проём справа от двери сеткой 3x2.
-        // Высокий sorting order не даёт деревянной панели перекрыть тайлы.
-        const float patchCenterX = 13.5f;
-        const float firstRowY = 3.5f;
+        // Вырез в кирпичной стене на скриншоте занимает 3x2 клетки
+        // справа от двери. Раньше заплатка ставилась за границей комнаты.
+        const float firstTileX = 5.5f;
+        const float firstTileY = 2.5f;
         for (int row = 0; row < 2; row++)
         {
-            for (int column = -1; column <= 1; column++)
+            for (int column = 0; column < 3; column++)
             {
                 CreateTileVisual(
                     patchRoot.transform,
                     "Old Wall Hole Patch " + row + "_" + column,
                     previousWallPatchSprite,
                     new Vector3(
-                        patchCenterX + column * doorTileSize,
-                        firstRowY + row * doorTileSize,
-                        0.1f),
-                    40);
+                        firstTileX + column * doorTileSize,
+                        firstTileY + row * doorTileSize,
+                        0.08f),
+                    38);
             }
         }
     }
@@ -575,7 +605,7 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         Vector3 target = new Vector3(
             grandpaPosition.x + 2f,
-            grandpaPosition.y,
+            grandpaPosition.y - GetPixelWorldSize(40f),
             frog.position.z);
         frog.position = new Vector3(frogStartX, target.y, frog.position.z);
 
@@ -740,7 +770,8 @@ public class TowerDefenceSceneController : MonoBehaviour
         }
 
         // Лягушка делает короткий шаг вправо к дедушке перед разговором.
-        Vector3 target = grandpaPosition + new Vector3(2f, 0f, frog.position.z);
+        Vector3 target = grandpaPosition + new Vector3(
+            2f, -GetPixelWorldSize(40f), frog.position.z);
         Animator animator = frog.GetComponent<Animator>();
         if (animator == null)
             animator = frog.GetComponentInChildren<Animator>(true);
@@ -825,10 +856,15 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         GameObject keyObject = new GameObject("Tower Defence Key");
         keyObject.transform.position = grandpaObject.transform.position + Vector3.up * 0.7f;
-        keyObject.transform.localScale = Vector3.one * 0.4f;
 
         SpriteRenderer renderer = keyObject.AddComponent<SpriteRenderer>();
         renderer.sprite = keyPickupSprite;
+        Vector2 keySpriteSize = keyPickupSprite.bounds.size;
+        float keyWorldSize = GetPixelWorldSize(50f);
+        keyObject.transform.localScale = new Vector3(
+            keyWorldSize / Mathf.Max(0.001f, keySpriteSize.x),
+            keyWorldSize / Mathf.Max(0.001f, keySpriteSize.y),
+            1f);
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 40;
 
