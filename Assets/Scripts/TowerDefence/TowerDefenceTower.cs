@@ -54,7 +54,7 @@ public class TowerDefenceTower : MonoBehaviour
         ApplyPixelSize();
 
         BoxCollider2D collider = GetComponent<BoxCollider2D>();
-        collider.size = Vector2.one;
+        collider.size = baseSpriteSize;
         collider.isTrigger = true;
 
         attackTimer = Random.Range(0f, Mathf.Max(0.05f, stats.attackInterval));
