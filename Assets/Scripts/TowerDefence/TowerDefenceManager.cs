@@ -1239,6 +1239,7 @@ public class TowerDefenceManager : MonoBehaviour
             GUI.skin.font = uiFontAsset.sourceFontFile;
 
         DrawHud();
+        DrawStarterAdjacentCellTint();
 
         if (instructionsOpen)
         {
@@ -1321,6 +1322,39 @@ public class TowerDefenceManager : MonoBehaviour
             GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 21f, timerPanel.width - 20f, 36f),
                 Mathf.CeilToInt(Mathf.Max(0f, countdown)).ToString() + " сек.", timerNumber);
         }
+    }
+
+    private void DrawStarterAdjacentCellTint()
+    {
+        if (Camera.main == null || instructionsOpen || !gameStarted)
+            return;
+
+        // Four buildable cells directly adjacent to the free tower at (5,-1).
+        Vector3Int[] cells =
+        {
+            new Vector3Int(4, -1, 0),
+            new Vector3Int(6, -1, 0),
+            new Vector3Int(5, 0, 0),
+            new Vector3Int(5, -2, 0)
+        };
+
+        Camera camera = Camera.main;
+        GUI.color = new Color(0.35f, 0.35f, 0.35f, 0.23f);
+        for (int i = 0; i < cells.Length; i++)
+        {
+            Vector3 center = camera.WorldToScreenPoint(cells[i] + new Vector3(0.5f, 0.5f, 0f));
+            Vector3 left = camera.WorldToScreenPoint(cells[i]);
+            Vector3 right = camera.WorldToScreenPoint(cells[i] + Vector3.right);
+            Vector3 top = camera.WorldToScreenPoint(cells[i] + Vector3.up);
+            float width = Mathf.Abs(right.x - left.x);
+            float height = Mathf.Abs(top.y - left.y);
+            Rect rect = new Rect(
+                center.x - width * 0.5f,
+                Screen.height - center.y - height * 0.5f,
+                width, height);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        }
+        GUI.color = Color.white;
     }
 
     private void DrawInstructions()
