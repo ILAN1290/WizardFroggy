@@ -378,7 +378,6 @@ public class TowerDefenceManager : MonoBehaviour
         }
 
         gameStarted = true;
-        CreateStarterTower();
 
         int totalWaves = waveSpawner.TotalWaves;
         countdown = Mathf.Max(0f, firstWaveDelay);
@@ -497,14 +496,7 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void CreateStarterTower()
     {
-        // Бесплатная стартовая башня остаётся, а игрок начинает с 5 грибочками.
-        Vector3Int cell = new Vector3Int(5, -1, 0);
-        if (occupiedCells.Contains(cell))
-            return;
-
-        occupiedCells.Add(cell);
-        CreateTowerAtCell(cell, TowerDefenceTowerType.Standard, true);
-        ShowStatus("Поставлена бесплатная стартовая башня");
+        // Удалено: стартовая башня больше не создаётся бесплатно.
     }
 
     private void DisablePlayerCombat()
@@ -1317,13 +1309,16 @@ public class TowerDefenceManager : MonoBehaviour
         heading.normal.textColor = Color.white;
 
 
-        Rect moneyPanel = new Rect(Screen.width - 285f, 18f, 265f, 64f);
+        Rect moneyPanel = new Rect(Screen.width - 168f, 18f, 150f, 64f);
         GUI.Box(moneyPanel, GUIContent.none);
         DrawSprite(
-            new Rect(moneyPanel.x + 12f, moneyPanel.y + 7f, 50f, 50f),
+            new Rect(moneyPanel.x + 7f, moneyPanel.y + 8f, 48f, 48f),
             mushroomSprite);
-        GUI.Label(new Rect(moneyPanel.x + 72f, moneyPanel.y + 10f, 175f, 44f),
-            mushrooms.ToString(), heading);
+        GUIStyle mushroomCountStyle = new GUIStyle(heading);
+        mushroomCountStyle.fontSize = 23;
+        mushroomCountStyle.alignment = TextAnchor.MiddleCenter;
+        GUI.Label(new Rect(moneyPanel.x + 58f, moneyPanel.y + 9f, 84f, 46f),
+            mushrooms.ToString(), mushroomCountStyle);
 
         int totalWaves = waveSpawner != null ? waveSpawner.TotalWaves : 15;
         Rect wavePanel = new Rect(Screen.width * 0.5f - 135f, 18f, 270f, 58f);
@@ -1373,8 +1368,8 @@ public class TowerDefenceManager : MonoBehaviour
             for (int x = -8; x <= 7; x++)
             {
                 Vector3Int cell = new Vector3Int(x, y, 0);
-                if (cell.x == starterX && cell.y == starterY)
-                    continue;
+                // Клетка бывшей бесплатной башни не исключается: она проверяется
+                // и затемняется наравне со всеми остальными доступными клетками.
                 // Сетка размещения строго шахматная: между доступными клетками
                 // всегда остаётся минимум одна недоступная клетка.
                 if (((cell.x + cell.y) & 1) != ((starterX + starterY) & 1))
@@ -1546,9 +1541,6 @@ public class TowerDefenceManager : MonoBehaviour
     {
         Rect rect = GetSkipWaveButtonRect(timerPanel);
         DrawSprite(rect, buildButtonSprite);
-        Sprite icon = skipWaveIconSprite != null ? skipWaveIconSprite : runtimeSkipWaveIcon;
-        if (icon != null)
-            DrawSprite(new Rect(rect.x + 8f, rect.y + 8f, rect.width - 16f, rect.height - 16f), icon);
 
         GUIStyle invisibleButton = new GUIStyle(GUI.skin.button)
         {
@@ -1559,8 +1551,29 @@ public class TowerDefenceManager : MonoBehaviour
             border = new RectOffset(0, 0, 0, 0),
             padding = new RectOffset(0, 0, 0, 0)
         };
+
         if (GUI.Button(rect, GUIContent.none, invisibleButton))
             countdown = 0f;
+
+        // Draw after GUI.Button so the hit-area skin can never cover the icon.
+        Sprite icon = skipWaveIconSprite != null ? skipWaveIconSprite : runtimeSkipWaveIcon;
+        if (icon != null)
+        {
+            GUI.color = Color.white;
+            DrawSprite(new Rect(rect.x + 7f, rect.y + 7f,
+                rect.width - 14f, rect.height - 14f), icon);
+        }
+        else
+        {
+            GUIStyle fallback = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 34,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            fallback.normal.textColor = Color.white;
+            GUI.Label(rect, "»", fallback);
+        }
     }
 
     private Rect GetSkipWaveButtonRect()
@@ -1578,24 +1591,35 @@ public class TowerDefenceManager : MonoBehaviour
     {
         const int size = 32;
         texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        texture.name = "Tower Defence • Skip Wave";
+        texture.name = "Tower Defence • Fast Forward";
         texture.filterMode = FilterMode.Point;
         texture.wrapMode = TextureWrapMode.Clamp;
-        Color32[] pixels = new Color32[size * size];
-        Color32 ink = new Color32(255, 242, 210, 255);
-        for (int i = 0; i < pixels.Length; i++)
-            pixels[i] = new Color32(0, 0, 0, 0);
 
-        // Две пиксельные стрелки вправо — значок ускоренной перемотки.
-        for (int step = 0; step <= 10; step++)
+        Color32 transparent = new Color32(0, 0, 0, 0);
+        Color32 ivory = new Color32(255, 242, 210, 255);
+        Color32[] pixels = new Color32[size * size];
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = transparent;
+
+        // Filled first chevron.
+        for (int step = 0; step <= 11; step++)
         {
-            int top = 16 - step;
-            int bottom = 16 + step;
-            pixels[top * size + 4 + step] = ink;
-            pixels[bottom * size + 4 + step] = ink;
-            pixels[top * size + 17 + step] = ink;
-            pixels[bottom * size + 17 + step] = ink;
+            int x = 3 + step;
+            for (int y = 16 - step; y <= 16 + step; y++)
+                pixels[y * size + x] = ivory;
         }
+
+        // Filled second chevron.
+        for (int step = 0; step <= 11; step++)
+        {
+            int x = 14 + step;
+            for (int y = 16 - step; y <= 16 + step; y++)
+                pixels[y * size + x] = ivory;
+        }
+
+        // Vertical end bar, as on common media fast-forward controls.
+        for (int y = 6; y <= 26; y++)
+            pixels[y * size + 27] = ivory;
 
         texture.SetPixels32(pixels);
         texture.Apply();
