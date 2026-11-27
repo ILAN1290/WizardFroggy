@@ -1326,8 +1326,16 @@ public class TowerDefenceManager : MonoBehaviour
         GUI.enabled = true;
 
         // Third tile is an information tile, intentionally not a purchase action.
-        GUI.Box(new Rect(row.x, row.y - 20f, row.width, 18f),
-            selectedTower.GetDisplayName() + " • ур. " + selectedTower.Level);
+        GUIStyle towerNameStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 11,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+        towerNameStyle.normal.textColor = Color.white;
+        GUI.Label(new Rect(row.x, row.y - 21f, row.width, 18f),
+            selectedTower.GetDisplayName() + " • ур. " + selectedTower.Level,
+            towerNameStyle);
     }
 
     private void DrawGrandpaPhrase()
