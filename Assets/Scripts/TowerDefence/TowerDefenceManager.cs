@@ -1061,7 +1061,10 @@ public class TowerDefenceManager : MonoBehaviour
 
     private Rect GetTowerPanelRect()
     {
-        return GetBuildPanelRect();
+        Rect row = GetBuildPanelRect();
+        // Захватываем заголовок и подписи под тремя кнопками, чтобы клик
+        // по тексту не проходил сквозь интерфейс в игровое поле.
+        return new Rect(row.x, row.y - 22f, row.width, row.height + 38f);
     }
 
     private void OnGUI()
