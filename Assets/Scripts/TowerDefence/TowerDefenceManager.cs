@@ -47,6 +47,7 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private Sprite grandpaHpBackgroundSprite;
     [SerializeField] private Sprite sellTowerIconSprite;
     [SerializeField] private Sprite upgradeTowerIconSprite;
+    [SerializeField, Range(0.1f, 1f)] private float mushroomToGhostHeight = 0.5f;
     [SerializeField] private TMP_FontAsset uiFontAsset;
 
     [Header("Здоровье дедушки")]
@@ -525,8 +526,12 @@ public class TowerDefenceManager : MonoBehaviour
         GameObject drop = new GameObject("Выпавший грибочек");
         drop.transform.position = position + Vector3.up * 0.12f;
         float mushroomHeight = mushroomSprite.bounds.size.y;
+        float whiteGhostHeight = 0.72f * Mathf.Max(0.1f, whiteGhostSize);
+        float targetMushroomHeight = whiteGhostHeight * mushroomToGhostHeight;
         drop.transform.localScale = Vector3.one *
-            (mushroomHeight > 0.001f ? 0.36f / mushroomHeight : 0.12f);
+            (mushroomHeight > 0.001f
+                ? targetMushroomHeight / mushroomHeight
+                : targetMushroomHeight);
 
         SpriteRenderer renderer = drop.AddComponent<SpriteRenderer>();
         renderer.sprite = mushroomSprite;
@@ -1099,8 +1104,9 @@ public class TowerDefenceManager : MonoBehaviour
             GUIStyle statusStyle = new GUIStyle(GUI.skin.box);
             statusStyle.fontSize = 18;
             statusStyle.alignment = TextAnchor.MiddleCenter;
+            float statusY = Mathf.Clamp(154f, 8f, Mathf.Max(8f, Screen.height - 50f));
             Rect statusRect = new Rect(
-                Screen.width * 0.5f - 220f, 76f, 440f, 42f);
+                Screen.width * 0.5f - 220f, statusY, 440f, 42f);
             GUI.Box(statusRect, statusMessage, statusStyle);
         }
 
@@ -1134,21 +1140,22 @@ public class TowerDefenceManager : MonoBehaviour
 
         if (countdownActive)
         {
-            Rect timerPanel = new Rect(Screen.width * 0.5f - 110f, 70f, 220f, 58f);
+            Rect timerPanel = new Rect(Screen.width * 0.5f - 120f, 72f, 240f, 76f);
             DrawSprite(timerPanel, timerBackgroundSprite);
 
             GUIStyle timerCaption = new GUIStyle(GUI.skin.label);
             timerCaption.fontSize = 12;
+            timerCaption.fontStyle = FontStyle.Bold;
             timerCaption.alignment = TextAnchor.MiddleCenter;
             timerCaption.normal.textColor = Color.white;
-            GUI.Label(new Rect(timerPanel.x + 8f, timerPanel.y + 3f, timerPanel.width - 16f, 18f),
-                currentWave == 0 ? "ДО ПЕРВОЙ ВОЛНЫ" : "ДО СЛЕДУЮЩЕЙ ВОЛНЫ",
+            GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 5f, timerPanel.width - 20f, 20f),
+                "ОСТАЛОСЬ ВРЕМЕНИ",
                 timerCaption);
 
             GUIStyle timerNumber = new GUIStyle(heading);
-            timerNumber.fontSize = 23;
+            timerNumber.fontSize = 25;
             timerNumber.alignment = TextAnchor.MiddleCenter;
-            GUI.Label(new Rect(timerPanel.x + 8f, timerPanel.y + 20f, timerPanel.width - 16f, 33f),
+            GUI.Label(new Rect(timerPanel.x + 10f, timerPanel.y + 28f, timerPanel.width - 20f, 39f),
                 Mathf.CeilToInt(Mathf.Max(0f, countdown)).ToString() + " сек.", timerNumber);
         }
     }
@@ -1276,14 +1283,23 @@ public class TowerDefenceManager : MonoBehaviour
         DrawSprite(new Rect(sellRect.x + 13f, sellRect.y + 13f, 26f, 26f), runtimeSellIcon);
         DrawSprite(new Rect(upgradeRect.x + 13f, upgradeRect.y + 13f, 26f, 26f), runtimeUpgradeIcon);
 
+        TowerDefenceTowerStats stats = GetStats(selectedTower.Type);
+        float currentDamage = stats.damage *
+            (1f + (selectedTower.Level - 1) * upgradeDamagePerLevel);
+        float attacksPerSecond = 1f / Mathf.Max(0.05f, stats.attackInterval);
+
         GUIStyle info = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 15,
+            fontSize = 10,
             fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter
+            alignment = TextAnchor.MiddleCenter,
+            wordWrap = true
         };
         info.normal.textColor = Color.white;
-        GUI.Label(statsRect, "DPS", info);
+        GUI.Label(statsRect,
+            "УРОН\n" + currentDamage.ToString("F1") +
+            "\nСКОР. " + attacksPerSecond.ToString("F1") + "/с",
+            info);
 
         GUIStyle priceStyle = new GUIStyle(GUI.skin.label)
         {
@@ -1301,11 +1317,7 @@ public class TowerDefenceManager : MonoBehaviour
             selectedTower.CanUpgrade ? "Улучшить\n" + upgradeCost : "Макс. уровень",
             priceStyle);
 
-        TowerDefenceTowerStats stats = GetStats(selectedTower.Type);
-        GUI.Label(new Rect(statsRect.x - 10f, statsRect.yMax + 1f, statsRect.width + 20f, 34f),
-            "Урон " + (stats.damage * (1f + (selectedTower.Level - 1) * upgradeDamagePerLevel)).ToString("F1") +
-            "\n" + (1f / Mathf.Max(0.05f, stats.attackInterval)).ToString("F1") + " выстр./с",
-            priceStyle);
+        // Третья кнопка показывает параметры башни прямо внутри квадрата.
 
         GUIStyle hitArea = new GUIStyle(GUI.skin.button)
         {
@@ -1466,12 +1478,14 @@ public class TowerDefenceManager : MonoBehaviour
         }
         else
         {
-            for (int y = 13; y <= 27; y++)
+            // Стрелка вверх: стержень снизу, наконечник расширяется кверху.
+            for (int y = 4; y <= 18; y++)
                 for (int x = 14; x <= 17; x++)
                     pixels[y * size + x] = ink;
-            for (int y = 4; y <= 17; y++)
+
+            for (int y = 14; y <= 28; y++)
             {
-                int halfWidth = 13 - y;
+                int halfWidth = y - 14;
                 for (int x = 16 - halfWidth; x <= 16 + halfWidth; x++)
                     pixels[y * size + x] = ink;
             }
