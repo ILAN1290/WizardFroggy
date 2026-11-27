@@ -228,7 +228,7 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         if (closedDoorSprite == null)
         {
-            Debug.LogError("Tower Defence: не назначен спрайт закрытой двери.");
+            Debug.LogWarning("Tower Defence: в проекте не найден отдельный спрайт закрытой двери. Дверь не будет подменяться рамкой или процедурной графикой.");
             return;
         }
 
