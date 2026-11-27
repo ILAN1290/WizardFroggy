@@ -270,6 +270,14 @@ public static class TowerDefenceSceneBuilder
                     behaviour.enabled = false;
             }
         }
+
+        GameObject leftShelves = FindInScene(scene, "Left Book Cases");
+        if (leftShelves != null)
+            leftShelves.SetActive(false);
+
+        GameObject rightShelves = FindInScene(scene, "Right Book Cases");
+        if (rightShelves != null)
+            rightShelves.SetActive(false);
     }
 
     private static void EnsureExistingSceneSystems(Scene scene)
