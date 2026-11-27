@@ -22,7 +22,6 @@ public static class TowerDefenceSceneBuilder
     private const string SellMinusPath = "Assets/Sprites/UI Game/Merchenant/кнопочка_минус.png";
     private const string BuildButtonPath = "Assets/Sprites/UI Game/Merchenant/кнопочка.png";
     private const string TdaFontPath = "Assets/Fonts/TDAText SDF.asset";
-    private const string ClosedDoorSpritePath = "Assets/Sprites/Tile Sprites/Room_Builder_free_48x48.png";
 
     private static bool autoBuildQueued;
 
@@ -315,7 +314,6 @@ public static class TowerDefenceSceneBuilder
         Sprite plus = LoadSprite(UpgradePlusPath, null);
         Sprite minus = LoadSprite(SellMinusPath, null);
         Sprite buildButton = LoadSprite(BuildButtonPath, null);
-        Sprite closedDoor = LoadSprite(ClosedDoorSpritePath, "Room_Builder_free_48x48_2");
         TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
 
         TowerDefenceSceneController controller =
@@ -325,7 +323,7 @@ public static class TowerDefenceSceneBuilder
             SerializedObject serialized = new SerializedObject(controller);
             SetObject(serialized, "grandpaSpriteAsset", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
-            SetObject(serialized, "closedDoorSprite", closedDoor);
+            SetObject(serialized, "closedDoorSprite", null);
             SetObject(serialized, "frogIcon", frogIcon);
             SetObject(serialized, "dialogueManager",
                 FindComponentInScene<DialogueManager>(controllerObject.scene));
@@ -373,8 +371,6 @@ public static class TowerDefenceSceneBuilder
             Debug.LogError("Tower Defence: не найден спрайт призрака.");
         if (roadTile == null)
             Debug.LogError("Tower Defence: не найден тайл дорожки.");
-        if (closedDoor == null)
-            Debug.LogError("Tower Defence: не найден спрайт двери в " + ClosedDoorSpritePath);
         if (buildButton == null)
             Debug.LogError("Tower Defence: не найден спрайт кнопки строительства.");
         if (tdaFont == null)
