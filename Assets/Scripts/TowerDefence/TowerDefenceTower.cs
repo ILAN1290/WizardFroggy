@@ -28,6 +28,12 @@ public class TowerDefenceTower : MonoBehaviour
     public float CurrentRange => stats != null
         ? stats.range + (level - 1) * manager.UpgradeRangePerLevel
         : 0f;
+    public float CurrentDamage => stats != null
+        ? stats.damage * (1f + (level - 1) * manager.UpgradeDamagePerLevel)
+        : 0f;
+    public float AttacksPerSecond => stats != null
+        ? 1f / Mathf.Max(0.05f, stats.attackInterval)
+        : 0f;
 
     public void Initialize(
         TowerDefenceManager owner,
