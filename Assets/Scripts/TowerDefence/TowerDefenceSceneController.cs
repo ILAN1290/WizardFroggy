@@ -20,10 +20,12 @@ public class TowerDefenceSceneController : MonoBehaviour
     [SerializeField] private Sprite frogIcon;
 
     [Header("Положение персонажей")]
-    [SerializeField] private Vector3 grandpaPosition = new Vector3(-6.5f, -4.5f, 0f);
+    [SerializeField] private Vector3 grandpaPosition = new Vector3(-7.5f, -3.5f, 0f);
     [SerializeField] private float frogStartX = 10.5f;
     [SerializeField] private float frogWalkSpeed = 3.8f;
-    [SerializeField] private Vector3 centralDoorPosition = new Vector3(0f, 2.65f, 0.15f);
+    [Header("Положение двери")]
+    [Tooltip("Мировые координаты центра двери. Меняй X/Y здесь — позиция не будет перезаписываться при запуске сцены.")]
+    [SerializeField] private Vector3 centralDoorPosition = new Vector3(0f, 3.15f, 0.15f);
     [SerializeField] private Vector2 centralDoorColliderSize = new Vector2(3f, 2f);
     [SerializeField, Min(0.1f)] private float doorTileSize = 1f;
     [SerializeField, Min(0f)] private float doorVerticalOffset = 0.06f;
@@ -204,8 +206,6 @@ public class TowerDefenceSceneController : MonoBehaviour
             new Vector3(-7.5f, -1.5f, 0f),
             new Vector3(7.5f, -1.5f, 0f),
             new Vector3(7.5f, -3.5f, 0f),
-            new Vector3(-7.5f, -3.5f, 0f),
-            new Vector3(-7.5f, -4.5f, 0f),
             grandpaPosition
         };
 
@@ -301,20 +301,17 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         Bounds wallBounds = GetAndOpenUpperWallBounds();
 
-        // The serialized Upper Limit collider is the source of truth:
-        // its centre is the centre of the brick wall, not the top edge.
-        centralDoorPosition = new Vector3(
-            wallBounds.center.x,
-            wallBounds.center.y + doorVerticalOffset,
-            0.15f);
+        // The door uses its serialized Inspector position. Upper Limit is used
+        // only for wall bounds; it must never overwrite the designer's X/Y.
+        Vector3 doorWorldPosition = centralDoorPosition +
+            Vector3.up * doorVerticalOffset;
 
-        // Split the original wall collider only after the actual doorway centre
-        // and width are known. This leaves an opening exactly behind the door.
+        // Leave an opening in the wall collision at the Inspector-controlled X.
         BuildDoorSideColliders(wallBounds);
 
         centralDoorObject = new GameObject("Central Door");
         centralDoorObject.transform.SetParent(transform, false);
-        centralDoorObject.transform.position = centralDoorPosition;
+        centralDoorObject.transform.position = doorWorldPosition;
         centralDoorTileRenderers = new SpriteRenderer[6];
 
         for (int index = 0; index < centralDoorTileRenderers.Length; index++)
@@ -605,7 +602,7 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         Vector3 target = new Vector3(
             grandpaPosition.x + 2f,
-            grandpaPosition.y - GetPixelWorldSize(40f),
+            grandpaPosition.y - GetPixelWorldSize(80f),
             frog.position.z);
         frog.position = new Vector3(frogStartX, target.y, frog.position.z);
 

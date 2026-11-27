@@ -18326,10 +18326,10 @@ MonoBehaviour:
   keyPickupSprite: {fileID: 8200857774506189066, guid: 4c133480305161549ba333eb2d45f83a, type: 3}
   keyInventoryItem: {fileID: 11400000, guid: 9e01d326f4cd4cfb8f0a6df92c3f28a2, type: 2}
   frogIcon: {fileID: 21300000, guid: 90a81166ee8d0f54496b9d53bd7dde18, type: 3}
-  grandpaPosition: {x: -6.5, y: -4.5, z: 0}
+  grandpaPosition: {x: -7.5, y: -3.5, z: 0}
   frogStartX: 10.5
   frogWalkSpeed: 3.8
-  centralDoorPosition: {x: 2.6472082, y: 2.1551251, z: 0.15}
+  centralDoorPosition: {x: 0, y: 3.15, z: 0.15}
   centralDoorColliderSize: {x: 3, y: 2}
   doorTileSize: 1
   doorVerticalOffset: 0
