@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using TMPro;
 
 [System.Serializable]
 public class TowerDefenceTowerStats
@@ -40,6 +41,8 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private Sprite instructionBookSprite;
     [SerializeField] private Sprite upgradePlusButtonSprite;
     [SerializeField] private Sprite sellMinusButtonSprite;
+    [SerializeField] private Sprite buildButtonSprite;
+    [SerializeField] private TMP_FontAsset uiFontAsset;
 
     [Header("Здоровье дедушки")]
     [SerializeField, Min(1f)] private float grandpaMaximumHealth = 300f;
@@ -816,7 +819,8 @@ public class TowerDefenceManager : MonoBehaviour
 
         towerObject.AddComponent<BoxCollider2D>();
         TowerDefenceTower tower = towerObject.AddComponent<TowerDefenceTower>();
-        tower.Initialize(this, type, GetStats(type), sprite, freeStarter);
+        float pixelsPerUnit = roadTileSprite != null ? roadTileSprite.pixelsPerUnit : 64f;
+        tower.Initialize(this, type, GetStats(type), sprite, freeStarter, pixelsPerUnit);
         towers.Add(tower);
     }
 
@@ -971,7 +975,28 @@ public class TowerDefenceManager : MonoBehaviour
 
     private Rect GetBuildPanelRect()
     {
-        return new Rect(20f, Screen.height - 178f, 450f, 158f);
+        Camera camera = Camera.main;
+        if (camera == null)
+            return new Rect(20f, 20f, 188f, 84f);
+
+        Vector3 worldPosition = new Vector3(
+            pendingBuildCell.x + 0.5f,
+            pendingBuildCell.y + 0.5f,
+            0f);
+        Vector3 screenPosition = camera.WorldToScreenPoint(worldPosition);
+
+        const float width = 188f;
+        const float height = 84f;
+        float x = Mathf.Clamp(screenPosition.x - width * 0.5f,
+            8f, Mathf.Max(8f, Screen.width - width - 8f));
+        float y = Screen.height - screenPosition.y - height - 12f;
+
+        // Если над клеткой мало места, переносим ряд под неё.
+        if (y < 8f)
+            y = Screen.height - screenPosition.y + 22f;
+
+        y = Mathf.Clamp(y, 8f, Mathf.Max(8f, Screen.height - height - 8f));
+        return new Rect(x, y, width, height);
     }
 
     private Rect GetTowerPanelRect()
@@ -983,6 +1008,11 @@ public class TowerDefenceManager : MonoBehaviour
     {
         if (!gameStarted && !instructionsOpen && string.IsNullOrEmpty(statusMessage))
             return;
+
+        // IMGUI использует исходный TTF из того же SDF-шрифта TDA.
+        // TMP-элементы сцены получают сам TMP_FontAsset в SceneBuilder.
+        if (uiFontAsset != null && uiFontAsset.sourceFontFile != null)
+            GUI.skin.font = uiFontAsset.sourceFontFile;
 
         DrawHud();
 
@@ -1107,39 +1137,60 @@ public class TowerDefenceManager : MonoBehaviour
 
     private void DrawBuildMenu()
     {
-        Rect panel = GetBuildPanelRect();
-        GUI.Box(panel, GUIContent.none);
-
-        GUIStyle title = new GUIStyle(GUI.skin.label);
-        title.fontSize = 19;
-        title.fontStyle = FontStyle.Bold;
-        title.normal.textColor = Color.white;
-        GUI.Label(new Rect(panel.x + 14f, panel.y + 8f, 400f, 28f),
-            "Выбери башню", title);
+        Rect row = GetBuildPanelRect();
+        const float buttonSize = 52f;
+        const float gap = 10f;
 
         DrawBuildButton(
-            new Rect(panel.x + 12f, panel.y + 45f, 132f, 88f),
-            TowerDefenceTowerType.Standard, "Обычная", standardStats.mushroomCost);
+            new Rect(row.x, row.y, buttonSize, buttonSize),
+            TowerDefenceTowerType.Standard, "Обычная", "О", standardStats.mushroomCost);
         DrawBuildButton(
-            new Rect(panel.x + 154f, panel.y + 45f, 132f, 88f),
-            TowerDefenceTowerType.MachineGun, "Пулемёт", machineGunStats.mushroomCost);
+            new Rect(row.x + buttonSize + gap, row.y, buttonSize, buttonSize),
+            TowerDefenceTowerType.MachineGun, "Пулемёт", "П", machineGunStats.mushroomCost);
         DrawBuildButton(
-            new Rect(panel.x + 296f, panel.y + 45f, 140f, 88f),
-            TowerDefenceTowerType.Cannon, "Пушка", cannonStats.mushroomCost);
+            new Rect(row.x + (buttonSize + gap) * 2f, row.y, buttonSize, buttonSize),
+            TowerDefenceTowerType.Cannon, "Пушка", "К", cannonStats.mushroomCost);
     }
 
     private void DrawBuildButton(
         Rect rect,
         TowerDefenceTowerType type,
         string label,
+        string symbol,
         int cost)
     {
         bool canAfford = mushrooms >= cost;
+        GUI.color = canAfford ? Color.white : new Color(0.55f, 0.55f, 0.55f, 0.8f);
+        DrawSprite(rect, buildButtonSprite);
+        GUI.color = Color.white;
+
+        GUIStyle hitArea = new GUIStyle(GUI.skin.button)
+        {
+            normal = { background = null },
+            hover = { background = null },
+            active = { background = null },
+            focused = { background = null },
+            border = new RectOffset(0, 0, 0, 0),
+            padding = new RectOffset(0, 0, 0, 0)
+        };
+
+        GUIStyle symbolStyle = new GUIStyle(GUI.skin.label);
+        symbolStyle.fontSize = 22;
+        symbolStyle.fontStyle = FontStyle.Bold;
+        symbolStyle.alignment = TextAnchor.MiddleCenter;
+        symbolStyle.normal.textColor = canAfford ? Color.white : new Color(0.72f, 0.72f, 0.72f, 1f);
+        GUI.Label(rect, symbol, symbolStyle);
+
+        GUIStyle priceStyle = new GUIStyle(GUI.skin.label);
+        priceStyle.fontSize = 12;
+        priceStyle.alignment = TextAnchor.MiddleCenter;
+        priceStyle.wordWrap = true;
+        priceStyle.normal.textColor = canAfford ? Color.white : new Color(0.68f, 0.68f, 0.68f, 1f);
+        GUI.Label(new Rect(rect.x - 5f, rect.yMax + 1f, rect.width + 10f, 28f),
+            label + "\n" + cost + " гриб.", priceStyle);
+
         GUI.enabled = canAfford;
-        GUIStyle style = new GUIStyle(GUI.skin.button);
-        style.fontSize = 17;
-        style.wordWrap = true;
-        if (GUI.Button(rect, label + "\n" + cost + " гриб.", style))
+        if (GUI.Button(rect, GUIContent.none, hitArea))
             TryBuyTower(type);
         GUI.enabled = true;
     }
