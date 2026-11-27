@@ -24,7 +24,6 @@ public class TowerDefenceSceneController : MonoBehaviour
     private Transform frog;
     private Camera sceneCamera;
     private GameObject grandpaObject;
-    private Sprite runtimeDoorSprite;
     private Tile runtimeRoadTile;
     private TowerDefenceManager gameManager;
     private readonly HashSet<Vector3Int> generatedRoadCells = new HashSet<Vector3Int>();
@@ -128,8 +127,6 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         if (runtimeRoadTile != null)
             Destroy(runtimeRoadTile);
-        if (runtimeDoorSprite != null)
-            Destroy(runtimeDoorSprite);
     }
 
     private void CreateRoad()
@@ -237,13 +234,14 @@ public class TowerDefenceSceneController : MonoBehaviour
 
         GameObject door = new GameObject("Central Door");
         door.transform.SetParent(transform, false);
-        door.transform.localPosition = new Vector3(grandpaPosition.x, grandpaPosition.y + 1.05f, 0.15f);
+        // Дверь стоит в свободном промежутке между верхними прямыми дорожки.
+        door.transform.localPosition = new Vector3(0f, -0.5f, 0.15f);
 
         SpriteRenderer renderer = door.AddComponent<SpriteRenderer>();
         renderer.sprite = closedDoorSprite;
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 8;
-        renderer.transform.localScale = Vector3.one;
+        renderer.transform.localScale = Vector3.one * 0.5f;
     }
 
     private void CreateGrandpa()
