@@ -5969,7 +5969,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &843209546
 Transform:
   m_ObjectHideFlags: 0
@@ -18301,6 +18301,9 @@ MonoBehaviour:
   grandpaSpriteAsset: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
   closedDoorSprite: {fileID: 0}
+  openDoorSprite: {fileID: 0}
+  keyPickupSprite: {fileID: 8200857774506189066, guid: 4c133480305161549ba333eb2d45f83a, type: 3}
+  keyInventoryItem: {fileID: 11400000, guid: 9e01d326f4cd4cfb8f0a6df92c3f28a2, type: 2}
   frogIcon: {fileID: 21300000, guid: 90a81166ee8d0f54496b9d53bd7dde18, type: 3}
   grandpaPosition: {x: -6.5, y: -4.5, z: 0}
   frogStartX: 10.5
@@ -18374,6 +18377,26 @@ MonoBehaviour:
     blueGhosts: 10
     redGhosts: 8
     blackGhosts: 3
+  - whiteGhosts: 18
+    blueGhosts: 12
+    redGhosts: 9
+    blackGhosts: 4
+  - whiteGhosts: 20
+    blueGhosts: 13
+    redGhosts: 10
+    blackGhosts: 4
+  - whiteGhosts: 22
+    blueGhosts: 15
+    redGhosts: 12
+    blackGhosts: 5
+  - whiteGhosts: 24
+    blueGhosts: 16
+    redGhosts: 13
+    blackGhosts: 6
+  - whiteGhosts: 26
+    blueGhosts: 18
+    redGhosts: 15
+    blackGhosts: 7
 --- !u!114 &2190011006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18397,30 +18420,35 @@ MonoBehaviour:
   grandpaSprite: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
   mushroomSprite: {fileID: -8804783980236045272, guid: b0f578d14ecafc14386ac662666ccd19, type: 3}
-  instructionBookSprite: {fileID: 497790256, guid: 5017c1a619c219b4da3d9195545f4b6a, type: 3}
+  instructionBookSprite: {fileID: 21300000, guid: 07df931a772281a44b6c26e8951b89a7, type: 3}
   upgradePlusButtonSprite: {fileID: -1505932246928245792, guid: df285eabc66e97c4c8246b3f31bedfcd, type: 3}
   sellMinusButtonSprite: {fileID: 4505060559889354466, guid: 29a06ad9e584ef44596084ef32102902, type: 3}
   buildButtonSprite: {fileID: -8510727349376626655, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
+  timerBackgroundSprite: {fileID: 21300000, guid: 7c98c87a2052dd743a90cbc199059455, type: 3}
+  waveCountBackgroundSprite: {fileID: 21300000, guid: 7c98c87a2052dd743a90cbc199059455, type: 3}
+  grandpaHpBackgroundSprite: {fileID: 21300000, guid: bd3c2af87e1c3fa4ba6614a099b8c9f9, type: 3}
+  sellTowerIconSprite: {fileID: 0}
+  upgradeTowerIconSprite: {fileID: 0}
   uiFontAsset: {fileID: 11400000, guid: df7431b7667a07f47979df9e137e5d72, type: 2}
   grandpaMaximumHealth: 300
   grandpaPotionHealAmount: 15
-  whiteGhostHealth: 10
+  whiteGhostHealth: 40
   whiteGhostSpeed: 0.72
   whiteGhostSize: 0.72
-  blueGhostHealth: 10
+  blueGhostHealth: 40
   blueGhostSpeedMultiplier: 2
   blueGhostSize: 0.88
-  redGhostHealth: 30
+  redGhostHealth: 120
   redGhostSpeedMultiplier: 1
   redGhostSize: 1.05
-  blackGhostHealth: 200
+  blackGhostHealth: 800
   blackGhostSpeedMultiplier: 0.5
   blackGhostSize: 1.35
   machineGunStats:
     mushroomCost: 2
     damage: 2.2
     attackInterval: 0.28
-    range: 3.15
+    range: 1.575
     projectileSpeed: 7
     projectileSize: 0.105
     splashRadius: 0
@@ -18428,7 +18456,7 @@ MonoBehaviour:
     mushroomCost: 1
     damage: 5
     attackInterval: 0.88
-    range: 4.65
+    range: 2.325
     projectileSpeed: 5.4
     projectileSize: 0.14
     splashRadius: 0
@@ -18436,13 +18464,13 @@ MonoBehaviour:
     mushroomCost: 4
     damage: 18
     attackInterval: 2.45
-    range: 2.75
+    range: 1.375
     projectileSpeed: 4.8
     projectileSize: 0.19
-    splashRadius: 1.25
+    splashRadius: 0.625
   maximumTowerLevel: 4
   upgradeDamagePerLevel: 0.25
-  upgradeRangePerLevel: 0.22
+  upgradeRangePerLevel: 0.11
   firstWaveDelay: 30
   betweenWaveDelay: 15
   grandpaPhrases:
