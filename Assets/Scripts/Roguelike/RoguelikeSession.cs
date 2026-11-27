@@ -530,11 +530,14 @@ public class RoguelikeSession : MonoBehaviour
         amount = Mathf.Max(0, amount * 6);
         GameObject pickup = new GameObject("Грибочки x" + amount);
         if (pickupsRoot != null) pickup.transform.SetParent(pickupsRoot, true);
-        SpriteRenderer renderer = pickup.AddComponent<SpriteRenderer>();
+
+        // Separate visual so the loot can bob without moving its pickup trigger.
+        GameObject visual = new GameObject("Визуал грибочков");
+        visual.transform.SetParent(pickup.transform, false);
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
         renderer.sprite = roomGenerator != null && roomGenerator.MushroomSprite != null
             ? roomGenerator.MushroomSprite : RoomGenerator.CircleSprite;
         renderer.color = new Color(0.88f, 0.42f, 0.74f);
-        // Keep loot behind all interior furniture sprites.
         renderer.sortingOrder = -5;
 
         float pickupRadius = 0.25f;
@@ -551,7 +554,7 @@ public class RoguelikeSession : MonoBehaviour
                 float worldWidth = 50f / Mathf.Max(1f, pixelsPerWorldUnitX);
                 float worldHeight = 50f / Mathf.Max(1f, pixelsPerWorldUnitY);
                 Vector2 sourceSize = renderer.sprite.bounds.size;
-                pickup.transform.localScale = new Vector3(
+                visual.transform.localScale = new Vector3(
                     worldWidth / Mathf.Max(0.001f, sourceSize.x),
                     worldHeight / Mathf.Max(0.001f, sourceSize.y), 1f);
                 pickupRadius = Mathf.Max(worldWidth, worldHeight) * 0.5f;
@@ -561,7 +564,7 @@ public class RoguelikeSession : MonoBehaviour
         position = FindAccessiblePickupPosition(position, pickupRadius);
         pickup.transform.position = position;
         if (roomGenerator != null)
-            roomGenerator.ApplyPlaceholder(pickup, roomGenerator.MushroomSprite, "ГРИБОЧКИ", this);
+            roomGenerator.ApplyPlaceholder(visual, roomGenerator.MushroomSprite, "ГРИБОЧКИ", this);
 
         CircleCollider2D collider = pickup.AddComponent<CircleCollider2D>();
         collider.isTrigger = true;

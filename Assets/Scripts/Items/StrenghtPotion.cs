@@ -9,6 +9,10 @@ public class StrengthPotion : Potion
 
     protected override bool ApplyEffect(GameObject user, PlayerEffects effects)
     {
+        TowerDefenceManager towerDefence = TowerDefenceManager.Instance;
+        if (towerDefence != null && towerDefence.IsGameSessionRunning)
+            return towerDefence.TryApplyStrengthPotion(damageMultiplier, duration);
+
         effects.Strength(damageMultiplier, duration, strengthVFX);
         return true;
     }

@@ -16,6 +16,8 @@ public class RoguelikeProjectile : MonoBehaviour
     private Rigidbody2D body;
     private bool initialized;
     private bool reflected;
+    private bool towerOwned;
+    private float towerSplashRadius;
 
     public void Initialize(Vector2 targetDirection, float projectileSpeed, float projectileDamage)
     {
@@ -38,6 +40,8 @@ public class RoguelikeProjectile : MonoBehaviour
         damage = Mathf.Max(0f, projectileDamage);
         trailTint = tint;
         reflected = false;
+        towerOwned = false;
+        towerSplashRadius = 0f;
         nextTrailTime = Time.time;
         body = GetComponent<Rigidbody2D>();
 
@@ -68,6 +72,22 @@ public class RoguelikeProjectile : MonoBehaviour
         renderer.sortingLayerName = "Default";
         renderer.sortingOrder = 7;
         glow.transform.localScale = Vector3.one * 2.6f;
+    }
+
+    /// <summary>
+    /// Initializes the same comet projectile visual for a Tower Defence tower.
+    /// Tower-owned bolts can only damage TowerDefenceGhost instances.
+    /// </summary>
+    public void InitializeTowerDefence(
+        Vector2 targetDirection,
+        float projectileSpeed,
+        float projectileDamage,
+        Color tint,
+        float splashRadius)
+    {
+        Initialize(targetDirection, projectileSpeed, projectileDamage, tint);
+        towerOwned = true;
+        towerSplashRadius = Mathf.Max(0f, splashRadius);
     }
 
     /// <summary>
@@ -179,6 +199,26 @@ public class RoguelikeProjectile : MonoBehaviour
 
             ghost.TakeDamage(damage);
             Destroy(gameObject);
+            return;
+        }
+
+        // Tower bolts reuse the roguelike comet effect, but they never
+        // collide with or damage the player and only affect TDS ghosts.
+        if (towerOwned)
+        {
+            TowerDefenceGhost towerGhost =
+                other.GetComponentInParent<TowerDefenceGhost>();
+            if (towerGhost != null)
+            {
+                TowerDefenceManager manager = TowerDefenceManager.Instance;
+                if (manager != null)
+                    manager.ApplyTowerProjectileDamage(
+                        towerGhost, transform.position, damage, towerSplashRadius);
+                else
+                    towerGhost.TakeDamage(damage);
+
+                Destroy(gameObject);
+            }
             return;
         }
 

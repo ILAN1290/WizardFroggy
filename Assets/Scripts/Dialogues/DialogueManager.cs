@@ -30,17 +30,57 @@ public class DialogueManager : MonoBehaviour
 
     private void Awake()
     {
-        if (instance == null) instance = this;
+        if (instance == null)
+            instance = this;
+
+        // Use the same dedicated dialogue channel as the Boss scene.
+        if (dialogueAudioSource == null)
+            dialogueAudioSource = GetComponentInChildren<AudioSource>(true);
+        if (dialogueAudioSource == null)
+            dialogueAudioSource = gameObject.AddComponent<AudioSource>();
+
+        dialogueAudioSource.playOnAwake = false;
+        dialogueAudioSource.loop = false;
+        dialogueAudioSource.mute = false;
+        dialogueAudioSource.volume = 1f;
+        dialogueAudioSource.spatialBlend = 0f;
     }
 
     public void StartDialogue(int index)
     {
-        // Защита от повторного запуска: иначе previousInputMap станет "Dialogue"
-        // и контроль с инвентарём не вернутся никогда
-        if (IsDialogueActive) return;
+        TryStartDialogue(index);
+    }
 
-        if (index < 0 || index >= dialogues.Count) return;
-        if (dialogues[index].dialogueLines.Count == 0) return;
+    public bool TryStartDialogue(int index)
+    {
+        // Не оставляем катсцену в бесконечном ожидании, если ссылка на UI
+        // или PlayerInput не назначена в сцене.
+        if (IsDialogueActive)
+        {
+            Debug.LogWarning("DialogueManager: диалог уже открыт, повторный запуск пропущен.", this);
+            return false;
+        }
+
+        if (dialogues == null || index < 0 || index >= dialogues.Count ||
+            dialogues[index] == null || dialogues[index].dialogueLines == null ||
+            dialogues[index].dialogueLines.Count == 0)
+        {
+            Debug.LogError("DialogueManager: для запуска не найден диалог или его реплики.", this);
+            return false;
+        }
+
+        if (dialogueElements == null || nameArea == null ||
+            dialogueArea == null || iconImage == null)
+        {
+            Debug.LogError("DialogueManager: не назначены элементы интерфейса диалога.", this);
+            return false;
+        }
+
+        if (InputManager.PlayerInput == null)
+        {
+            Debug.LogError("DialogueManager: PlayerInput не найден, диалог не запущен.", this);
+            return false;
+        }
 
         previousInputMap = InputManager.PlayerInput.currentActionMap != null
             ? InputManager.PlayerInput.currentActionMap.name
@@ -56,6 +96,7 @@ public class DialogueManager : MonoBehaviour
             linesQueue.Enqueue(diLine);
 
         DisplayNextDialogueLine();
+        return true;
     }
 
     private void Update()
@@ -63,7 +104,7 @@ public class DialogueManager : MonoBehaviour
         // Кнопки диалога работают только пока диалог реально идёт
         if (!IsDialogueActive) return;
 
-        if (InputManager.instance.SwitchDialogueLine)
+        if (InputManager.instance != null && InputManager.instance.SwitchDialogueLine)
             SwitchLine();
     }
 
@@ -75,12 +116,24 @@ public class DialogueManager : MonoBehaviour
             OnLineDisplayed?.Invoke(currentLine);
 
             if (currentLine.emotion != "Idle" && currentLine.person != null)
-                currentLine.person.GetComponent<Animator>().SetBool(currentLine.emotion, true);
-
-            if (currentLine.clip != null)
             {
+                Animator animator = currentLine.person.GetComponent<Animator>();
+                if (animator != null)
+                    animator.SetBool(currentLine.emotion, true);
+            }
+
+            if (currentLine.clip != null && dialogueAudioSource != null)
+            {
+                dialogueAudioSource.Stop();
                 dialogueAudioSource.clip = currentLine.clip;
+                dialogueAudioSource.volume = 1f;
                 dialogueAudioSource.Play();
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "DialogueManager: для реплики " + currentLine.personName +
+                    " не назначен AudioClip или AudioSource.", this);
             }
 
             nameArea.text = currentLine.personName;
@@ -95,15 +148,25 @@ public class DialogueManager : MonoBehaviour
 
     private void EndDialogue()
     {
-        dialogues[currentDialogueIndex].isPassed = true;
-        dialogueAudioSource.Stop();
+        if (dialogues != null && currentDialogueIndex >= 0 &&
+            currentDialogueIndex < dialogues.Count && dialogues[currentDialogueIndex] != null)
+            dialogues[currentDialogueIndex].isPassed = true;
+
+        if (dialogueAudioSource != null)
+            dialogueAudioSource.Stop();
+
         StopAllCoroutines();
-        dialogueArea.text = string.Empty;
-        dialogueElements.SetActive(false);
+
+        if (dialogueArea != null)
+            dialogueArea.text = string.Empty;
+        if (dialogueElements != null)
+            dialogueElements.SetActive(false);
+
         currentLine = null;
 
         string mapToRestore = string.IsNullOrEmpty(previousInputMap) ? "Player" : previousInputMap;
-        InputManager.PlayerInput.SwitchCurrentActionMap(mapToRestore);
+        if (InputManager.PlayerInput != null)
+            InputManager.PlayerInput.SwitchCurrentActionMap(mapToRestore);
     }
 
     private IEnumerator TypeSentence(DialogueLine diLine)
@@ -114,7 +177,15 @@ public class DialogueManager : MonoBehaviour
             dialogueArea.text += let;
             yield return new WaitForSeconds(textSpeed);
         }
-        dialogueAudioSource.Stop();
+
+        // Не обрываем голос после печати текста: дождаться завершения клипа.
+        if (dialogueAudioSource != null && dialogueAudioSource.isPlaying)
+        {
+            while (dialogueAudioSource.isPlaying && currentLine == diLine)
+                yield return null;
+        }
+        if (dialogueAudioSource != null && currentLine == diLine)
+            dialogueAudioSource.Stop();
     }
 
     public void SwitchLine()
@@ -124,12 +195,17 @@ public class DialogueManager : MonoBehaviour
         if (dialogueArea.text == currentLine.text)
         {
             if (currentLine.emotion != "Idle" && currentLine.person != null)
-                currentLine.person.GetComponent<Animator>().SetBool(currentLine.emotion, false);
+            {
+                Animator animator = currentLine.person.GetComponent<Animator>();
+                if (animator != null)
+                    animator.SetBool(currentLine.emotion, false);
+            }
             DisplayNextDialogueLine();
         }
         else
         {
-            dialogueAudioSource.Stop();
+            if (dialogueAudioSource != null)
+                dialogueAudioSource.Stop();
             StopAllCoroutines();
             dialogueArea.text = currentLine.text;
         }

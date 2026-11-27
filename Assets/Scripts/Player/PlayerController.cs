@@ -17,6 +17,7 @@ public class PlayerController : MonoBehaviour
     public Vector2 FacingDirection => lookDirection == Vector2.zero ? Vector2.up : lookDirection.normalized;
     private Rigidbody2D rb;
     private BoxCollider2D movementCollider;
+    private BoxCollider2D pickupCollider;
     private float speedPotionMultiplier = 1f;
     private Coroutine speedPotionRoutine;
     private PlayerRunData runData;
@@ -168,6 +169,20 @@ public class PlayerController : MonoBehaviour
             movementHitboxWidth / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
             movementHitboxHeight / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)));
         movementCollider.isTrigger = false;
+
+        // A separate trigger covers the entire visible frog sprite for floor loot.
+        GameObject pickupHitboxObject = new GameObject("Pickup Hitbox • Full Sprite");
+        pickupHitboxObject.layer = gameObject.layer;
+        pickupHitboxObject.transform.SetParent(transform, false);
+        pickupHitboxObject.transform.localPosition =
+            transform.InverseTransformPoint(spriteBounds.center);
+        pickupHitboxObject.transform.localRotation = Quaternion.identity;
+
+        pickupCollider = pickupHitboxObject.AddComponent<BoxCollider2D>();
+        pickupCollider.size = new Vector2(
+            spriteBounds.size.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
+            spriteBounds.size.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)));
+        pickupCollider.isTrigger = true;
     }
 
     private void Shoot()

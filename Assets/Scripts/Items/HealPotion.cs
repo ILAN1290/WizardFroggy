@@ -8,6 +8,10 @@ public class HealingPotion : Potion
 
     protected override bool ApplyEffect(GameObject user, PlayerEffects effects)
     {
+        TowerDefenceManager towerDefence = TowerDefenceManager.Instance;
+        if (towerDefence != null && towerDefence.IsGameSessionRunning)
+            return towerDefence.TryHealGrandpa();
+
         PlayerHealth hp = user.GetComponent<PlayerHealth>();
         if (hp == null) return false;
         if (hp.CurrentHealth >= hp.MaxHealth)
