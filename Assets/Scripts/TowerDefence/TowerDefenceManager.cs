@@ -1382,13 +1382,25 @@ public class TowerDefenceManager : MonoBehaviour
             Screen.height - screen.y - height * 0.5f, width, height);
 
         DrawSprite(bar, grandpaHpBackgroundSprite);
-        Rect inner = new Rect(bar.x + 8f, bar.y + 5f, bar.width - 16f, bar.height - 10f);
-        GUI.color = new Color(0.15f, 0.1f, 0.1f, 0.9f);
-        GUI.DrawTexture(inner, Texture2D.whiteTexture);
+
+        // На текстуре по центру нарисована мордочка лягушки. Заливаем
+        // две части полоски по бокам, не закрывая саму картинку.
+        float progress = Mathf.Clamp01(grandpaHealth / Mathf.Max(1f, grandpaMaximumHealth));
+        float segmentWidth = (bar.width - 46f) * 0.5f;
+        Rect leftSegment = new Rect(bar.x + 10f, bar.y + 6f, segmentWidth, 5f);
+        Rect rightSegment = new Rect(bar.x + 36f + segmentWidth, bar.y + 6f, segmentWidth, 5f);
+
+        GUI.color = new Color(0.16f, 0.12f, 0.12f, 0.9f);
+        GUI.DrawTexture(leftSegment, Texture2D.whiteTexture);
+        GUI.DrawTexture(rightSegment, Texture2D.whiteTexture);
+
+        float totalFill = progress * segmentWidth * 2f;
         GUI.color = new Color(0.35f, 0.88f, 0.34f, 1f);
-        GUI.DrawTexture(new Rect(inner.x, inner.y,
-            inner.width * Mathf.Clamp01(grandpaHealth / Mathf.Max(1f, grandpaMaximumHealth)),
-            inner.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(leftSegment.x, leftSegment.y,
+            Mathf.Min(segmentWidth, totalFill), leftSegment.height), Texture2D.whiteTexture);
+        float rightFill = Mathf.Clamp(totalFill - segmentWidth, 0f, segmentWidth);
+        GUI.DrawTexture(new Rect(rightSegment.x, rightSegment.y,
+            rightFill, rightSegment.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         GUIStyle hpStyle = new GUIStyle(GUI.skin.label)
@@ -1398,7 +1410,8 @@ public class TowerDefenceManager : MonoBehaviour
             alignment = TextAnchor.MiddleCenter
         };
         hpStyle.normal.textColor = Color.white;
-        GUI.Label(bar, Mathf.CeilToInt(grandpaHealth) + " / " +
+        GUI.Label(new Rect(bar.x, bar.yMax + 1f, bar.width, 13f),
+            "HP " + Mathf.CeilToInt(grandpaHealth) + " / " +
             Mathf.CeilToInt(grandpaMaximumHealth), hpStyle);
     }
 
