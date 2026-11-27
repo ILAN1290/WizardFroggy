@@ -18330,8 +18330,8 @@ MonoBehaviour:
   grandpaPosition: {x: -7.5, y: -3.5, z: 0}
   frogStartX: 10.5
   frogWalkSpeed: 3.8
-  centralDoorPosition: {x: 0, y: 3, z: 0}
-  centralDoorColliderSize: {x: 0, y: 2.5}
+  centralDoorPosition: {x: 0, y: 3.15, z: 0.15}
+  centralDoorColliderSize: {x: 3, y: 2}
   doorTileSize: 1
   doorVerticalOffset: 0
   doorInteractDistance: 1.5
@@ -18442,9 +18442,9 @@ MonoBehaviour:
   redGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
   blackGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
   bossGhostSprite: {fileID: 7440858579251244822, guid: 142d926200f42a741b4f4dc79ea301c7, type: 3}
-  waveStartSound: {fileID: 8300000, guid: 26fbf6bb6963666478f6992bc53b9145, type: 3}
-  waveEndSound: {fileID: 8300000, guid: ebe18f40001cb6f4887ead72973ac2eb, type: 3}
-  ghostHitSound: {fileID: 8300000, guid: 8862ed4ba70f95443be28055f32897a0, type: 3}
+  waveStartSound: {fileID: 8300000, guid: ebe18f40001cb6f4887ead72973ac2eb, type: 3}
+  waveEndSound: {fileID: 8300000, guid: 8862ed4ba70f95443be28055f32897a0, type: 3}
+  ghostHitSound: {fileID: 0}
   towerShotSound: {fileID: 8300000, guid: bb2e2714f962491428dcb0b38598b251, type: 3}
   cannonImpactSound: {fileID: 8300000, guid: 1fd31868d68903d4f9e2c4a3b7ef98f3, type: 3}
   purchaseSound: {fileID: 8300000, guid: 7c679dfa3c09620468013aaa5742f880, type: 3}
@@ -18460,7 +18460,7 @@ MonoBehaviour:
   cannonTowerSprite: {fileID: 0}
   projectileSprite: {fileID: 0}
   grandpaSprite: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
-  roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
+  roadTileSprite: {fileID: 2028581531, guid: 88b90e64fa4e36e4ca267d4bcbaf6923, type: 3}
   mushroomSprite: {fileID: -8804783980236045272, guid: b0f578d14ecafc14386ac662666ccd19, type: 3}
   instructionBookSprite: {fileID: 21300000, guid: 07df931a772281a44b6c26e8951b89a7, type: 3}
   instructionButtonSprite: {fileID: -8510727349376626655, guid: 1824e559e4ec0e54d8934695c69ad123, type: 3}
@@ -18473,6 +18473,7 @@ MonoBehaviour:
   grandpaHpBackgroundSprite: {fileID: 21300000, guid: bd3c2af87e1c3fa4ba6614a099b8c9f9, type: 3}
   sellTowerIconSprite: {fileID: 0}
   upgradeTowerIconSprite: {fileID: 0}
+  skipWaveIconSprite: {fileID: 0}
   mushroomToGhostHeight: 0.5
   startingMushrooms: 5
   waveRewardItems:
