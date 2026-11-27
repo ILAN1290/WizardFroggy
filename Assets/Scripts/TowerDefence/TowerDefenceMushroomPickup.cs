@@ -8,6 +8,7 @@ public class TowerDefenceMushroomPickup : MonoBehaviour
     private float lifetime;
     private float age;
     private int mushroomAmount = 1;
+    private bool collected;
     private Vector3 basePosition;
 
     public void Initialize(TowerDefenceManager owner, float lifeSeconds, int amount = 1)
@@ -30,13 +31,14 @@ public class TowerDefenceMushroomPickup : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (manager == null || other == null)
+        if (collected || manager == null || other == null)
             return;
 
         if (!other.CompareTag("Player") &&
             other.GetComponentInParent<PlayerController>() == null)
             return;
 
+        collected = true;
         manager.CollectMushroom(mushroomAmount);
         Destroy(gameObject);
     }

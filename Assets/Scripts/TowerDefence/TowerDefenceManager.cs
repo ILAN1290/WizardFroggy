@@ -27,6 +27,17 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField] private Sprite blueGhostSprite;
     [SerializeField] private Sprite redGhostSprite;
     [SerializeField] private Sprite blackGhostSprite;
+    [SerializeField] private Sprite bossGhostSprite;
+
+    [Header("Звуки Tower Defence")]
+    [SerializeField] private AudioClip waveStartSound;
+    [SerializeField] private AudioClip waveEndSound;
+    [SerializeField] private AudioClip ghostHitSound;
+    [SerializeField] private AudioClip towerShotSound;
+    [SerializeField] private AudioClip cannonImpactSound;
+    [SerializeField] private AudioClip purchaseSound;
+    [SerializeField] private AudioClip sellSound;
+    [SerializeField] private AudioClip upgradeSound;
 
     [Header("Спрайты башен")]
     [SerializeField] private Sprite machineGunTowerSprite;
@@ -69,9 +80,12 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField, Min(1f)] private float redGhostHealth = 120f;
     [SerializeField, Min(0.1f)] private float redGhostSpeedMultiplier = 1f;
     [SerializeField, Min(0.1f)] private float redGhostSize = 1.05f;
-    [SerializeField, Min(1f)] private float blackGhostHealth = 800f;
-    [SerializeField, Min(0.1f)] private float blackGhostSpeedMultiplier = 0.5f;
-    [SerializeField, Min(0.1f)] private float blackGhostSize = 1.35f;
+    [SerializeField, Min(1f)] private float blackGhostHealth = 180f;
+    [SerializeField, Min(0.1f)] private float blackGhostSpeedMultiplier = 0.8f;
+    [SerializeField, Min(0.1f)] private float blackGhostSize = 1.15f;
+    [SerializeField, Min(1f)] private float bossGhostHealth = 10000f;
+    [SerializeField, Min(0.05f)] private float bossGhostSpeed = 0.33f;
+    [SerializeField, Min(0.1f)] private float bossGhostSize = 2.2f;
 
     [Header("Параметры башен")]
     [SerializeField] private TowerDefenceTowerStats machineGunStats = new TowerDefenceTowerStats
@@ -99,12 +113,17 @@ public class TowerDefenceManager : MonoBehaviour
     [SerializeField, Min(0f)] private float betweenWaveDelay = 15f;
     [SerializeField] private string[] grandpaPhrases =
     {
-        "Ну что, внучок, держим оборону! Я ещё не старый!",
-        "Вот раньше привидения были воспитаннее...",
-        "Только картошку поставил, а тут опять гости!",
-        "Не пускайте их ко мне, у меня спина!",
-        "Шапку наденьте! Сквозняк же!",
-        "Я вообще-то рассчитывал на спокойную пенсию."
+        "НЕ ШУМИТЕ, ПРОКАЗНИКИ!",
+        "Шапки! ШАПКИ надевайте!",
+        "Расшумелись...",
+        "Оххх, спинааа...",
+        "Ла-ла-ла-лаААААА",
+        "Ой, куда ж делся... Куда же он...",
+        "Ой, ой-ой-ой!",
+        "Непорядок...",
+        "Иже иси на небеси...",
+        "Ох помру я так",
+        "Ломайте, ломайте! Анархия - мать порядка!"
     };
 
     private readonly List<TowerDefenceGhost> activeGhosts =
@@ -154,6 +173,7 @@ public class TowerDefenceManager : MonoBehaviour
     private Texture2D runtimeSellIconTexture;
     private Texture2D runtimeUpgradeIconTexture;
     private bool wavesFinished;
+    private AudioSource soundSource;
 
     public event System.Action AllWavesDefeated;
 
@@ -180,6 +200,13 @@ public class TowerDefenceManager : MonoBehaviour
         grandpaHealth = grandpaMaximumHealth;
         mushrooms = startingMushrooms;
         waveSpawner = GetComponent<TowerDefenceWaveSpawner>();
+        soundSource = GetComponent<AudioSource>();
+        if (soundSource == null)
+            soundSource = gameObject.AddComponent<AudioSource>();
+        soundSource.playOnAwake = false;
+        soundSource.loop = false;
+        soundSource.spatialBlend = 0f;
+
         if (sellTowerIconSprite == null)
             runtimeSellIcon = CreatePixelActionIcon(true, out runtimeSellIconTexture);
         else
@@ -315,7 +342,8 @@ public class TowerDefenceManager : MonoBehaviour
 
         for (int wave = 1; wave <= totalWaves; wave++)
         {
-            int expectedGhosts = waveSpawner.GetEnemyCountForWave(wave);
+            int expectedGhosts = waveSpawner.GetEnemyCountForWave(wave) +
+                (wave == 15 ? 1 : 0);
             if (expectedGhosts <= 0)
             {
                 ReportWaveSetupFailure(
@@ -339,6 +367,7 @@ public class TowerDefenceManager : MonoBehaviour
             currentWave = wave;
             ShowGrandpaPhrase();
             countdownActive = false;
+            PlaySound(waveStartSound, 0.55f);
 
             int spawnedBeforeWave = totalSpawnedGhosts;
             yield return StartCoroutine(waveSpawner.SpawnWave(wave, this));
@@ -348,6 +377,9 @@ public class TowerDefenceManager : MonoBehaviour
                 waveLoopRunning = false;
                 yield break;
             }
+
+            if (wave == 15)
+                SpawnGhost(TowerDefenceGhostType.Boss);
 
             int actuallySpawned = totalSpawnedGhosts - spawnedBeforeWave;
             if (actuallySpawned != expectedGhosts)
@@ -362,6 +394,9 @@ public class TowerDefenceManager : MonoBehaviour
 
             while (activeGhosts.Count > 0 && !gameOver)
                 yield return null;
+
+            if (!gameOver)
+                PlaySound(waveEndSound, 0.5f);
 
             if (gameOver)
             {
@@ -483,6 +518,13 @@ public class TowerDefenceManager : MonoBehaviour
                 size = blackGhostSize;
                 sprite = blackGhostSprite != null ? blackGhostSprite : whiteGhostSprite;
                 break;
+            case TowerDefenceGhostType.Boss:
+                health = bossGhostHealth;
+                speed = bossGhostSpeed;
+                size = bossGhostSize;
+                sprite = bossGhostSprite != null ? bossGhostSprite :
+                    (blackGhostSprite != null ? blackGhostSprite : whiteGhostSprite);
+                break;
             default:
                 health = whiteGhostHealth;
                 speed = whiteGhostSpeed;
@@ -505,10 +547,10 @@ public class TowerDefenceManager : MonoBehaviour
     {
         activeGhosts.Remove(ghost);
         int mushroomReward = ghost != null &&
-            ghost.Type == TowerDefenceGhostType.Black ? 3 : 1;
+            ghost.Type == TowerDefenceGhostType.Boss ? 3 : 1;
         CreateMushroomDrop(position, mushroomReward);
         ShowStatus(mushroomReward > 1
-            ? "Босс повержен! Выпало 3 грибочка!"
+            ? "Золотой босс повержен! Выпало 3 грибочка!"
             : "Выпал грибочек — подбери его!");
     }
 
@@ -713,6 +755,16 @@ public class TowerDefenceManager : MonoBehaviour
         float damage,
         float splashRadius)
     {
+        if (splashRadius > 0f)
+        {
+            float effectRadius = Mathf.Clamp(splashRadius * 0.65f, 0.28f, 0.55f);
+            ExplosionEffect.Spawn(
+                impactPosition,
+                effectRadius,
+                new Color(1f, 0.65f, 0.25f, 0.95f));
+            PlaySound(cannonImpactSound, 0.55f);
+        }
+
         if (splashRadius <= 0f)
         {
             if (directTarget != null)
@@ -799,6 +851,24 @@ public class TowerDefenceManager : MonoBehaviour
         ShowStatus("Дедушка восстановил " +
             Mathf.CeilToInt(grandpaPotionHealAmount) + " HP");
         return true;
+    }
+
+    private void PlaySound(AudioClip clip, float volume)
+    {
+        if (clip == null || soundSource == null)
+            return;
+        soundSource.PlayOneShot(clip, Mathf.Clamp01(volume));
+    }
+
+    public void PlayGhostHitSound()
+    {
+        PlaySound(ghostHitSound, 0.3f);
+    }
+
+    public void PlayTowerShot(TowerDefenceTowerType type)
+    {
+        PlaySound(towerShotSound,
+            type == TowerDefenceTowerType.Cannon ? 0.42f : 0.22f);
     }
 
     private void ShowGrandpaPhrase()
@@ -976,6 +1046,7 @@ public class TowerDefenceManager : MonoBehaviour
         occupiedCells.Add(pendingBuildCell);
         CreateTowerAtCell(pendingBuildCell, type, false);
         buildMenuOpen = false;
+        PlaySound(purchaseSound, 0.55f);
         ShowStatus("Башня построена");
         return true;
     }
@@ -995,6 +1066,7 @@ public class TowerDefenceManager : MonoBehaviour
         mushrooms -= cost;
         selectedTower.ApplyUpgrade(cost);
         ShowRangePreview(selectedTower);
+        PlaySound(upgradeSound, 0.6f);
         ShowStatus("Башня улучшена до " + selectedTower.Level + " уровня");
     }
 
@@ -1006,6 +1078,7 @@ public class TowerDefenceManager : MonoBehaviour
         TowerDefenceTower tower = selectedTower;
         int refund = tower.GetSellRefund();
         mushrooms += refund;
+        PlaySound(sellSound, 0.55f);
 
         Vector3Int cell = new Vector3Int(
             Mathf.FloorToInt(tower.transform.position.x),
@@ -1190,8 +1263,11 @@ public class TowerDefenceManager : MonoBehaviour
 
         Rect moneyPanel = new Rect(Screen.width - 285f, 18f, 265f, 64f);
         GUI.Box(moneyPanel, GUIContent.none);
-        GUI.Label(new Rect(moneyPanel.x + 16f, moneyPanel.y + 10f, 235f, 44f),
-            "Грибочки: " + mushrooms, heading);
+        DrawSprite(
+            new Rect(moneyPanel.x + 12f, moneyPanel.y + 7f, 50f, 50f),
+            mushroomSprite);
+        GUI.Label(new Rect(moneyPanel.x + 72f, moneyPanel.y + 10f, 175f, 44f),
+            mushrooms.ToString(), heading);
 
         int totalWaves = waveSpawner != null ? waveSpawner.TotalWaves : 15;
         Rect wavePanel = new Rect(Screen.width * 0.5f - 135f, 18f, 270f, 58f);

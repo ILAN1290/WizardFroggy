@@ -47,7 +47,8 @@ public class SaveGameSystem : MonoBehaviour
         None,
         Load,
         SaveAfterRoguelike,
-        SaveAfterTowerDefence
+        SaveAfterTowerDefence,
+        SaveAfterBoss
     }
 
     private const string ActiveSlotKey = "WizardFroggy.ActiveSaveSlot";
@@ -91,6 +92,7 @@ public class SaveGameSystem : MonoBehaviour
     private string nextScene = "";
     private float previousTimeScale = 1f;
     private bool transitionPaused;
+    private bool stageCompletionShowing;
     private List<InventoryEntry> pendingInventoryRestore;
     private Sprite buttonSprite;
     private Sprite deleteSprite;
@@ -164,7 +166,8 @@ public class SaveGameSystem : MonoBehaviour
         if (overlayCanvas == null ||
             (screenMode != ScreenMode.Load &&
              screenMode != ScreenMode.SaveAfterRoguelike &&
-             screenMode != ScreenMode.SaveAfterTowerDefence))
+             screenMode != ScreenMode.SaveAfterTowerDefence &&
+             screenMode != ScreenMode.SaveAfterBoss) || stageCompletionShowing)
             return;
 
         Keyboard keyboard = Keyboard.current;
@@ -377,7 +380,12 @@ public class SaveGameSystem : MonoBehaviour
             StartCoroutine(PrepareMainMenu());
 
         if (scene.name == "End")
-            StartCoroutine(AutoSaveBossCompletion());
+        {
+            Completion endCompletion = FindObjectOfType<Completion>();
+            if (endCompletion != null)
+                endCompletion.enabled = false;
+            StartCoroutine(CompleteFinalStageTransition());
+        }
     }
 
     private IEnumerator PrepareMainMenu()
@@ -538,29 +546,122 @@ public class SaveGameSystem : MonoBehaviour
 
     public void ShowRoguelikeTransition()
     {
-        PlayMenuOpenSound();
-        nextScene = "TowerDefence";
-        previousTimeScale = Time.timeScale;
-        transitionPaused = true;
-        Time.timeScale = 0f;
-        screenMode = ScreenMode.SaveAfterRoguelike;
-        BuildScreen("Рогалик пройден!", "Сохраните прохождение в один из трёх слотов или продолжите без сохранения.");
+        BeginStageCompletionTransition(
+            "TowerDefence",
+            ScreenMode.SaveAfterRoguelike,
+            "Рогалик пройден!",
+            "Сохраните прохождение в один из трёх слотов или продолжите без сохранения.");
     }
 
     public void ShowTowerDefenceTransition()
     {
-        if (SceneManager.GetActiveScene().name != "TowerDefence" ||
-            overlayCanvas != null ||
-            screenMode != ScreenMode.None)
+        if (SceneManager.GetActiveScene().name != "TowerDefence")
             return;
 
-        PlayMenuOpenSound();
-        nextScene = "Boss";
+        BeginStageCompletionTransition(
+            "Boss",
+            ScreenMode.SaveAfterTowerDefence,
+            "Tower Defence пройден!",
+            "Сохраните прохождение в один из трёх слотов или переходите к финальному боссу.");
+    }
+
+    private void BeginStageCompletionTransition(
+        string nextStage,
+        ScreenMode mode,
+        string saveHeading,
+        string saveDescription)
+    {
+        if (overlayCanvas != null || screenMode != ScreenMode.None)
+            return;
+
+        nextScene = nextStage;
         previousTimeScale = Time.timeScale;
         transitionPaused = true;
         Time.timeScale = 0f;
-        screenMode = ScreenMode.SaveAfterTowerDefence;
-        BuildScreen("Tower Defence пройден!", "Сохраните прохождение в один из трёх слотов или переходите к финальному боссу.");
+        screenMode = mode;
+        stageCompletionShowing = true;
+        StartCoroutine(ShowStageCompletedOverlay(saveHeading, saveDescription));
+    }
+
+    private IEnumerator CompleteFinalStageTransition()
+    {
+        yield return StartCoroutine(AutoSaveBossCompletion());
+        BeginStageCompletionTransition(
+            "Intro",
+            ScreenMode.SaveAfterBoss,
+            "Финальный босс побеждён!",
+            "Сохраните завершённое прохождение или вернитесь в главное меню.");
+    }
+
+    private IEnumerator ShowStageCompletedOverlay(
+        string saveHeading,
+        string saveDescription)
+    {
+        CloseCanvasOnly();
+
+        GameObject canvasObject = new GameObject(
+            "Stage Completed Overlay",
+            typeof(RectTransform),
+            typeof(Canvas),
+            typeof(CanvasScaler),
+            typeof(GraphicRaycaster),
+            typeof(CanvasGroup));
+        canvasObject.transform.SetParent(transform, false);
+
+        overlayCanvas = canvasObject.GetComponent<Canvas>();
+        overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        overlayCanvas.sortingOrder = 32000;
+
+        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        CanvasGroup group = canvasObject.GetComponent<CanvasGroup>();
+        group.alpha = 0f;
+        group.blocksRaycasts = true;
+        group.interactable = false;
+
+        RectTransform backdrop = CreateRect(
+            "Stage Completed Blackout",
+            canvasObject.transform,
+            new Vector2(1920f, 1080f),
+            Vector2.zero);
+        StretchToParent(backdrop);
+
+        Image black = backdrop.gameObject.AddComponent<Image>();
+        black.color = new Color(0f, 0f, 0f, 0.96f);
+        black.raycastTarget = true;
+
+        TextMeshProUGUI heading = CreateText(
+            "Stage Completed Heading",
+            canvasObject.transform,
+            "Этап пройден!",
+            new Vector2(1500f, 180f),
+            Vector2.zero,
+            76,
+            TextAnchor.MiddleCenter,
+            FontStyle.Bold);
+        heading.color = new Color(1f, 0.91f, 0.68f, 1f);
+        heading.outlineWidth = 0.18f;
+        heading.outlineColor = new Color(0.2f, 0.1f, 0.06f, 1f);
+
+        float fadeDuration = 0.4f;
+        float elapsed = 0f;
+        while (elapsed < fadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            group.alpha = Mathf.Clamp01(elapsed / fadeDuration);
+            yield return null;
+        }
+        group.alpha = 1f;
+
+        yield return new WaitForSecondsRealtime(5f);
+
+        CloseCanvasOnly();
+        stageCompletionShowing = false;
+        PlayMenuOpenSound();
+        BuildScreen(saveHeading, saveDescription);
     }
 
     private void BuildScreen(string heading, string description)
@@ -910,11 +1011,22 @@ public class SaveGameSystem : MonoBehaviour
 
     private void SaveTransitionToSlot(int index)
     {
-        int resumeStage = screenMode == ScreenMode.SaveAfterRoguelike ? 1 : 2;
+        int resumeStage = screenMode == ScreenMode.SaveAfterRoguelike
+            ? 1
+            : screenMode == ScreenMode.SaveAfterTowerDefence ? 2 : 3;
         WriteSlot(index, resumeStage);
         BuildScreen(
-            screenMode == ScreenMode.SaveAfterRoguelike ? "Рогалик пройден!" : "Tower Defence пройден!",
+            GetCompletionHeading(),
             "Сохранение записано в слот " + (index + 1) + ". Можно перезаписать другой слот или продолжить.");
+    }
+
+    private string GetCompletionHeading()
+    {
+        if (screenMode == ScreenMode.SaveAfterRoguelike)
+            return "Рогалик пройден!";
+        if (screenMode == ScreenMode.SaveAfterBoss)
+            return "Финальный босс побеждён!";
+        return "Tower Defence пройден!";
     }
 
     private void WriteSlot(int index, int resumeStage)
@@ -1024,7 +1136,7 @@ public class SaveGameSystem : MonoBehaviour
             BuildScreen("Загрузка игры", "Выберите сохранение. В каждом слоте хранится прогресс, грибы, инвентарь и прокачка.");
         else
             BuildScreen(
-                screenMode == ScreenMode.SaveAfterRoguelike ? "Рогалик пройден!" : "Tower Defence пройден!",
+                GetCompletionHeading(),
                 "Слот " + (index + 1) + " удалён. Выберите слот для сохранения или продолжите без сохранения.");
     }
 

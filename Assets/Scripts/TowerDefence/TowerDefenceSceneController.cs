@@ -59,6 +59,22 @@ public class TowerDefenceSceneController : MonoBehaviour
         sceneCamera = Camera.main;
     }
 
+    private void SetFrogSortingOrder()
+    {
+        if (frog == null)
+            return;
+
+        SpriteRenderer[] renderers =
+            frog.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null)
+                continue;
+            renderers[i].sortingLayerName = "Default";
+            renderers[i].sortingOrder = 40;
+        }
+    }
+
     private DialogueManager FindDialogueManagerInScene()
     {
         DialogueManager[] candidates =
@@ -99,6 +115,7 @@ public class TowerDefenceSceneController : MonoBehaviour
             frog = FindSceneTransform("Frog");
         if (sceneCamera == null)
             sceneCamera = Camera.main;
+        SetFrogSortingOrder();
 
         CreateRoad();
         CreateCenterDoor();

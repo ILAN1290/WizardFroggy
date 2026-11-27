@@ -6,6 +6,7 @@ public class RoguelikePickup : MonoBehaviour
     private int count;
     private int currency;
     private AudioClip pickupSound;
+    private bool collected;
 
     private SpriteRenderer[] animatedRenderers;
     private Vector3[] visualBasePositions;
@@ -78,10 +79,14 @@ public class RoguelikePickup : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (collected || other == null ||
+            (!other.CompareTag("Player") &&
+             other.GetComponentInParent<PlayerController>() == null))
+            return;
 
         if (currency > 0)
         {
+            collected = true;
             PlayerRunData.EnsureInstance().AddMushrooms(currency);
             if (RoguelikeSession.Instance != null)
                 RoguelikeSession.Instance.ShowHint("Получено грибочков: " + currency);
@@ -97,6 +102,7 @@ public class RoguelikePickup : MonoBehaviour
 
         if (inventory != null && item != null && inventory.Add(item, count))
         {
+            collected = true;
             if (TowerDefenceManager.Instance != null &&
                 TowerDefenceManager.Instance.IsGameSessionRunning)
                 TowerDefenceManager.Instance.ShowStatusMessage("Получено: " + item.itemName);

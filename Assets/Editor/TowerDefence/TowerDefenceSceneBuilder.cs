@@ -361,6 +361,22 @@ public static class TowerDefenceSceneBuilder
             AssetDatabase.LoadAssetAtPath<Item>("Assets/Prefabs/Item/Bomb.asset")
         };
         TMP_FontAsset tdaFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TdaFontPath);
+        AudioClip waveStart = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/Free Pack/Ghost Manifestation 1.wav");
+        AudioClip waveEnd = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/ArtDesireBoutique/Audio/EXPLOSIONS/FANFARES/Fanfare (1).wav");
+        AudioClip ghostHit = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/ArtDesireBoutique/Audio/EXPLOSIONS/IMPACTS/Impact (1).wav");
+        AudioClip towerShot = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/Free Pack/Autocannon - Shot 1.wav");
+        AudioClip cannonImpact = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/Free Pack/Explosion 1.wav");
+        AudioClip purchase = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/ArtDesireBoutique/Audio/MENU/BUTTONS/button (1).wav");
+        AudioClip sell = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/ArtDesireBoutique/Audio/PLAYER/INTERACTIONS/Interaction (1).wav");
+        AudioClip upgrade = AssetDatabase.LoadAssetAtPath<AudioClip>(
+            "Assets/Sounds/ArtDesireBoutique/Audio/POWERUPS/Powerup (1).wav");
 
         TowerDefenceSceneController controller =
             controllerObject.GetComponent<TowerDefenceSceneController>();
@@ -401,6 +417,7 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "blueGhostSprite", ghost);
             SetObject(serialized, "redGhostSprite", ghost);
             SetObject(serialized, "blackGhostSprite", ghost);
+            SetObject(serialized, "bossGhostSprite", ghost);
             SetObject(serialized, "grandpaSprite", grandpa);
             SetObject(serialized, "roadTileSprite", roadTile);
             SetObject(serialized, "mushroomSprite", mushroom);
@@ -414,6 +431,14 @@ public static class TowerDefenceSceneBuilder
             SetObject(serialized, "sellMinusButtonSprite", minus);
             SetObject(serialized, "buildButtonSprite", buildButton);
             SetObject(serialized, "uiFontAsset", tdaFont);
+            SetObject(serialized, "waveStartSound", waveStart);
+            SetObject(serialized, "waveEndSound", waveEnd);
+            SetObject(serialized, "ghostHitSound", ghostHit);
+            SetObject(serialized, "towerShotSound", towerShot);
+            SetObject(serialized, "cannonImpactSound", cannonImpact);
+            SetObject(serialized, "purchaseSound", purchase);
+            SetObject(serialized, "sellSound", sell);
+            SetObject(serialized, "upgradeSound", upgrade);
             SetObjectArray(serialized, "waveRewardItems", waveRewardItems);
             SerializedProperty rewardChance = serialized.FindProperty("waveRewardDropChance");
             if (rewardChance != null)
@@ -431,6 +456,41 @@ public static class TowerDefenceSceneBuilder
                 ? standardStats.FindPropertyRelative("range") : null;
             if (standardRange != null)
                 standardRange.floatValue = 1.575f;
+            SerializedProperty blackHealth = serialized.FindProperty("blackGhostHealth");
+            if (blackHealth != null) blackHealth.floatValue = 180f;
+            SerializedProperty blackSpeed = serialized.FindProperty("blackGhostSpeedMultiplier");
+            if (blackSpeed != null) blackSpeed.floatValue = 0.8f;
+            SerializedProperty blackSize = serialized.FindProperty("blackGhostSize");
+            if (blackSize != null) blackSize.floatValue = 1.15f;
+            SerializedProperty bossHealth = serialized.FindProperty("bossGhostHealth");
+            if (bossHealth != null) bossHealth.floatValue = 10000f;
+            SerializedProperty bossSpeed = serialized.FindProperty("bossGhostSpeed");
+            if (bossSpeed != null) bossSpeed.floatValue = 0.33f;
+            SerializedProperty bossSize = serialized.FindProperty("bossGhostSize");
+            if (bossSize != null) bossSize.floatValue = 2.2f;
+
+            string[] phrases =
+            {
+                "НЕ ШУМИТЕ, ПРОКАЗНИКИ!",
+                "Шапки! ШАПКИ надевайте!",
+                "Расшумелись...",
+                "Оххх, спинааа...",
+                "Ла-ла-ла-лаААААА",
+                "Ой, куда ж делся... Куда же он...",
+                "Ой, ой-ой-ой!",
+                "Непорядок...",
+                "Иже иси на небеси...",
+                "Ох помру я так",
+                "Ломайте, ломайте! Анархия - мать порядка!"
+            };
+            SerializedProperty phraseArray = serialized.FindProperty("grandpaPhrases");
+            if (phraseArray != null)
+            {
+                phraseArray.arraySize = phrases.Length;
+                for (int i = 0; i < phrases.Length; i++)
+                    phraseArray.GetArrayElementAtIndex(i).stringValue = phrases[i];
+            }
+
             SerializedProperty cannonStats = serialized.FindProperty("cannonStats");
             SerializedProperty cannonInterval = cannonStats != null
                 ? cannonStats.FindPropertyRelative("attackInterval") : null;

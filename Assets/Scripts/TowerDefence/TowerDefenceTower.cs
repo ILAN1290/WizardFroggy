@@ -131,6 +131,7 @@ public class TowerDefenceTower : MonoBehaviour
         Vector2 direction = ((Vector2)target.transform.position -
             (Vector2)transform.position).normalized;
 
+        manager.PlayTowerShot(type);
         manager.SpawnTowerProjectile(
             transform.position,
             direction,

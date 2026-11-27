@@ -5,7 +5,8 @@ public enum TowerDefenceGhostType
     White,
     Blue,
     Red,
-    Black
+    Black,
+    Boss
 }
 
 [DisallowMultipleComponent]
@@ -132,6 +133,8 @@ public class TowerDefenceGhost : MonoBehaviour
         if (finished || amount <= 0f)
             return;
 
+        if (manager != null)
+            manager.PlayGhostHitSound();
         currentHealth = Mathf.Max(0f, currentHealth - amount);
         if (currentHealth <= 0f)
             Die();
@@ -164,55 +167,52 @@ public class TowerDefenceGhost : MonoBehaviour
         if (!IsAlive || Camera.main == null || maximumHealth <= 0f)
             return;
 
+        bool isBoss = Type == TowerDefenceGhostType.Boss;
         float worldTop = ghostVisualRenderer != null
-            ? ghostVisualRenderer.bounds.max.y + 0.12f
-            : transform.position.y + 0.6f;
+            ? ghostVisualRenderer.bounds.max.y + (isBoss ? 0.18f : 0.12f)
+            : transform.position.y + (isBoss ? 1.7f : 0.6f);
         Vector3 screen = Camera.main.WorldToScreenPoint(
             new Vector3(transform.position.x, worldTop, transform.position.z));
-
         if (screen.z < 0f)
             return;
 
-        const float barWidth = 66f;
-        const float barHeight = 7f;
+        float barWidth = isBoss ? 150f : 66f;
+        float barHeight = isBoss ? 11f : 7f;
         float x = screen.x - barWidth * 0.5f;
         float top = Screen.height - screen.y;
 
-        GUI.color = new Color(0.04f, 0.04f, 0.06f, 0.88f);
-        GUI.DrawTexture(
-            new Rect(x - 1f, top - 1f, barWidth + 2f, barHeight + 2f),
+        GUI.color = new Color(0.04f, 0.04f, 0.06f, 0.9f);
+        GUI.DrawTexture(new Rect(x - 2f, top - 2f, barWidth + 4f, barHeight + 4f),
             Texture2D.whiteTexture);
 
         float healthRatio = Mathf.Clamp01(currentHealth / maximumHealth);
-        Color healthColor = healthRatio > 0.55f
-            ? new Color(0.25f, 0.88f, 0.32f, 1f)
-            : healthRatio > 0.25f
-                ? new Color(1f, 0.76f, 0.2f, 1f)
-                : new Color(1f, 0.24f, 0.2f, 1f);
+        Color healthColor = isBoss
+            ? new Color(1f, 0.78f, 0.14f, 1f)
+            : healthRatio > 0.55f
+                ? new Color(0.25f, 0.88f, 0.32f, 1f)
+                : healthRatio > 0.25f
+                    ? new Color(1f, 0.76f, 0.2f, 1f)
+                    : new Color(1f, 0.24f, 0.2f, 1f);
 
         GUI.color = new Color(0.16f, 0.16f, 0.18f, 1f);
-        GUI.DrawTexture(
-            new Rect(x, top, barWidth, barHeight),
-            Texture2D.whiteTexture);
-
+        GUI.DrawTexture(new Rect(x, top, barWidth, barHeight), Texture2D.whiteTexture);
         GUI.color = healthColor;
-        GUI.DrawTexture(
-            new Rect(x, top, barWidth * healthRatio, barHeight),
+        GUI.DrawTexture(new Rect(x, top, barWidth * healthRatio, barHeight),
             Texture2D.whiteTexture);
-
         GUI.color = Color.white;
+
         GUIStyle hpStyle = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize = 12,
+            fontSize = isBoss ? 14 : 12,
             fontStyle = FontStyle.Bold
         };
         hpStyle.normal.textColor = Color.white;
-        GUI.Label(
-            new Rect(x - 12f, top - 19f, barWidth + 24f, 17f),
-            Mathf.CeilToInt(currentHealth) + " / " +
-                Mathf.CeilToInt(maximumHealth),
-            hpStyle);
+        string label = isBoss ? "БОСС " : "";
+        label += Mathf.CeilToInt(currentHealth) + " / " +
+            Mathf.CeilToInt(maximumHealth);
+        GUI.Label(new Rect(x - 12f, top - (isBoss ? 22f : 19f), barWidth + 24f, 19f),
+            label, hpStyle);
     }
 
     private static Color GetTint(TowerDefenceGhostType type)
@@ -225,6 +225,8 @@ public class TowerDefenceGhost : MonoBehaviour
                 return new Color(1f, 0.36f, 0.36f, 1f);
             case TowerDefenceGhostType.Black:
                 return new Color(0.12f, 0.12f, 0.16f, 1f);
+            case TowerDefenceGhostType.Boss:
+                return new Color(1f, 0.82f, 0.12f, 1f);
             default:
                 return Color.white;
         }
