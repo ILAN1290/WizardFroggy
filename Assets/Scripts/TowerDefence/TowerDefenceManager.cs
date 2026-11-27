@@ -54,7 +54,6 @@ public class TowerDefenceManager : MonoBehaviour
 
     [Header("Спрайты сцены и интерфейса")]
     [SerializeField] private Sprite grandpaSprite;
-    [SerializeField] private Sprite roadTileSprite;
     [SerializeField] private Sprite mushroomSprite;
     [SerializeField] private Sprite instructionBookSprite;
     [SerializeField] private Sprite instructionButtonSprite;
