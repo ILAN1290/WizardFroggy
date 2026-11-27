@@ -18300,8 +18300,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   grandpaSpriteAsset: {fileID: -7651555368164296353, guid: 2011b8e0cf50d3e41b2fb782ff5024f3, type: 3}
   roadTileSprite: {fileID: 739924557, guid: 6ec353951444381428bbd40c4795d7d4, type: 3}
-  closedDoorSprite: {fileID: 0}
-  openDoorSprite: {fileID: 0}
+  closedDoorSprite: {fileID: 21300000, guid: e3c9b0f8e0de4d11b5a6e3c987abc012, type: 3}
+  openDoorSprite: {fileID: 21300000, guid: b71a3d8e2c4f4d0e9a1f6b2c5d7e8f91, type: 3}
   keyPickupSprite: {fileID: 8200857774506189066, guid: 4c133480305161549ba333eb2d45f83a, type: 3}
   keyInventoryItem: {fileID: 11400000, guid: 9e01d326f4cd4cfb8f0a6df92c3f28a2, type: 2}
   frogIcon: {fileID: 21300000, guid: 90a81166ee8d0f54496b9d53bd7dde18, type: 3}
